@@ -20,6 +20,7 @@ type DirectionsCmd struct {
 	Mode        string   `help:"Travel mode: walk, drive, bicycle, transit." default:"walk"`
 	Compare     string   `help:"Compare with another mode: walk, drive, bicycle, transit."`
 	Steps       bool     `help:"Include step-by-step instructions."`
+	Units       string   `help:"Units: metric or imperial." default:"metric"`
 	Language    string   `help:"BCP-47 language code (e.g. en, en-US)."`
 	Region      string   `help:"CLDR region code (e.g. US, DE)."`
 }
@@ -47,6 +48,7 @@ func (c *DirectionsCmd) Run(app *App) error {
 		FromPlaceID: c.FromPlaceID,
 		ToPlaceID:   c.ToPlaceID,
 		Mode:        primaryMode,
+		Units:       c.Units,
 		Language:    c.Language,
 		Region:      c.Region,
 	}

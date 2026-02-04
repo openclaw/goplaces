@@ -24,11 +24,21 @@ const (
 	directionsModeTransit = "transit"
 )
 
+const (
+	directionsUnitsMetric   = "metric"
+	directionsUnitsImperial = "imperial"
+)
+
 var directionsModes = map[string]struct{}{
 	directionsModeWalk:    {},
 	directionsModeDrive:   {},
 	directionsModeBicycle: {},
 	directionsModeTransit: {},
+}
+
+var directionsUnits = map[string]struct{}{
+	directionsUnitsMetric:   {},
+	directionsUnitsImperial: {},
 }
 
 // DirectionsRequest describes a directions query between two locations.
@@ -166,6 +176,9 @@ func applyDirectionsDefaults(req DirectionsRequest) DirectionsRequest {
 	if req.Units != "" {
 		req.Units = strings.ToLower(strings.TrimSpace(req.Units))
 	}
+	if req.Units == "" {
+		req.Units = directionsUnitsMetric
+	}
 	return req
 }
 
@@ -179,8 +192,10 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 	if err := validateDirectionsLocation("to", req.ToPlaceID, req.ToLocation, req.To); err != nil {
 		return err
 	}
-	if req.Units != "" && req.Units != "metric" && req.Units != "imperial" {
-		return ValidationError{Field: "units", Message: "must be metric or imperial"}
+	if req.Units != "" {
+		if _, ok := directionsUnits[req.Units]; !ok {
+			return ValidationError{Field: "units", Message: "must be metric or imperial"}
+		}
 	}
 	return nil
 }

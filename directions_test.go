@@ -19,6 +19,9 @@ func TestDirectionsRequestPlaceID(t *testing.T) {
 		if query.Get("mode") != directionsModeWalk {
 			t.Fatalf("unexpected mode: %s", query.Get("mode"))
 		}
+		if query.Get("units") != directionsUnitsMetric {
+			t.Fatalf("unexpected units: %s", query.Get("units"))
+		}
 		if query.Get("key") != "test-key" {
 			t.Fatalf("unexpected key: %s", query.Get("key"))
 		}
@@ -69,6 +72,13 @@ func TestDirectionsModeValidation(t *testing.T) {
 		t.Fatalf("expected empty normalization")
 	}
 	req := DirectionsRequest{From: "A", To: "B", Mode: "plane"}
+	if err := validateDirectionsRequest(applyDirectionsDefaults(req)); err == nil {
+		t.Fatalf("expected validation error")
+	}
+}
+
+func TestDirectionsUnitsValidation(t *testing.T) {
+	req := DirectionsRequest{From: "A", To: "B", Units: "fathoms"}
 	if err := validateDirectionsRequest(applyDirectionsDefaults(req)); err == nil {
 		t.Fatalf("expected validation error")
 	}

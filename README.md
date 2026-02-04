@@ -133,6 +133,12 @@ goplaces directions --from "Pike Place Market" --to "Space Needle"
 goplaces directions --from-place-id <fromId> --to-place-id <toId> --compare drive --steps
 ```
 
+Units (default metric):
+
+```bash
+goplaces directions --from "Pike Place Market" --to "Space Needle" --units imperial
+```
+
 Details (with reviews):
 
 ```bash

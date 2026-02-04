@@ -27,8 +27,15 @@ Walking with driving comparison + steps:
 goplaces directions --from-place-id <fromId> --to-place-id <toId> --compare drive --steps
 ```
 
+Imperial units:
+
+```bash
+goplaces directions --from-place-id <fromId> --to-place-id <toId> --units imperial
+```
+
 ## Notes
 
 - Default mode is walking.
+- Default units are metric (use `--units imperial` for miles/feet).
 - Use `--steps` for turn-by-turn instructions.
 - Use `--compare drive` to add a driving ETA.
