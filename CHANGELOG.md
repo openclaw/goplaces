@@ -2,7 +2,7 @@
 
 ## 0.2.2 - Unreleased
 
-- Add Directions API support (`goplaces directions`) with walking default, optional steps, and drive comparison.
+- Add Directions API support (`goplaces directions`) with walking default, units control (metric default), optional steps, and drive comparison.
 
 ## 0.2.1 - 2026-01-23
 
