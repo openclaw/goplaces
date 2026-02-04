@@ -155,6 +155,52 @@ func renderRoute(color Color, response goplaces.RouteResponse) string {
 	return out.String()
 }
 
+func renderDirections(color Color, response goplaces.DirectionsResponse, includeSteps bool) string {
+	var out bytes.Buffer
+	mode := strings.TrimSpace(response.Mode)
+	header := "Directions"
+	if mode != "" {
+		header = fmt.Sprintf("Directions (%s)", mode)
+	}
+	out.WriteString(color.Bold(header))
+	out.WriteString("\n")
+	writeLine(&out, color, "From", response.StartAddress)
+	writeLine(&out, color, "To", response.EndAddress)
+	writeLine(&out, color, "Summary", response.Summary)
+	writeLine(&out, color, "Distance", response.DistanceText)
+	writeLine(&out, color, "Duration", response.DurationText)
+	if len(response.Warnings) > 0 {
+		out.WriteString(color.Dim("Warnings:"))
+		out.WriteString("\n")
+		for _, warning := range response.Warnings {
+			if strings.TrimSpace(warning) == "" {
+				continue
+			}
+			out.WriteString("  - ")
+			out.WriteString(warning)
+			out.WriteString("\n")
+		}
+	}
+	if includeSteps {
+		out.WriteString(color.Dim("Steps:"))
+		out.WriteString("\n")
+		if len(response.Steps) == 0 {
+			out.WriteString("  - ")
+			out.WriteString(emptyResultsMessage)
+			out.WriteString("\n")
+		} else {
+			for i, step := range response.Steps {
+				line := directionsStepLine(step)
+				if line == "" {
+					continue
+				}
+				out.WriteString(fmt.Sprintf("  %d. %s\n", i+1, line))
+			}
+		}
+	}
+	return out.String()
+}
+
 func formatTitle(color Color, name string, address string) string {
 	display := strings.TrimSpace(name)
 	if display == "" {
@@ -402,6 +448,21 @@ func truncateText(value string, maxLen int) string {
 	}
 	// Byte-based truncation is OK here because we only display previews.
 	return strings.TrimSpace(value[:maxLen]) + "..."
+}
+
+func directionsStepLine(step goplaces.DirectionsStep) string {
+	instruction := strings.TrimSpace(step.Instruction)
+	if instruction == "" {
+		instruction = "(no instruction)"
+	}
+	parts := []string{instruction}
+	if strings.TrimSpace(step.DistanceText) != "" {
+		parts = append(parts, step.DistanceText)
+	}
+	if strings.TrimSpace(step.DurationText) != "" {
+		parts = append(parts, step.DurationText)
+	}
+	return strings.Join(parts, " · ")
 }
 
 func uniqueStrings(values []string) []string {

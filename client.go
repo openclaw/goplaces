@@ -19,19 +19,21 @@ const DefaultBaseURL = "https://places.googleapis.com/v1"
 
 // Client wraps access to the Google Places API.
 type Client struct {
-	apiKey        string
-	baseURL       string
-	routesBaseURL string
-	httpClient    *http.Client
+	apiKey            string
+	baseURL           string
+	routesBaseURL     string
+	directionsBaseURL string
+	httpClient        *http.Client
 }
 
 // Options configures the Places client.
 type Options struct {
-	APIKey        string
-	BaseURL       string
-	RoutesBaseURL string
-	HTTPClient    *http.Client
-	Timeout       time.Duration
+	APIKey            string
+	BaseURL           string
+	RoutesBaseURL     string
+	DirectionsBaseURL string
+	HTTPClient        *http.Client
+	Timeout           time.Duration
 }
 
 // NewClient builds a client with sane defaults.
@@ -44,6 +46,10 @@ func NewClient(opts Options) *Client {
 	if routesBaseURL == "" {
 		routesBaseURL = defaultRoutesBaseURL
 	}
+	directionsBaseURL := strings.TrimRight(opts.DirectionsBaseURL, "/")
+	if directionsBaseURL == "" {
+		directionsBaseURL = defaultDirectionsBaseURL
+	}
 
 	client := opts.HTTPClient
 	if client == nil {
@@ -55,10 +61,11 @@ func NewClient(opts Options) *Client {
 	}
 
 	return &Client{
-		apiKey:        opts.APIKey,
-		baseURL:       baseURL,
-		routesBaseURL: routesBaseURL,
-		httpClient:    client,
+		apiKey:            opts.APIKey,
+		baseURL:           baseURL,
+		routesBaseURL:     routesBaseURL,
+		directionsBaseURL: directionsBaseURL,
+		httpClient:        client,
 	}
 }
 
