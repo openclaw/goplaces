@@ -2,7 +2,7 @@
 
 ## 0.2.2 - Unreleased
 
-- (TBD)
+- Add Directions API support (`goplaces directions`) with walking default, optional steps, and drive comparison.
 
 ## 0.2.1 - 2026-01-23
 

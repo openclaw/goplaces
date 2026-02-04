@@ -9,6 +9,7 @@ Modern Go client + CLI for the Google Places API (New). Fast for humans, tidy fo
 - Nearby search around a location restriction.
 - Place photos in details + photo media URLs.
 - Route search along a driving path (Routes API).
+- Directions between two points with distance, duration, and steps (Directions API).
 - Location bias (lat/lng/radius) and pagination tokens.
 - Place details: hours, phone, website, rating, price, types.
 - Optional reviews in details (`--reviews` / `IncludeReviews`).
@@ -35,6 +36,7 @@ Optional overrides:
 
 - `GOOGLE_PLACES_BASE_URL` (testing, proxying, or mock servers)
 - `GOOGLE_ROUTES_BASE_URL` (testing Routes API or proxying)
+- `GOOGLE_DIRECTIONS_BASE_URL` (testing Directions API or proxying)
 
 ### Getting a Google Places API Key
 
@@ -52,18 +54,22 @@ Optional overrides:
    - Search for "Routes API"
    - Click "Enable"
 
-4. **Create an API Key**
+4. **Enable the Directions API (for `directions`)**
+   - Search for "Directions API"
+   - Click "Enable"
+
+5. **Create an API Key**
    - Go to [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
    - Click "Create Credentials" → "API Key"
    - Copy the key
 
-5. **Set the Environment Variable**
+6. **Set the Environment Variable**
    ```bash
    export GOOGLE_PLACES_API_KEY="your-api-key-here"
    ```
    Add to your `~/.zshrc` or `~/.bashrc` to persist.
 
-6. **(Recommended) Restrict the Key**
+7. **(Recommended) Restrict the Key**
    - Click on the key in Credentials
    - Under "API restrictions", select "Restrict key" → "Places API (New)"
    - Set quota limits in [Quotas](https://console.cloud.google.com/apis/api/places.googleapis.com/quotas)
@@ -75,7 +81,7 @@ Optional overrides:
 Long flags accept `--flag value` or `--flag=value` (examples use space).
 
 ```text
-goplaces [--api-key=KEY] [--base-url=URL] [--routes-base-url=URL] [--timeout=10s] [--json] [--no-color] [--verbose]
+goplaces [--api-key=KEY] [--base-url=URL] [--routes-base-url=URL] [--directions-base-url=URL] [--timeout=10s] [--json] [--no-color] [--verbose]
          <command>
 
 Commands:
@@ -83,6 +89,7 @@ Commands:
   nearby        Search nearby places by location.
   search   Search places by text query.
   route    Search places along a route.
+  directions  Get directions between two points.
   details  Fetch place details by place ID.
   photo    Fetch a photo URL by photo name.
   resolve  Resolve a location string to candidate places.
@@ -117,6 +124,13 @@ Route search:
 
 ```bash
 goplaces route "coffee" --from "Seattle, WA" --to "Portland, OR" --max-waypoints 5
+```
+
+Directions (walking with optional driving comparison):
+
+```bash
+goplaces directions --from "Pike Place Market" --to "Space Needle"
+goplaces directions --from-place-id <fromId> --to-place-id <toId> --compare drive --steps
 ```
 
 Details (with reviews):
