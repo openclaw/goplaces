@@ -44,6 +44,7 @@ func TestSearchSuccess(t *testing.T) {
       "formattedAddress": "123 Street",
       "location": {"latitude": 1.23, "longitude": 4.56},
       "rating": 4.7,
+      "userRatingCount": 532,
       "priceLevel": "PRICE_LEVEL_MODERATE",
       "types": ["cafe"],
       "currentOpeningHours": {"openNow": true}
@@ -94,6 +95,9 @@ func TestSearchSuccess(t *testing.T) {
 	}
 	if result.PriceLevel == nil || *result.PriceLevel != 2 {
 		t.Fatalf("unexpected price level: %#v", result.PriceLevel)
+	}
+	if result.UserRatingCount == nil || *result.UserRatingCount != 532 {
+		t.Fatalf("unexpected user rating count: %#v", result.UserRatingCount)
 	}
 	if result.OpenNow == nil || *result.OpenNow != true {
 		t.Fatalf("unexpected openNow: %#v", result.OpenNow)
@@ -287,6 +291,7 @@ func TestNearbySearchSuccess(t *testing.T) {
       "formattedAddress": "123 Street",
       "location": {"latitude": 1.23, "longitude": 4.56},
       "rating": 4.7,
+      "userRatingCount": 42,
       "priceLevel": "PRICE_LEVEL_MODERATE",
       "types": ["cafe"],
       "currentOpeningHours": {"openNow": true}
@@ -311,6 +316,9 @@ func TestNearbySearchSuccess(t *testing.T) {
 	}
 	if len(response.Results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(response.Results))
+	}
+	if response.Results[0].UserRatingCount == nil || *response.Results[0].UserRatingCount != 42 {
+		t.Fatalf("unexpected user rating count: %#v", response.Results[0].UserRatingCount)
 	}
 	if response.NextPageToken != "next" {
 		t.Fatalf("unexpected token: %s", response.NextPageToken)
@@ -383,6 +391,7 @@ func TestDetailsSuccess(t *testing.T) {
   "formattedAddress": "Central",
   "location": {"latitude": 10, "longitude": 20},
   "rating": 4.2,
+  "userRatingCount": 1234,
   "priceLevel": "PRICE_LEVEL_FREE",
   "types": ["park"],
   "regularOpeningHours": {"weekdayDescriptions": ["Mon: 9-5"]},
@@ -404,6 +413,9 @@ func TestDetailsSuccess(t *testing.T) {
 	}
 	if place.PlaceID != "place-123" {
 		t.Fatalf("unexpected id: %s", place.PlaceID)
+	}
+	if place.UserRatingCount == nil || *place.UserRatingCount != 1234 {
+		t.Fatalf("unexpected user rating count: %#v", place.UserRatingCount)
 	}
 	if place.OpenNow == nil || *place.OpenNow != false {
 		t.Fatalf("unexpected openNow")

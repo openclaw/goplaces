@@ -301,7 +301,7 @@ func writeLocation(out *bytes.Buffer, color Color, loc *goplaces.LatLng) {
 }
 
 func writeRating(out *bytes.Buffer, color Color, rating *float64, userRatingCount *int, priceLevel *int) {
-	if rating == nil && priceLevel == nil {
+	if rating == nil && userRatingCount == nil && priceLevel == nil {
 		return
 	}
 	parts := make([]string, 0, 3)
@@ -311,6 +311,8 @@ func writeRating(out *bytes.Buffer, color Color, rating *float64, userRatingCoun
 			ratingStr += fmt.Sprintf(" (%d)", *userRatingCount)
 		}
 		parts = append(parts, ratingStr)
+	} else if userRatingCount != nil {
+		parts = append(parts, fmt.Sprintf("%d ratings", *userRatingCount))
 	}
 	if priceLevel != nil {
 		parts = append(parts, fmt.Sprintf("$%d", *priceLevel))

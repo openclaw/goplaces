@@ -12,17 +12,19 @@ import (
 func TestRenderSearch(t *testing.T) {
 	open := true
 	level := 2
+	ratingCount := 532
 	response := goplaces.SearchResponse{
 		Results: []goplaces.PlaceSummary{
 			{
-				PlaceID:    "abc",
-				Name:       "Cafe",
-				Address:    "123 Street",
-				Location:   &goplaces.LatLng{Lat: 1, Lng: 2},
-				Rating:     floatPtr(4.5),
-				PriceLevel: &level,
-				Types:      []string{"cafe", "coffee_shop"},
-				OpenNow:    &open,
+				PlaceID:         "abc",
+				Name:            "Cafe",
+				Address:         "123 Street",
+				Location:        &goplaces.LatLng{Lat: 1, Lng: 2},
+				Rating:          floatPtr(4.5),
+				UserRatingCount: &ratingCount,
+				PriceLevel:      &level,
+				Types:           []string{"cafe", "coffee_shop"},
+				OpenNow:         &open,
 			},
 		},
 		NextPageToken: "next",
@@ -35,11 +37,32 @@ func TestRenderSearch(t *testing.T) {
 	if !strings.Contains(output, "Rating") {
 		t.Fatalf("missing rating")
 	}
+	if !strings.Contains(output, "4.5 (532)") {
+		t.Fatalf("missing rating count")
+	}
 	if !strings.Contains(output, "Open now") {
 		t.Fatalf("missing open now")
 	}
 	if !strings.Contains(output, "next") {
 		t.Fatalf("missing next page token")
+	}
+}
+
+func TestRenderSearchRatingCountOnly(t *testing.T) {
+	ratingCount := 12
+	response := goplaces.SearchResponse{
+		Results: []goplaces.PlaceSummary{
+			{
+				PlaceID:         "abc",
+				Name:            "Cafe",
+				UserRatingCount: &ratingCount,
+			},
+		},
+	}
+
+	output := renderSearch(NewColor(false), response)
+	if !strings.Contains(output, "12 ratings") {
+		t.Fatalf("missing rating count-only output: %s", output)
 	}
 }
 

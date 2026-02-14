@@ -47,4 +47,3 @@ go.work.sum
 bin/
 dist/
 tmp/
-goplaces-patched

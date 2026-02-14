@@ -104,13 +104,13 @@ type PlaceDetails struct {
 	Rating          *float64 `json:"rating,omitempty"`
 	UserRatingCount *int     `json:"user_rating_count,omitempty"`
 	PriceLevel      *int     `json:"price_level,omitempty"`
-	Types      []string `json:"types,omitempty"`
-	Phone      string   `json:"phone,omitempty"`
-	Website    string   `json:"website,omitempty"`
-	Hours      []string `json:"hours,omitempty"`
-	OpenNow    *bool    `json:"open_now,omitempty"`
-	Reviews    []Review `json:"reviews,omitempty"`
-	Photos     []Photo  `json:"photos,omitempty"`
+	Types           []string `json:"types,omitempty"`
+	Phone           string   `json:"phone,omitempty"`
+	Website         string   `json:"website,omitempty"`
+	Hours           []string `json:"hours,omitempty"`
+	OpenNow         *bool    `json:"open_now,omitempty"`
+	Reviews         []Review `json:"reviews,omitempty"`
+	Photos          []Photo  `json:"photos,omitempty"`
 }
 
 // LocationResolveRequest resolves a text location into place candidates.
