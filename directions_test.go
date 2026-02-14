@@ -2,6 +2,7 @@ package goplaces
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -88,5 +89,32 @@ func TestDirectionsLocationValidation(t *testing.T) {
 	req := DirectionsRequest{FromPlaceID: "a", From: "b", To: "c"}
 	if err := validateDirectionsRequest(applyDirectionsDefaults(req)); err == nil {
 		t.Fatalf("expected validation error for multiple origin inputs")
+	}
+}
+
+func TestDirectionsHTTPErrorWithEmptyBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+	_, err := client.Directions(context.Background(), DirectionsRequest{From: "A", To: "B"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got: %v", err)
+	}
+	if apiErr.StatusCode != http.StatusBadGateway {
+		t.Fatalf("unexpected status: %d", apiErr.StatusCode)
+	}
+}
+
+func TestCleanInstructionPreservesWordSpacing(t *testing.T) {
+	got := cleanInstruction("Turn right<div>onto <b>Main St</b></div>")
+	if got != "Turn right onto Main St" {
+		t.Fatalf("unexpected instruction: %q", got)
 	}
 }

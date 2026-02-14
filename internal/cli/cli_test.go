@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,6 +17,7 @@ const (
 	placesSearchPath  = "/places:searchText"
 	placesNearbyPath  = "/places:searchNearby"
 	routesComputePath = "/directions/v2:computeRoutes"
+	directionsPath    = "/maps/api/directions/json"
 )
 
 func TestRunSearchJSON(t *testing.T) {
@@ -345,6 +347,109 @@ func TestRunRouteMissingFrom(t *testing.T) {
 
 	if exitCode != 2 {
 		t.Fatalf("expected validation error exit code 2, got %d", exitCode)
+	}
+}
+
+func TestRunDirectionsJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		query := r.URL.Query()
+		if query.Get("origin") != "A" {
+			t.Fatalf("unexpected origin: %s", query.Get("origin"))
+		}
+		if query.Get("destination") != "B" {
+			t.Fatalf("unexpected destination: %s", query.Get("destination"))
+		}
+		if query.Get("mode") != "walking" {
+			t.Fatalf("unexpected mode: %s", query.Get("mode"))
+		}
+		if query.Get("units") != "metric" {
+			t.Fatalf("unexpected units: %s", query.Get("units"))
+		}
+		if query.Get("key") != "test-key" {
+			t.Fatalf("unexpected key: %s", query.Get("key"))
+		}
+		_, _ = w.Write([]byte(`{
+  "status":"OK",
+  "routes":[{"summary":"Main","legs":[{"distance":{"text":"1 km","value":1000},"duration":{"text":"10 mins","value":600},"start_address":"A","end_address":"B","steps":[]}]}]
+}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from", "A",
+		"--to", "B",
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL + directionsPath,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "\"mode\": \"WALKING\"") {
+		t.Fatalf("unexpected stdout: %s", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+}
+
+func TestRunDirectionsCompareJSON(t *testing.T) {
+	seenModes := make(map[string]int)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		mode := r.URL.Query().Get("mode")
+		seenModes[mode]++
+		duration := "10 mins"
+		seconds := 600
+		if mode == "driving" {
+			duration = "4 mins"
+			seconds = 240
+		}
+		_, _ = w.Write([]byte(`{
+  "status":"OK",
+  "routes":[{"summary":"Main","legs":[{"distance":{"text":"1 km","value":1000},"duration":{"text":"` + duration + `","value":` + fmt.Sprintf("%d", seconds) + `},"start_address":"A","end_address":"B","steps":[]}]}]
+}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from", "A",
+		"--to", "B",
+		"--compare", "drive",
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL + directionsPath,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	var results []goplaces.DirectionsResponse
+	if err := json.Unmarshal(stdout.Bytes(), &results); err != nil {
+		t.Fatalf("decode output: %v (stdout=%s)", err, stdout.String())
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 directions results, got %d", len(results))
+	}
+	if results[0].Mode != "WALKING" || results[1].Mode != "DRIVING" {
+		t.Fatalf("unexpected mode order: %#v", results)
+	}
+	if seenModes["walking"] != 1 || seenModes["driving"] != 1 {
+		t.Fatalf("expected both modes requested once, got: %#v", seenModes)
 	}
 }
 

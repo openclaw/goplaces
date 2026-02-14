@@ -288,7 +288,8 @@ func (c *Client) doDirectionsRequest(ctx context.Context, endpoint string) ([]by
 		_ = response.Body.Close()
 	}()
 
-	payload, err := readResponseBody(response)
+	allowEmptyBody := response.StatusCode >= http.StatusBadRequest
+	payload, err := readResponseBody(response, allowEmptyBody)
 	if err != nil {
 		return nil, err
 	}
@@ -337,19 +338,20 @@ type directionsValue struct {
 var htmlTagPattern = regexp.MustCompile(`<[^>]+>`)
 
 func cleanInstruction(input string) string {
-	cleaned := htmlTagPattern.ReplaceAllString(input, "")
+	// Replace tags with spaces so words from adjacent nodes do not collapse.
+	cleaned := htmlTagPattern.ReplaceAllString(input, " ")
 	cleaned = html.UnescapeString(cleaned)
 	cleaned = strings.TrimSpace(cleaned)
 	cleaned = strings.Join(strings.Fields(cleaned), " ")
 	return cleaned
 }
 
-func readResponseBody(response *http.Response) ([]byte, error) {
+func readResponseBody(response *http.Response, allowEmpty bool) ([]byte, error) {
 	payload, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if err != nil {
 		return nil, fmt.Errorf("goplaces: read response: %w", err)
 	}
-	if len(payload) == 0 {
+	if len(payload) == 0 && !allowEmpty {
 		return nil, errors.New("goplaces: empty response")
 	}
 	return payload, nil

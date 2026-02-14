@@ -71,7 +71,7 @@ Optional overrides:
 
 7. **(Recommended) Restrict the Key**
    - Click on the key in Credentials
-   - Under "API restrictions", select "Restrict key" → "Places API (New)"
+   - Under "API restrictions", select "Restrict key" → add "Places API (New)" and "Directions API"
    - Set quota limits in [Quotas](https://console.cloud.google.com/apis/api/places.googleapis.com/quotas)
 
 > **Note**: The Places API has usage costs. Check [pricing](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing) and set budget alerts!
