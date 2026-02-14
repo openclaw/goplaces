@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -92,6 +93,50 @@ func TestDirectionsLocationValidation(t *testing.T) {
 	}
 }
 
+func TestNormalizeDirectionsModeAliases(t *testing.T) {
+	cases := map[string]string{
+		"walk":      "walking",
+		"walking":   "walking",
+		"drive":     "driving",
+		"driving":   "driving",
+		"bike":      "bicycling",
+		"bicycle":   "bicycling",
+		"bicycling": "bicycling",
+		"transit":   "transit",
+	}
+	for input, want := range cases {
+		if got := normalizeDirectionsMode(input); got != want {
+			t.Fatalf("normalizeDirectionsMode(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestResolveDirectionsLocationVariants(t *testing.T) {
+	value, err := resolveDirectionsLocation("from", "pid", nil, "")
+	if err != nil || value != "place_id:pid" {
+		t.Fatalf("unexpected place id resolution: value=%q err=%v", value, err)
+	}
+
+	value, err = resolveDirectionsLocation("to", "", &LatLng{Lat: 1.23, Lng: 4.56}, "")
+	if err != nil || value != "1.230000,4.560000" {
+		t.Fatalf("unexpected lat/lng resolution: value=%q err=%v", value, err)
+	}
+
+	value, err = resolveDirectionsLocation("to", "", nil, " Seattle ")
+	if err != nil || value != "Seattle" {
+		t.Fatalf("unexpected text resolution: value=%q err=%v", value, err)
+	}
+}
+
+func TestBuildDirectionsURLErrors(t *testing.T) {
+	if _, err := buildDirectionsURL("://bad", map[string]string{}, "k"); err == nil {
+		t.Fatal("expected invalid URL error")
+	}
+	if _, err := buildDirectionsURL("https://example.com", map[string]string{}, ""); !errors.Is(err, ErrMissingAPIKey) {
+		t.Fatalf("expected ErrMissingAPIKey, got %v", err)
+	}
+}
+
 func TestDirectionsHTTPErrorWithEmptyBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
@@ -109,6 +154,104 @@ func TestDirectionsHTTPErrorWithEmptyBody(t *testing.T) {
 	}
 	if apiErr.StatusCode != http.StatusBadGateway {
 		t.Fatalf("unexpected status: %d", apiErr.StatusCode)
+	}
+}
+
+func TestDirectionsStatusError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"ZERO_RESULTS","error_message":"none"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+	_, err := client.Directions(context.Background(), DirectionsRequest{From: "A", To: "B"})
+	if err == nil || !strings.Contains(err.Error(), "directions status ZERO_RESULTS") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDirectionsNoRoutesReturned(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"OK","routes":[]}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+	_, err := client.Directions(context.Background(), DirectionsRequest{From: "A", To: "B"})
+	if err == nil || !strings.Contains(err.Error(), "no directions returned") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDirectionsEmptyBodySuccessStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+	_, err := client.Directions(context.Background(), DirectionsRequest{From: "A", To: "B"})
+	if err == nil || !strings.Contains(err.Error(), "empty response") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDirectionsRequestLocaleAndImperialUnits(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		if query.Get("origin") != "Seattle" || query.Get("destination") != "Portland" {
+			t.Fatalf("unexpected endpoints: %v", query)
+		}
+		if query.Get("mode") != directionsModeDrive {
+			t.Fatalf("unexpected mode: %s", query.Get("mode"))
+		}
+		if query.Get("language") != "en-US" {
+			t.Fatalf("unexpected language: %s", query.Get("language"))
+		}
+		if query.Get("region") != "US" {
+			t.Fatalf("unexpected region: %s", query.Get("region"))
+		}
+		if query.Get("units") != directionsUnitsImperial {
+			t.Fatalf("unexpected units: %s", query.Get("units"))
+		}
+		_, _ = w.Write([]byte(`{
+			"status":"OK",
+			"routes":[{"legs":[{"distance":{"text":"1 mi","value":1609},"duration":{"text":"5 mins","value":300},"start_address":"Seattle","end_address":"Portland","steps":[]}]}]
+		}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+	_, err := client.Directions(context.Background(), DirectionsRequest{
+		From:     "Seattle",
+		To:       "Portland",
+		Mode:     "drive",
+		Language: "en-US",
+		Region:   "US",
+		Units:    "imperial",
+	})
+	if err != nil {
+		t.Fatalf("Directions error: %v", err)
+	}
+}
+
+func TestDirectionsLocationBoundsValidation(t *testing.T) {
+	req := DirectionsRequest{
+		FromLocation: &LatLng{Lat: 91, Lng: 0},
+		To:           "B",
+	}
+	err := validateDirectionsRequest(applyDirectionsDefaults(req))
+	if err == nil || !strings.Contains(err.Error(), "from.lat") {
+		t.Fatalf("unexpected error for latitude: %v", err)
+	}
+
+	req = DirectionsRequest{
+		From:       "A",
+		ToLocation: &LatLng{Lat: 0, Lng: 181},
+	}
+	err = validateDirectionsRequest(applyDirectionsDefaults(req))
+	if err == nil || !strings.Contains(err.Error(), "to.lng") {
+		t.Fatalf("unexpected error for longitude: %v", err)
 	}
 }
 

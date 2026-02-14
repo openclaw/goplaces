@@ -453,6 +453,104 @@ func TestRunDirectionsCompareJSON(t *testing.T) {
 	}
 }
 
+func TestRunDirectionsHumanCompareWithSteps(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		mode := r.URL.Query().Get("mode")
+		if mode == "" {
+			t.Fatalf("missing mode")
+		}
+		_, _ = w.Write([]byte(`{
+  "status":"OK",
+  "routes":[{"summary":"Main","legs":[{"distance":{"text":"1 km","value":1000},"duration":{"text":"10 mins","value":600},"start_address":"A","end_address":"B","steps":[{"html_instructions":"Head <b>north</b>","distance":{"text":"0.2 km","value":200},"duration":{"text":"2 mins","value":120}}]}]}]
+}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from", "A",
+		"--to", "B",
+		"--compare", "drive",
+		"--steps",
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL + directionsPath,
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Directions (WALKING)") || !strings.Contains(stdout.String(), "Directions (DRIVING)") {
+		t.Fatalf("missing compare output: %s", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "Head north") {
+		t.Fatalf("missing steps output: %s", stdout.String())
+	}
+}
+
+func TestRunDirectionsValidationErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "invalid mode",
+			args: []string{"directions", "--from", "A", "--to", "B", "--mode", "plane", "--api-key", "x"},
+		},
+		{
+			name: "invalid compare",
+			args: []string{"directions", "--from", "A", "--to", "B", "--compare", "plane", "--api-key", "x"},
+		},
+		{
+			name: "same compare mode",
+			args: []string{"directions", "--from", "A", "--to", "B", "--mode", "walk", "--compare", "walking", "--api-key", "x"},
+		},
+		{
+			name: "partial from latlng",
+			args: []string{"directions", "--from-lat", "1", "--to", "B", "--api-key", "x"},
+		},
+		{
+			name: "partial to latlng",
+			args: []string{"directions", "--from", "A", "--to-lng", "2", "--api-key", "x"},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := Run(testCase.args, &stdout, &stderr)
+			if exitCode != 2 {
+				t.Fatalf("expected validation exit code 2, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+			}
+		})
+	}
+}
+
+func TestNormalizeDirectionsMode(t *testing.T) {
+	cases := map[string]string{
+		"walk":      "walking",
+		"walking":   "walking",
+		"drive":     "driving",
+		"driving":   "driving",
+		"bike":      "bicycling",
+		"bicycle":   "bicycling",
+		"bicycling": "bicycling",
+		"transit":   "transit",
+		"plane":     "",
+	}
+	for input, want := range cases {
+		if got := normalizeDirectionsMode(input); got != want {
+			t.Fatalf("normalizeDirectionsMode(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestRunDetailsJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/places/place-1" {

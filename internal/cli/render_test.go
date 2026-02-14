@@ -177,6 +177,32 @@ func TestRenderDirections(t *testing.T) {
 	}
 }
 
+func TestRenderDirectionsWarningsAndEmptySteps(t *testing.T) {
+	response := goplaces.DirectionsResponse{
+		StartAddress: "Start",
+		EndAddress:   "End",
+		Warnings:     []string{"", "Use caution"},
+	}
+
+	output := renderDirections(NewColor(false), response, true)
+	if !strings.Contains(output, "Warnings:") {
+		t.Fatalf("missing warnings header: %s", output)
+	}
+	if !strings.Contains(output, "Use caution") {
+		t.Fatalf("missing warning entry: %s", output)
+	}
+	if !strings.Contains(output, "No results.") {
+		t.Fatalf("missing empty steps message: %s", output)
+	}
+}
+
+func TestDirectionsStepLineFallback(t *testing.T) {
+	line := directionsStepLine(goplaces.DirectionsStep{})
+	if line != "(no instruction)" {
+		t.Fatalf("unexpected step line: %q", line)
+	}
+}
+
 func TestFormatTitleFallback(t *testing.T) {
 	title := formatTitle(NewColor(false), "", "")
 	if !strings.Contains(title, "(no name)") {
