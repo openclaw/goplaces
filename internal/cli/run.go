@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
+
 	"github.com/steipete/goplaces"
 )
 
@@ -22,7 +23,7 @@ type App struct {
 }
 
 // Run executes the CLI with the provided arguments.
-func Run(args []string, stdout io.Writer, stderr io.Writer) int {
+func Run(args []string, stdout, stderr io.Writer) int {
 	if stdout == nil {
 		stdout = os.Stdout
 	}

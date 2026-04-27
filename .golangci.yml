@@ -17,31 +17,29 @@ linters:
     - prealloc
     - revive
     - unparam
+  settings:
+    revive:
+      rules:
+        - name: early-return
+        - name: empty-lines
+        - name: errorf
+        - name: unexported-return
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - goconst
+          - dupl
+          - gosec
 
 formatters:
   enable:
     - gofmt
     - gofumpt
     - goimports
-
-formatters-settings:
-  gofumpt:
-    extra-rules: true
-  goimports:
-    local-prefixes: github.com/steipete/goplaces
-
-linters-settings:
-  revive:
-    rules:
-      - name: early-return
-      - name: empty-lines
-      - name: errorf
-      - name: unexported-return
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - goconst
-        - dupl
-        - gosec
+  settings:
+    gofumpt:
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - github.com/steipete/goplaces

@@ -40,7 +40,7 @@ func (c Color) Dim(value string) string {
 	return c.wrap("2", value)
 }
 
-func (c Color) wrap(code string, value string) string {
+func (c Color) wrap(code, value string) string {
 	if !c.enabled {
 		return value
 	}

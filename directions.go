@@ -167,7 +167,7 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 	return nil
 }
 
-func validateDirectionsLocation(label string, placeID string, location *LatLng, text string) error {
+func validateDirectionsLocation(label, placeID string, location *LatLng, text string) error {
 	provided := 0
 	if strings.TrimSpace(placeID) != "" {
 		provided++
@@ -193,7 +193,7 @@ func validateDirectionsLocation(label string, placeID string, location *LatLng, 
 	return nil
 }
 
-func resolveDirectionsLocation(label string, placeID string, location *LatLng, text string) (string, error) {
+func resolveDirectionsLocation(label, placeID string, location *LatLng, text string) (string, error) {
 	if err := validateDirectionsLocation(label, placeID, location, text); err != nil {
 		return "", err
 	}

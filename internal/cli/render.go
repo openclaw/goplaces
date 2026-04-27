@@ -19,7 +19,7 @@ func renderSearch(color Color, response goplaces.SearchResponse) string {
 	out.WriteString("\n")
 
 	for i, place := range response.Results {
-		out.WriteString(fmt.Sprintf("%d. %s\n", i+1, formatTitle(color, place.Name, place.Address)))
+		fmt.Fprintf(&out, "%d. %s\n", i+1, formatTitle(color, place.Name, place.Address))
 		writePlaceSummary(&out, color, place)
 		if i < count-1 {
 			out.WriteString("\n")
@@ -47,7 +47,7 @@ func renderAutocomplete(color Color, response goplaces.AutocompleteResponse) str
 
 	for i, suggestion := range response.Suggestions {
 		title := formatTitle(color, autocompleteTitle(suggestion), autocompleteSubtitle(suggestion))
-		out.WriteString(fmt.Sprintf("%d. %s\n", i+1, title))
+		fmt.Fprintf(&out, "%d. %s\n", i+1, title)
 		writeAutocompleteSuggestion(&out, color, suggestion)
 		if i < count-1 {
 			out.WriteString("\n")
@@ -66,7 +66,7 @@ func renderNearby(color Color, response goplaces.NearbySearchResponse) string {
 	out.WriteString("\n")
 
 	for i, place := range response.Results {
-		out.WriteString(fmt.Sprintf("%d. %s\n", i+1, formatTitle(color, place.Name, place.Address)))
+		fmt.Fprintf(&out, "%d. %s\n", i+1, formatTitle(color, place.Name, place.Address))
 		writePlaceSummary(&out, color, place)
 		if i < count-1 {
 			out.WriteString("\n")
@@ -110,7 +110,7 @@ func renderResolve(color Color, response goplaces.LocationResolveResponse) strin
 	out.WriteString("\n")
 
 	for i, place := range response.Results {
-		out.WriteString(fmt.Sprintf("%d. %s\n", i+1, formatTitle(color, place.Name, place.Address)))
+		fmt.Fprintf(&out, "%d. %s\n", i+1, formatTitle(color, place.Name, place.Address))
 		writeResolvedLocation(&out, color, place)
 		if i < count-1 {
 			out.WriteString("\n")
@@ -139,7 +139,7 @@ func renderRoute(color Color, response goplaces.RouteResponse) string {
 			out.WriteString("\n")
 		} else {
 			for j, place := range waypoint.Results {
-				out.WriteString(fmt.Sprintf("%d. %s\n", j+1, formatTitle(color, place.Name, place.Address)))
+				fmt.Fprintf(&out, "%d. %s\n", j+1, formatTitle(color, place.Name, place.Address))
 				writePlaceSummary(&out, color, place)
 				if j < len(waypoint.Results)-1 {
 					out.WriteString("\n")
@@ -194,14 +194,14 @@ func renderDirections(color Color, response goplaces.DirectionsResponse, include
 				if line == "" {
 					continue
 				}
-				out.WriteString(fmt.Sprintf("  %d. %s\n", i+1, line))
+				fmt.Fprintf(&out, "  %d. %s\n", i+1, line)
 			}
 		}
 	}
 	return out.String()
 }
 
-func formatTitle(color Color, name string, address string) string {
+func formatTitle(color Color, name, address string) string {
 	display := strings.TrimSpace(name)
 	if display == "" {
 		display = "(no name)"
@@ -346,7 +346,7 @@ func writeLocation(out *bytes.Buffer, color Color, loc *goplaces.LatLng) {
 	writeLine(out, color, "Location", fmt.Sprintf("%.6f, %.6f", loc.Lat, loc.Lng))
 }
 
-func writeRating(out *bytes.Buffer, color Color, rating *float64, userRatingCount *int, priceLevel *int) {
+func writeRating(out *bytes.Buffer, color Color, rating *float64, userRatingCount, priceLevel *int) {
 	if rating == nil && userRatingCount == nil && priceLevel == nil {
 		return
 	}
@@ -385,7 +385,7 @@ func writeOpenNow(out *bytes.Buffer, color Color, openNow *bool) {
 	writeLine(out, color, "Open now", value)
 }
 
-func writeLine(out *bytes.Buffer, color Color, label string, value string) {
+func writeLine(out *bytes.Buffer, color Color, label, value string) {
 	if strings.TrimSpace(value) == "" {
 		return
 	}

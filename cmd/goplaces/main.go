@@ -14,6 +14,6 @@ func main() {
 	exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-func run(args []string, stdout io.Writer, stderr io.Writer) int {
+func run(args []string, stdout, stderr io.Writer) int {
 	return cli.Run(args, stdout, stderr)
 }
