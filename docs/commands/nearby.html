@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>goplaces nearby</title>
+  <meta name="description" content="Search nearby places by location with goplaces.">
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="topbar"><nav class="nav shell" aria-label="Primary"><a class="brand" href="../index.html"><span class="mark"></span><span>goplaces</span></a><div class="links"><a href="../index.html#commands">Commands</a><a href="../index.html#setup">Setup</a><a href="https://github.com/steipete/goplaces">GitHub</a></div></nav></header>
+  <main class="shell">
+    <section class="command-hero"><span class="pill">Nearby Search</span><h1>nearby</h1><p class="lede">Find places inside a required latitude, longitude, and radius restriction. Good for local discovery and map-near-me workflows.</p></section>
+    <div class="command-layout">
+      <aside class="side"><a href="autocomplete.html">autocomplete</a><a href="nearby.html">nearby</a><a href="search.html">search</a><a href="route.html">route</a><a href="directions.html">directions</a><a href="details.html">details</a><a href="photo.html">photo</a><a href="resolve.html">resolve</a></aside>
+      <article>
+        <section class="section">
+          <h2>Usage</h2>
+          <p><code>goplaces nearby [flags]</code></p>
+          <div class="panel"><div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#example">Copy</button></div><pre id="example">goplaces nearby --lat 47.6062 --lng -122.3321 --radius-m 1500 \
+  --type cafe --type bakery --limit 5</pre></div>
+        </section>
+        <section class="section">
+          <h2>Flags</h2>
+          <table><tbody>
+            <tr><th><code>--lat</code>, <code>--lng</code>, <code>--radius-m</code></th><td>Required location restriction.</td></tr>
+            <tr><th><code>--limit</code></th><td>Max results, 1-20. Default: 10.</td></tr>
+            <tr><th><code>--type</code></th><td>Included place types. Repeatable.</td></tr>
+            <tr><th><code>--exclude-type</code></th><td>Excluded place types. Repeatable.</td></tr>
+            <tr><th><code>--language</code>, <code>--region</code></th><td>BCP-47 language and CLDR region hints.</td></tr>
+          </tbody></table>
+        </section>
+        <section class="section">
+          <h2>Notes</h2>
+          <p>Use <code>--json</code> for stable result arrays. Results include <code>business_status</code> when Google returns it.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer class="footer"><div class="shell"><a href="../index.html">Back to overview</a></div></footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

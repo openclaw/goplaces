@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>goplaces resolve</title>
+  <meta name="description" content="Resolve free-form location text to candidate places with goplaces.">
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="topbar"><nav class="nav shell" aria-label="Primary"><a class="brand" href="../index.html"><span class="mark"></span><span>goplaces</span></a><div class="links"><a href="../index.html#commands">Commands</a><a href="../index.html#setup">Setup</a><a href="https://github.com/steipete/goplaces">GitHub</a></div></nav></header>
+  <main class="shell">
+    <section class="command-hero"><span class="pill">Resolve</span><h1>resolve</h1><p class="lede">Turn free-form location text into candidate places. Useful before details, directions, or scripts that need place IDs.</p></section>
+    <div class="command-layout">
+      <aside class="side"><a href="autocomplete.html">autocomplete</a><a href="nearby.html">nearby</a><a href="search.html">search</a><a href="route.html">route</a><a href="directions.html">directions</a><a href="details.html">details</a><a href="photo.html">photo</a><a href="resolve.html">resolve</a></aside>
+      <article>
+        <section class="section">
+          <h2>Usage</h2>
+          <p><code>goplaces resolve &lt;location&gt; [flags]</code></p>
+          <div class="panel"><div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#example">Copy</button></div><pre id="example">goplaces resolve "Riverside Park, New York" --limit 5 --region US</pre></div>
+        </section>
+        <section class="section">
+          <h2>Flags</h2>
+          <table><tbody>
+            <tr><th><code>--limit</code></th><td>Max candidates, 1-10. Default: 5.</td></tr>
+            <tr><th><code>--language</code>, <code>--region</code></th><td>BCP-47 language and CLDR region hints.</td></tr>
+          </tbody></table>
+        </section>
+        <section class="section">
+          <h2>Automation</h2>
+          <p>Use <code>--json</code> when another tool needs to select a candidate place ID.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer class="footer"><div class="shell"><a href="../index.html">Back to overview</a></div></footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

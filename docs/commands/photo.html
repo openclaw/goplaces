@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>goplaces photo</title>
+  <meta name="description" content="Fetch a Places photo media URL with goplaces.">
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="topbar"><nav class="nav shell" aria-label="Primary"><a class="brand" href="../index.html"><span class="mark"></span><span>goplaces</span></a><div class="links"><a href="../index.html#commands">Commands</a><a href="../index.html#setup">Setup</a><a href="https://github.com/steipete/goplaces">GitHub</a></div></nav></header>
+  <main class="shell">
+    <section class="command-hero"><span class="pill">Photo Media</span><h1>photo</h1><p class="lede">Convert a Places photo resource name into a media URL, optionally constrained by maximum width or height.</p></section>
+    <div class="command-layout">
+      <aside class="side"><a href="autocomplete.html">autocomplete</a><a href="nearby.html">nearby</a><a href="search.html">search</a><a href="route.html">route</a><a href="directions.html">directions</a><a href="details.html">details</a><a href="photo.html">photo</a><a href="resolve.html">resolve</a></aside>
+      <article>
+        <section class="section">
+          <h2>Usage</h2>
+          <p><code>goplaces photo &lt;photo_name&gt; [flags]</code></p>
+          <div class="panel"><div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#example">Copy</button></div><pre id="example">goplaces photo "places/PLACE_ID/photos/PHOTO_ID" --max-width 1200</pre></div>
+        </section>
+        <section class="section">
+          <h2>Flags</h2>
+          <table><tbody>
+            <tr><th><code>--max-width</code></th><td>Maximum returned image width in pixels.</td></tr>
+            <tr><th><code>--max-height</code></th><td>Maximum returned image height in pixels.</td></tr>
+          </tbody></table>
+        </section>
+        <section class="section">
+          <h2>Source Names</h2>
+          <p>Fetch metadata first with <a href="details.html"><code>details --photos</code></a>, then pass one returned <code>places/.../photos/...</code> resource name here.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer class="footer"><div class="shell"><a href="../index.html">Back to overview</a></div></footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

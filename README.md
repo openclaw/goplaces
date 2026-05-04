@@ -2,6 +2,8 @@
 
 Modern Go client and CLI for the Google Places API (New), plus selected Routes API workflows.
 
+Docs site: https://goplaces.sh
+
 Use it when you want Google place data from a terminal, shell script, agent, or Go program without hand-writing Places field masks and request payloads. `goplaces` keeps the human CLI pleasant, but the same commands also emit stable JSON for automation.
 
 Typical jobs:

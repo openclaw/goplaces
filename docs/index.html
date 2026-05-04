@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>goplaces docs</title>
+  <meta name="description" content="Docs for goplaces, a Go client and CLI for Google Places API (New) and Routes API workflows.">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <nav class="nav shell" aria-label="Primary">
+      <a class="brand" href="index.html"><span class="mark"></span><span>goplaces</span></a>
+      <div class="links">
+        <a href="#commands">Commands</a>
+        <a href="#setup">Setup</a>
+        <a href="#library">Go API</a>
+        <a href="https://github.com/steipete/goplaces">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero shell">
+      <div>
+        <div class="eyebrow">Google Places API (New) from Go and the terminal</div>
+        <h1>goplaces</h1>
+        <p class="lede">A modern CLI and typed Go client for finding places, resolving locations, fetching details and photos, autocompleting input, and working with route-aware searches.</p>
+        <div class="actions">
+          <a class="button primary" href="#commands">Browse Commands</a>
+          <a class="button" href="#setup">Install</a>
+          <a class="button" href="https://github.com/steipete/goplaces">Source</a>
+        </div>
+      </div>
+      <div class="map-card" aria-label="Route and terminal preview">
+        <div class="route-line"></div>
+        <span class="pin a"></span>
+        <span class="pin b"></span>
+        <span class="pin c"></span>
+        <div class="terminal">
+          <pre>$ goplaces search "coffee" --open-now --min-rating 4 --lat 40.8065 --lng -73.9719 --radius-m 3000
+Blue Bottle Coffee       4.5  open
+Birch Coffee             4.4  open
+Daily Provisions         4.6  open</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section shell" id="commands">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Command docs</div>
+          <h2>One page per workflow.</h2>
+        </div>
+        <p>Each command supports human-readable output by default and stable JSON with <code>--json</code>. Global flags work everywhere.</p>
+      </div>
+      <div class="grid">
+        <a class="card" href="commands/search.html"><span class="pill">Places Text Search</span><h3><code>search</code></h3><p>Find places by text, type, rating, price, open state, and location bias.</p></a>
+        <a class="card" href="commands/nearby.html"><span class="pill">Nearby Search</span><h3><code>nearby</code></h3><p>Search around a required latitude, longitude, and radius.</p></a>
+        <a class="card" href="commands/autocomplete.html"><span class="pill">Autocomplete</span><h3><code>autocomplete</code></h3><p>Return place and query suggestions from partial input.</p></a>
+        <a class="card" href="commands/details.html"><span class="pill">Place Details</span><h3><code>details</code></h3><p>Fetch address, coordinates, phone, website, hours, photos, reviews, and status.</p></a>
+        <a class="card" href="commands/photo.html"><span class="pill">Photo Media</span><h3><code>photo</code></h3><p>Turn a Places photo resource name into a media URL.</p></a>
+        <a class="card" href="commands/resolve.html"><span class="pill">Resolve</span><h3><code>resolve</code></h3><p>Convert free-form location text into candidate place IDs.</p></a>
+        <a class="card" href="commands/route.html"><span class="pill">Routes + Places</span><h3><code>route</code></h3><p>Sample a route and search for places near waypoints.</p></a>
+        <a class="card" href="commands/directions.html"><span class="pill">Routes</span><h3><code>directions</code></h3><p>Get distance, duration, warnings, steps, units, and drive modifiers.</p></a>
+      </div>
+    </section>
+
+    <section class="section shell" id="setup">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Setup</div>
+          <h2>Install, key, run.</h2>
+        </div>
+        <p>Enable Places API (New). Enable Routes API for <code>route</code> and <code>directions</code>. Then export one API key.</p>
+      </div>
+      <div class="split">
+        <div class="panel">
+          <h3>Install</h3>
+          <p>Use Homebrew for the CLI or <code>go install</code> for a direct Go toolchain install.</p>
+        </div>
+        <div class="panel">
+          <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#install">Copy</button></div>
+          <pre id="install">brew install steipete/tap/goplaces
+go install github.com/steipete/goplaces/cmd/goplaces@latest
+export GOOGLE_PLACES_API_KEY="..."</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section shell" id="library">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Go package</div>
+          <h2>Same workflows, typed.</h2>
+        </div>
+        <p>The root package is <code>github.com/steipete/goplaces</code>. Requests mirror the CLI concepts and own their field masks.</p>
+      </div>
+      <div class="panel">
+        <div class="codebar"><span class="pill">go</span><button class="copy" data-copy="#goapi">Copy</button></div>
+        <pre id="goapi">client := goplaces.NewClient(goplaces.Options{
+    APIKey:  os.Getenv("GOOGLE_PLACES_API_KEY"),
+    Timeout: 8 * time.Second,
+})
+
+response, err := client.Search(ctx, goplaces.SearchRequest{
+    Query: "italian restaurant",
+    Limit: 10,
+    LocationBias: &goplaces.LocationBias{Lat: 40.8065, Lng: -73.9719, RadiusM: 3000},
+})</pre>
+      </div>
+    </section>
+
+    <section class="section shell">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Project map</div>
+          <h2>Small surface, clear split.</h2>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card"><h3>CLI</h3><p><code>cmd/goplaces</code> and <code>internal/cli</code> provide Kong-based commands and renderers.</p></div>
+        <div class="card"><h3>Client</h3><p>The root package exposes typed requests and responses for Places and Routes APIs.</p></div>
+        <div class="card"><h3>Output</h3><p>Compact color text by default. Machine output via <code>--json</code>.</p></div>
+        <div class="card"><h3>Testing</h3><p>Run <code>make test</code>, <code>make lint</code>, or optional API-key backed <code>make e2e</code>.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell">goplaces docs. Built for GitHub Pages from <code>docs/</code>.</div>
+  </footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>

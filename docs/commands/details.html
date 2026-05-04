@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>goplaces details</title>
+  <meta name="description" content="Fetch place details by place ID with goplaces.">
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="topbar"><nav class="nav shell" aria-label="Primary"><a class="brand" href="../index.html"><span class="mark"></span><span>goplaces</span></a><div class="links"><a href="../index.html#commands">Commands</a><a href="../index.html#setup">Setup</a><a href="https://github.com/steipete/goplaces">GitHub</a></div></nav></header>
+  <main class="shell">
+    <section class="command-hero"><span class="pill">Place Details</span><h1>details</h1><p class="lede">Fetch rich place data by place ID, including address, coordinates, contact links, opening hours, status, optional reviews, and optional photos.</p></section>
+    <div class="command-layout">
+      <aside class="side"><a href="autocomplete.html">autocomplete</a><a href="nearby.html">nearby</a><a href="search.html">search</a><a href="route.html">route</a><a href="directions.html">directions</a><a href="details.html">details</a><a href="photo.html">photo</a><a href="resolve.html">resolve</a></aside>
+      <article>
+        <section class="section">
+          <h2>Usage</h2>
+          <p><code>goplaces details &lt;place_id&gt; [flags]</code></p>
+          <div class="panel"><div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#example">Copy</button></div><pre id="example">goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4 --reviews --photos</pre></div>
+        </section>
+        <section class="section">
+          <h2>Flags</h2>
+          <table><tbody>
+            <tr><th><code>--language</code>, <code>--region</code></th><td>BCP-47 language and CLDR region hints.</td></tr>
+            <tr><th><code>--reviews</code></th><td>Include reviews in the response.</td></tr>
+            <tr><th><code>--photos</code></th><td>Include photo metadata in the response.</td></tr>
+          </tbody></table>
+        </section>
+        <section class="section">
+          <h2>Pair With</h2>
+          <p>Use <a href="photo.html"><code>photo</code></a> with a returned photo resource name to get a media URL.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer class="footer"><div class="shell"><a href="../index.html">Back to overview</a></div></footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

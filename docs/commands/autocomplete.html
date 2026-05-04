@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>goplaces autocomplete</title>
+  <meta name="description" content="Autocomplete place and query input with goplaces.">
+  <link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <header class="topbar"><nav class="nav shell" aria-label="Primary"><a class="brand" href="../index.html"><span class="mark"></span><span>goplaces</span></a><div class="links"><a href="../index.html#commands">Commands</a><a href="../index.html#setup">Setup</a><a href="https://github.com/steipete/goplaces">GitHub</a></div></nav></header>
+  <main class="shell">
+    <section class="command-hero"><span class="pill">Places Autocomplete</span><h1>autocomplete</h1><p class="lede">Return place and query suggestions from partial input, with session tokens and optional location bias for billing-friendly flows.</p></section>
+    <div class="command-layout">
+      <aside class="side"><a href="autocomplete.html">autocomplete</a><a href="nearby.html">nearby</a><a href="search.html">search</a><a href="route.html">route</a><a href="directions.html">directions</a><a href="details.html">details</a><a href="photo.html">photo</a><a href="resolve.html">resolve</a></aside>
+      <article>
+        <section class="section">
+          <h2>Usage</h2>
+          <p><code>goplaces autocomplete &lt;input&gt; [flags]</code></p>
+          <div class="panel"><div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#example">Copy</button></div><pre id="example">goplaces autocomplete "cof" --session-token "goplaces-demo" \
+  --limit 5 --language en --region US</pre></div>
+        </section>
+        <section class="section">
+          <h2>Flags</h2>
+          <table><tbody>
+            <tr><th><code>--limit</code></th><td>Max suggestions, 1-20. Default: 5.</td></tr>
+            <tr><th><code>--session-token</code></th><td>Session token for billing consistency across autocomplete and details.</td></tr>
+            <tr><th><code>--language</code>, <code>--region</code></th><td>BCP-47 language and CLDR region hints.</td></tr>
+            <tr><th><code>--lat</code>, <code>--lng</code>, <code>--radius-m</code></th><td>Optional location bias. Provide all three together.</td></tr>
+          </tbody></table>
+        </section>
+        <section class="section">
+          <h2>Location Bias</h2>
+          <div class="panel"><pre>goplaces autocomplete "pizza" --lat 40.7411 --lng -73.9897 --radius-m 1500</pre></div>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer class="footer"><div class="shell"><a href="../index.html">Back to overview</a></div></footer>
+  <script src="../assets/site.js"></script>
+</body>
+</html>
