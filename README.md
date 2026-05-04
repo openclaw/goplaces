@@ -1,22 +1,27 @@
-# 📍 goplaces — Modern Places for Go
+# goplaces
 
-Modern Go client + CLI for the Google Places API (New). Fast for humans, tidy for scripts.
+Modern Go client and CLI for the Google Places API (New), plus selected Routes API workflows.
 
-## Highlights
+Use it when you want Google place data from a terminal, shell script, agent, or Go program without hand-writing Places field masks and request payloads. `goplaces` keeps the human CLI pleasant, but the same commands also emit stable JSON for automation.
 
-- Text search with filters: keyword, type, open now, min rating, price levels.
-- Autocomplete suggestions for places + queries (session tokens supported).
-- Nearby search around a location restriction.
-- Place photos in details + photo media URLs.
-- Route search along a driving path (Routes API).
-- Directions between two points with distance, duration, steps, and optional drive route modifiers (Routes API).
-- Location bias (lat/lng/radius) and pagination tokens.
-- Place details: hours, phone, website, rating, price, types.
-- Optional reviews in details (`--reviews` / `IncludeReviews`).
-- Resolve free-form location strings to candidate places.
-- Locale hints (language + region) across search/resolve/details.
-- Typed models, validation errors, and API error surfacing.
-- CLI with color human output + `--json` (respects `NO_COLOR`).
+Typical jobs:
+
+- Find places by text, type, rating, price, current open state, and location bias.
+- Inspect a place: address, coordinates, phone, website, hours, photos, reviews, current open state, and business status.
+- Autocomplete partial place/query input.
+- Search nearby a lat/lng radius.
+- Resolve free-form locations to place candidates.
+- Search for places along a route.
+- Get directions, travel time, distance, steps, units, and drive route modifiers.
+
+## Project Shape
+
+- `cmd/goplaces`: CLI entrypoint built around the library.
+- Root package `github.com/steipete/goplaces`: typed Go client.
+- Places API (New): search, nearby, details, autocomplete, photo media, resolve.
+- Routes API: route polyline sampling and directions.
+- Output: compact color text by default, JSON with `--json`.
+- Runtime config: environment variables or flags.
 
 ## Install / Run
 
@@ -26,7 +31,12 @@ Latest release: v0.4.0 (2026-05-04).
 - Go: `go install github.com/steipete/goplaces/cmd/goplaces@latest`
 - Source: `make goplaces`
 
-## Config
+## API Setup
+
+`goplaces` needs a Google API key with the right APIs enabled:
+
+- Places API (New) for `search`, `nearby`, `autocomplete`, `details`, `photo`, and `resolve`.
+- Routes API for `route` and `directions`.
 
 ```bash
 export GOOGLE_PLACES_API_KEY="..."
@@ -38,7 +48,7 @@ Optional overrides:
 - `GOOGLE_ROUTES_BASE_URL` (testing Routes API or proxying)
 - `GOOGLE_DIRECTIONS_BASE_URL` (testing Routes API directions calls or proxying)
 
-### Getting a Google Places API Key
+### Create a Key
 
 1. **Create a Google Cloud Project**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -72,7 +82,7 @@ Optional overrides:
 
 > **Note**: The Places API has usage costs. Check [pricing](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing) and set budget alerts!
 
-## CLI
+## CLI Overview
 
 Long flags accept `--flag value` or `--flag=value` (examples use space).
 
@@ -90,6 +100,21 @@ Commands:
   photo    Fetch a photo URL by photo name.
   resolve  Resolve a location string to candidate places.
 ```
+
+Command map:
+
+| Command | API | Use |
+| --- | --- | --- |
+| `search` | Places Text Search | Find places by query and filters. |
+| `nearby` | Places Nearby Search | Find places around a lat/lng radius. |
+| `autocomplete` | Places Autocomplete | Get place/query suggestions for partial input. |
+| `details` | Place Details | Fetch rich place data by place ID. |
+| `photo` | Place Photo Media | Turn a photo resource name into a media URL. |
+| `resolve` | Places Text Search | Resolve a free-form location string. |
+| `route` | Routes + Places | Sample a route and search near waypoints. |
+| `directions` | Routes | Get distance, duration, warnings, and steps. |
+
+## Examples
 
 Search with filters + location bias:
 
@@ -142,15 +167,11 @@ Units (default metric):
 goplaces directions --from "Pike Place Market" --to "Space Needle" --units imperial
 ```
 
-Details (with reviews):
+Details:
 
 ```bash
+goplaces details ChIJ-bfVTh8VkFQRDZLQnmioK9s
 goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4 --reviews
-```
-
-Details (with photos):
-
-```bash
 goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4 --photos
 ```
 
@@ -170,6 +191,20 @@ JSON output:
 
 ```bash
 goplaces search "sushi" --json
+```
+
+Example JSON result fields include:
+
+```json
+{
+  "place_id": "ChIJ-bfVTh8VkFQRDZLQnmioK9s",
+  "name": "Space Needle",
+  "address": "400 Broad St, Seattle, WA 98109, USA",
+  "rating": 4.6,
+  "user_rating_count": 58186,
+  "open_now": true,
+  "business_status": "OPERATIONAL"
+}
 ```
 
 ## Library
