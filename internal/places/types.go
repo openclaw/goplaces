@@ -1,4 +1,4 @@
-package goplaces
+package places
 
 // SearchRequest defines a text search with optional filters.
 type SearchRequest struct {

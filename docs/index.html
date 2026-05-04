@@ -120,7 +120,7 @@ response, err := client.Search(ctx, goplaces.SearchRequest{
       </div>
       <div class="grid">
         <div class="card"><h3>CLI</h3><p><code>cmd/goplaces</code> and <code>internal/cli</code> provide Kong-based commands and renderers.</p></div>
-        <div class="card"><h3>Client</h3><p>The root package exposes typed requests and responses for Places and Routes APIs.</p></div>
+        <div class="card"><h3>Client</h3><p>The root package exposes typed requests and responses; <code>internal/places</code> owns the implementation.</p></div>
         <div class="card"><h3>Output</h3><p>Compact color text by default. Machine output via <code>--json</code>.</p></div>
         <div class="card"><h3>Testing</h3><p>Run <code>make test</code>, <code>make lint</code>, or optional API-key backed <code>make e2e</code>.</p></div>
       </div>

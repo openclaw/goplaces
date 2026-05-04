@@ -1,4 +1,4 @@
-package goplaces
+package places
 
 type searchResponse struct {
 	Places        []placeItem `json:"places"`

@@ -1,4 +1,4 @@
-package goplaces
+package places
 
 import (
 	"strings"

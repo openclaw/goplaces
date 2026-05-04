@@ -19,7 +19,9 @@ Typical jobs:
 ## Project Shape
 
 - `cmd/goplaces`: CLI entrypoint built around the library.
-- Root package `github.com/steipete/goplaces`: typed Go client.
+- Root package `github.com/steipete/goplaces`: stable public Go API.
+- `internal/places`: Places + Routes implementation and focused client tests.
+- `internal/cli`: command parsing, output rendering, and CLI tests.
 - Places API (New): search, nearby, details, autocomplete, photo media, resolve.
 - Routes API: route polyline sampling and directions.
 - Output: compact color text by default, JSON with `--json`.

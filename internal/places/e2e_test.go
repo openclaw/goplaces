@@ -1,7 +1,7 @@
 //go:build e2e
 // +build e2e
 
-package goplaces
+package places
 
 import (
 	"context"

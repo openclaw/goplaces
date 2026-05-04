@@ -1,4 +1,4 @@
-package goplaces
+package places
 
 func circlePayload(bias *LocationBias) map[string]any {
 	return map[string]any{

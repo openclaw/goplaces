@@ -1,5 +1,5 @@
 // Package goplaces provides a Go client for the Google Places API (New).
-package goplaces
+package places
 
 import (
 	"bytes"

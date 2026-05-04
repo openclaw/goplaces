@@ -1,4 +1,4 @@
-package goplaces
+package places
 
 func validateLocationBias(bias *LocationBias) error {
 	if bias == nil {
