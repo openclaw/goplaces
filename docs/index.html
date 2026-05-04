@@ -3,8 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>goplaces docs</title>
-  <meta name="description" content="Docs for goplaces, a Go client and CLI for Google Places API (New) and Routes API workflows.">
+  <title>goplaces &mdash; Go client + CLI for Google Places API (New)</title>
+  <meta name="description" content="A modern Go client and CLI for Google Places API (New) and Routes. Search, autocomplete, details, photos, route-aware queries — typed, JSON-friendly, one binary.">
+  <meta property="og:title" content="goplaces">
+  <meta property="og:description" content="Modern Go client + CLI for Google Places API (New) and Routes.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#0b100e">
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
@@ -15,121 +19,335 @@
         <a href="#commands">Commands</a>
         <a href="#setup">Setup</a>
         <a href="#library">Go API</a>
-        <a href="https://github.com/steipete/goplaces">GitHub</a>
+        <a href="#architecture">Architecture</a>
+        <a href="https://github.com/steipete/goplaces" rel="noopener">GitHub &nearr;</a>
       </div>
     </nav>
   </header>
 
   <main>
+    <!-- ─────────────── Hero ─────────────── -->
     <section class="hero shell">
       <div>
-        <div class="eyebrow">Google Places API (New) from Go and the terminal</div>
-        <h1>goplaces</h1>
-        <p class="lede">A modern CLI and typed Go client for finding places, resolving locations, fetching details and photos, autocompleting input, and working with route-aware searches.</p>
+        <div class="eyebrow">Google Places API (New) &middot; Routes</div>
+        <h1>Places &amp;<br>routes, in&nbsp;Go.</h1>
+        <p class="lede">A typed Go client and a single-binary CLI for finding places, resolving locations, fetching details and photos, autocompleting input, and running route-aware searches.</p>
         <div class="actions">
-          <a class="button primary" href="#commands">Browse Commands</a>
+          <a class="button primary" href="#commands">Browse commands <span class="arrow">&rarr;</span></a>
           <a class="button" href="#setup">Install</a>
-          <a class="button" href="https://github.com/steipete/goplaces">Source</a>
+          <a class="button" href="https://github.com/steipete/goplaces" rel="noopener">View source</a>
+        </div>
+        <div class="qi" role="group" aria-label="Quick install">
+          <span class="dollar">$</span>
+          <span class="text" id="qi-cmd">brew install steipete/tap/goplaces</span>
+          <button class="copy" data-copy="#qi-cmd" aria-label="Copy install command">Copy</button>
+        </div>
+        <div class="stats" aria-label="Project at a glance">
+          <div class="stat"><span class="num">8</span><span class="label">Commands</span></div>
+          <div class="stat"><span class="num">1</span><span class="label">Static binary</span></div>
+          <div class="stat"><span class="num">--json</span><span class="label">Stable output</span></div>
+          <div class="stat"><span class="num">MIT</span><span class="label">License</span></div>
         </div>
       </div>
-      <div class="map-card" aria-label="Route and terminal preview">
-        <div class="route-line"></div>
-        <span class="pin a"></span>
-        <span class="pin b"></span>
-        <span class="pin c"></span>
-        <div class="terminal">
-          <pre>$ goplaces search "coffee" --open-now --min-rating 4 --lat 40.8065 --lng -73.9719 --radius-m 3000
-Blue Bottle Coffee       4.5  open
-Birch Coffee             4.4  open
-Daily Provisions         4.6  open</pre>
+
+      <div class="window" aria-label="Terminal preview">
+        <div class="window-bar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <span class="title">~/  goplaces</span>
+          <span class="right">zsh</span>
         </div>
+<pre><span class="tk-c"># Find well-rated coffee around Central Park, open right now</span>
+<span class="tk-prompt">$ </span><span class="tk-cmd">goplaces search</span> <span class="tk-str">"coffee"</span> <span class="tk-flag">--open-now</span> <span class="tk-flag">--min-rating</span> <span class="tk-num">4</span> \
+    <span class="tk-flag">--lat</span> <span class="tk-num">40.8065</span> <span class="tk-flag">--lng</span> <span class="tk-num">-73.9719</span> <span class="tk-flag">--radius-m</span> <span class="tk-num">3000</span>
+
+Blue Bottle Coffee       <span class="tk-num">4.5</span>  <span class="tk-ok">open</span>
+Birch Coffee             <span class="tk-num">4.4</span>  <span class="tk-ok">open</span>
+Daily Provisions         <span class="tk-num">4.6</span>  <span class="tk-ok">open</span>
+Joe Coffee Company       <span class="tk-num">4.3</span>  <span class="tk-warn">closes 6pm</span>
+
+<span class="tk-prompt">$ </span><span class="tk-cmd">goplaces directions</span> <span class="tk-flag">--from</span> <span class="tk-str">"Pike Place Market"</span> <span class="tk-flag">--to</span> <span class="tk-str">"Space Needle"</span><span class="cursor"></span></pre>
       </div>
     </section>
 
+    <!-- ─────────────── Commands ─────────────── -->
     <section class="section shell" id="commands">
       <div class="section-head">
         <div>
           <div class="eyebrow">Command docs</div>
           <h2>One page per workflow.</h2>
         </div>
-        <p>Each command supports human-readable output by default and stable JSON with <code>--json</code>. Global flags work everywhere.</p>
+        <p>Each command supports human-readable output by default and stable JSON with <code>--json</code>. Global flags &mdash; <code>--api-key</code>, <code>--timeout</code>, <code>--no-color</code>, endpoint overrides &mdash; work everywhere.</p>
       </div>
+
       <div class="grid">
-        <a class="card" href="commands/search.html"><span class="pill">Places Text Search</span><h3><code>search</code></h3><p>Find places by text, type, rating, price, open state, and location bias.</p></a>
-        <a class="card" href="commands/nearby.html"><span class="pill">Nearby Search</span><h3><code>nearby</code></h3><p>Search around a required latitude, longitude, and radius.</p></a>
-        <a class="card" href="commands/autocomplete.html"><span class="pill">Autocomplete</span><h3><code>autocomplete</code></h3><p>Return place and query suggestions from partial input.</p></a>
-        <a class="card" href="commands/details.html"><span class="pill">Place Details</span><h3><code>details</code></h3><p>Fetch address, coordinates, phone, website, hours, photos, reviews, and status.</p></a>
-        <a class="card" href="commands/photo.html"><span class="pill">Photo Media</span><h3><code>photo</code></h3><p>Turn a Places photo resource name into a media URL.</p></a>
-        <a class="card" href="commands/resolve.html"><span class="pill">Resolve</span><h3><code>resolve</code></h3><p>Convert free-form location text into candidate place IDs.</p></a>
-        <a class="card" href="commands/route.html"><span class="pill">Routes + Places</span><h3><code>route</code></h3><p>Sample a route and search for places near waypoints.</p></a>
-        <a class="card" href="commands/directions.html"><span class="pill">Routes</span><h3><code>directions</code></h3><p>Get distance, duration, warnings, steps, units, and drive modifiers.</p></a>
+        <a class="card" href="commands/search.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </span>
+          <span class="pill">Places Text Search</span>
+          <h3><code>search</code></h3>
+          <p>Find places by text, type, rating, price, open state, and location bias.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
+
+        <a class="card" href="commands/nearby.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg>
+          </span>
+          <span class="pill">Nearby Search</span>
+          <h3><code>nearby</code></h3>
+          <p>Search around a required latitude, longitude, and radius.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
+
+        <a class="card" href="commands/autocomplete.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12"/><path d="M4 12h8"/><path d="M4 18h16"/><path d="M16 9l3 3-3 3"/></svg>
+          </span>
+          <span class="pill">Autocomplete</span>
+          <h3><code>autocomplete</code></h3>
+          <p>Return place and query suggestions from partial input.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
+
+        <a class="card" href="commands/details.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+          </span>
+          <span class="pill">Place Details</span>
+          <h3><code>details</code></h3>
+          <p>Address, coordinates, phone, website, hours, photos, reviews, status.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
+
+        <a class="card" href="commands/photo.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m3 18 5-5 4 4 3-3 6 6"/></svg>
+          </span>
+          <span class="pill amber">Photo Media</span>
+          <h3><code>photo</code></h3>
+          <p>Turn a Places photo resource name into a media URL.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
+
+        <a class="card" href="commands/resolve.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-7 7-12a7 7 0 1 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </span>
+          <span class="pill amber">Resolve</span>
+          <h3><code>resolve</code></h3>
+          <p>Convert free-form location text into candidate place IDs.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
+
+        <a class="card" href="commands/route.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h6a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h6"/></svg>
+          </span>
+          <span class="pill blue">Routes &middot; Places</span>
+          <h3><code>route</code></h3>
+          <p>Sample a route and search for places near waypoints.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
+
+        <a class="card" href="commands/directions.html">
+          <span class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9-9 9z"/><path d="M9 14v-3h6"/><path d="M15 11l3 3-3 3"/></svg>
+          </span>
+          <span class="pill blue">Routes</span>
+          <h3><code>directions</code></h3>
+          <p>Distance, duration, warnings, steps, units, drive modifiers.</p>
+          <div class="card-foot"><span>Read docs</span><span class="arrow">&rarr;</span></div>
+        </a>
       </div>
     </section>
 
+    <!-- ─────────────── Setup ─────────────── -->
     <section class="section shell" id="setup">
       <div class="section-head">
         <div>
           <div class="eyebrow">Setup</div>
           <h2>Install, key, run.</h2>
         </div>
-        <p>Enable Places API (New). Enable Routes API for <code>route</code> and <code>directions</code>. Then export one API key.</p>
+        <p>Enable Places API (New). Enable Routes API for <code>route</code> and <code>directions</code>. Then export one API key &mdash; the CLI and Go client both pick it up.</p>
       </div>
+
       <div class="split">
         <div class="panel">
-          <h3>Install</h3>
-          <p>Use Homebrew for the CLI or <code>go install</code> for a direct Go toolchain install.</p>
+          <h3>Three steps to your first call</h3>
+          <ol class="steps">
+            <li><b>1</b><div>
+              <p>Install the binary.</p>
+              <small>Pick Homebrew, <code>go install</code>, or grab a release archive.</small>
+            </div></li>
+            <li><b>2</b><div>
+              <p>Enable the APIs in Google Cloud.</p>
+              <small>Places API (New) is required. Routes API is needed for <code>route</code> and <code>directions</code>.</small>
+            </div></li>
+            <li><b>3</b><div>
+              <p>Export your key, then run any command.</p>
+              <small><code>export GOOGLE_PLACES_API_KEY="..."</code></small>
+            </div></li>
+          </ol>
         </div>
-        <div class="panel">
-          <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#install">Copy</button></div>
-          <pre id="install">brew install steipete/tap/goplaces
-go install github.com/steipete/goplaces/cmd/goplaces@latest
-export GOOGLE_PLACES_API_KEY="..."</pre>
+
+        <div class="panel" data-tabs>
+          <div role="tablist" class="tabs" aria-label="Install method">
+            <button class="tab" role="tab" aria-selected="true"  aria-controls="t-brew">Homebrew</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="t-go">go install</button>
+            <button class="tab" role="tab" aria-selected="false" aria-controls="t-bin">macOS/Linux</button>
+          </div>
+
+          <div role="tabpanel" id="t-brew" class="tab-panel is-active">
+            <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#code-brew" data-copy-text="brew install steipete/tap/goplaces
+export GOOGLE_PLACES_API_KEY=&quot;...&quot;
+goplaces search &quot;bookstore&quot;">Copy</button></div>
+<pre id="code-brew"><span class="tk-c"># Install via the steipete tap</span>
+<span class="tk-prompt">$ </span>brew install steipete/tap/goplaces
+<span class="tk-prompt">$ </span>export GOOGLE_PLACES_API_KEY=<span class="tk-str">"..."</span>
+<span class="tk-prompt">$ </span>goplaces search <span class="tk-str">"bookstore"</span></pre>
+          </div>
+
+          <div role="tabpanel" id="t-go" class="tab-panel">
+            <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#code-go" data-copy-text="go install github.com/steipete/goplaces/cmd/goplaces@latest
+export GOOGLE_PLACES_API_KEY=&quot;...&quot;
+goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4">Copy</button></div>
+<pre id="code-go"><span class="tk-c"># Direct install via the Go toolchain</span>
+<span class="tk-prompt">$ </span>go install github.com/steipete/goplaces/cmd/goplaces@latest
+<span class="tk-prompt">$ </span>export GOOGLE_PLACES_API_KEY=<span class="tk-str">"..."</span>
+<span class="tk-prompt">$ </span>goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4</pre>
+          </div>
+
+          <div role="tabpanel" id="t-bin" class="tab-panel">
+            <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#code-bin" data-copy-text="gh release download --repo steipete/goplaces --pattern &quot;goplaces_*_$(go env GOOS)_$(go env GOARCH).tar.gz&quot; --output - | tar xz
+./goplaces --help">Copy</button></div>
+<pre id="code-bin"><span class="tk-c"># Stream the matching archive from the latest GitHub release</span>
+<span class="tk-prompt">$ </span>gh release download <span class="tk-flag">--repo</span> steipete/goplaces \
+    <span class="tk-flag">--pattern</span> <span class="tk-str">"goplaces_*_$(go env GOOS)_$(go env GOARCH).tar.gz"</span> \
+    <span class="tk-flag">--output</span> - | tar xz
+<span class="tk-prompt">$ </span>./goplaces --help</pre>
+          </div>
         </div>
       </div>
     </section>
 
+    <!-- ─────────────── Go library ─────────────── -->
     <section class="section shell" id="library">
       <div class="section-head">
         <div>
           <div class="eyebrow">Go package</div>
           <h2>Same workflows, typed.</h2>
         </div>
-        <p>The root package is <code>github.com/steipete/goplaces</code>. Requests mirror the CLI concepts and own their field masks.</p>
+        <p>The root package is <code>github.com/steipete/goplaces</code>. Requests mirror the CLI concepts and own their field masks. No wrapper layer over a giant generated client &mdash; small surface, idiomatic types.</p>
       </div>
-      <div class="panel">
-        <div class="codebar"><span class="pill">go</span><button class="copy" data-copy="#goapi">Copy</button></div>
-        <pre id="goapi">client := goplaces.NewClient(goplaces.Options{
-    APIKey:  os.Getenv("GOOGLE_PLACES_API_KEY"),
-    Timeout: 8 * time.Second,
-})
 
-response, err := client.Search(ctx, goplaces.SearchRequest{
-    Query: "italian restaurant",
-    Limit: 10,
-    LocationBias: &goplaces.LocationBias{Lat: 40.8065, Lng: -73.9719, RadiusM: 3000},
-})</pre>
+      <div class="split">
+        <div class="panel">
+          <h3>What you get</h3>
+          <ul class="steps">
+            <li><b>&middot;</b><div><p>Typed request and response structs</p><small>Place, Photo, Route, Step, OpeningHours &mdash; all explicit.</small></div></li>
+            <li><b>&middot;</b><div><p>Deterministic field masks</p><small>Each request owns the fields it asks Google for. No surprise costs.</small></div></li>
+            <li><b>&middot;</b><div><p>Context everywhere</p><small>Honor cancellation, deadlines, and request-scoped values.</small></div></li>
+            <li><b>&middot;</b><div><p>Pluggable HTTP</p><small>Inject your own <code>http.Client</code> for retries, tracing, or fakes.</small></div></li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <div class="codebar"><span class="pill">go</span><button class="copy" data-copy="#goapi">Copy</button></div>
+<pre id="goapi"><span class="tk-key">import</span> <span class="tk-pun">(</span>
+    <span class="tk-str">"context"</span>
+    <span class="tk-str">"os"</span>
+    <span class="tk-str">"time"</span>
+
+    <span class="tk-str">"github.com/steipete/goplaces"</span>
+<span class="tk-pun">)</span>
+
+client <span class="tk-pun">:=</span> goplaces<span class="tk-pun">.</span><span class="tk-fn">NewClient</span><span class="tk-pun">(</span>goplaces<span class="tk-pun">.</span><span class="tk-type">Options</span><span class="tk-pun">{</span>
+    APIKey<span class="tk-pun">:</span>  os<span class="tk-pun">.</span><span class="tk-fn">Getenv</span><span class="tk-pun">(</span><span class="tk-str">"GOOGLE_PLACES_API_KEY"</span><span class="tk-pun">),</span>
+    Timeout<span class="tk-pun">:</span> <span class="tk-num">8</span> <span class="tk-pun">*</span> time<span class="tk-pun">.</span>Second<span class="tk-pun">,</span>
+<span class="tk-pun">})</span>
+
+resp<span class="tk-pun">,</span> err <span class="tk-pun">:=</span> client<span class="tk-pun">.</span><span class="tk-fn">Search</span><span class="tk-pun">(</span>ctx<span class="tk-pun">,</span> goplaces<span class="tk-pun">.</span><span class="tk-type">SearchRequest</span><span class="tk-pun">{</span>
+    Query<span class="tk-pun">:</span> <span class="tk-str">"italian restaurant"</span><span class="tk-pun">,</span>
+    Limit<span class="tk-pun">:</span> <span class="tk-num">10</span><span class="tk-pun">,</span>
+    LocationBias<span class="tk-pun">:</span> <span class="tk-pun">&amp;</span>goplaces<span class="tk-pun">.</span><span class="tk-type">LocationBias</span><span class="tk-pun">{</span>
+        Lat<span class="tk-pun">:</span> <span class="tk-num">40.8065</span><span class="tk-pun">,</span> Lng<span class="tk-pun">:</span> <span class="tk-num">-73.9719</span><span class="tk-pun">,</span> RadiusM<span class="tk-pun">:</span> <span class="tk-num">3000</span><span class="tk-pun">,</span>
+    <span class="tk-pun">},</span>
+<span class="tk-pun">})</span></pre>
+        </div>
       </div>
     </section>
 
-    <section class="section shell">
+    <!-- ─────────────── Architecture ─────────────── -->
+    <section class="section shell" id="architecture">
       <div class="section-head">
         <div>
           <div class="eyebrow">Project map</div>
           <h2>Small surface, clear split.</h2>
         </div>
+        <p>Two entry points &mdash; the CLI and the Go client &mdash; share one place and route implementation. Easy to read in an afternoon.</p>
       </div>
-      <div class="grid">
-        <div class="card"><h3>CLI</h3><p><code>cmd/goplaces</code> and <code>internal/cli</code> provide Kong-based commands and renderers.</p></div>
-        <div class="card"><h3>Client</h3><p>The root package exposes typed requests and responses; <code>internal/places</code> owns the implementation.</p></div>
-        <div class="card"><h3>Output</h3><p>Compact color text by default. Machine output via <code>--json</code>.</p></div>
-        <div class="card"><h3>Testing</h3><p>Run <code>make test</code>, <code>make lint</code>, or optional API-key backed <code>make e2e</code>.</p></div>
+
+      <div class="map">
+        <div class="card">
+          <span class="path">cmd/goplaces</span>
+          <h3>CLI entry</h3>
+          <p>The thin <code>main</code>. Wires up Kong, flags, version info, and exits.</p>
+        </div>
+        <div class="card">
+          <span class="path">internal/cli</span>
+          <h3>Commands &amp; output</h3>
+          <p>Per-command Kong structs, renderers, and the <code>--json</code> machine output.</p>
+        </div>
+        <div class="card">
+          <span class="path">github.com/steipete/goplaces</span>
+          <h3>Public client</h3>
+          <p>Typed requests and responses. Owns field masks and retries.</p>
+        </div>
+        <div class="card">
+          <span class="path">internal/places</span>
+          <h3>HTTP &amp; mapping</h3>
+          <p>The actual Places + Routes calls and the JSON&hairsp;&rarr;&hairsp;Go mapping.</p>
+        </div>
       </div>
     </section>
   </main>
 
+  <!-- ─────────────── Footer ─────────────── -->
   <footer class="footer">
-    <div class="shell">goplaces docs. Built for GitHub Pages from <code>docs/</code>.</div>
+    <div class="shell foot-grid">
+      <div>
+        <a class="brand" href="index.html"><span class="mark"></span><span>goplaces</span></a>
+        <p>A Go client and CLI for Google Places API (New) and Routes. Small surface, explicit types, JSON when you need it.</p>
+      </div>
+      <div>
+        <h4>Commands</h4>
+        <a href="commands/search.html">search</a>
+        <a href="commands/nearby.html">nearby</a>
+        <a href="commands/autocomplete.html">autocomplete</a>
+        <a href="commands/details.html">details</a>
+      </div>
+      <div>
+        <h4>More</h4>
+        <a href="commands/photo.html">photo</a>
+        <a href="commands/resolve.html">resolve</a>
+        <a href="commands/route.html">route</a>
+        <a href="commands/directions.html">directions</a>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <a href="https://github.com/steipete/goplaces" rel="noopener">GitHub</a>
+        <a href="https://github.com/steipete/goplaces/releases" rel="noopener">Releases</a>
+        <a href="https://github.com/steipete/goplaces/blob/main/CHANGELOG.md" rel="noopener">Changelog</a>
+        <a href="https://github.com/steipete/goplaces/blob/main/LICENSE" rel="noopener">MIT License</a>
+      </div>
+    </div>
+    <div class="shell foot-bar">
+      <span>Built for GitHub Pages from <code>docs/</code>.</span>
+      <span>&copy; Peter Steinberger</span>
+    </div>
   </footer>
+
   <script src="assets/site.js"></script>
 </body>
 </html>
