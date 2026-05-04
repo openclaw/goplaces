@@ -33,9 +33,17 @@ Imperial units:
 goplaces directions --from-place-id <fromId> --to-place-id <toId> --units imperial
 ```
 
+Driving route modifiers:
+
+```bash
+goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-tolls
+goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-highways --avoid-ferries
+```
+
 ## Notes
 
 - Default mode is walking.
 - Default units are metric (use `--units imperial` for miles/feet).
 - Use `--steps` for turn-by-turn instructions.
 - Use `--compare drive` to add a driving ETA.
+- Use `--avoid-tolls`, `--avoid-highways`, and `--avoid-ferries` with `--mode drive` to request drive routes that avoid those features when reasonable.

@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.3.1 - Unreleased
+## 0.4.0 - 2026-05-04
+
+- Add `business_status` to search, nearby, details, JSON output, and human CLI output. (#8) - thanks @doomsday-rgb
+- Add drive-only `--avoid-tolls`, `--avoid-highways`, and `--avoid-ferries` direction flags backed by Routes API `routeModifiers`. (#7) - thanks @gabob23
 
 ## 0.3.0 - 2026-02-14
 

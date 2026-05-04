@@ -40,16 +40,19 @@ var directionsUnits = map[string]struct{}{
 
 // DirectionsRequest describes a directions query between two locations.
 type DirectionsRequest struct {
-	From         string  `json:"from,omitempty"`
-	To           string  `json:"to,omitempty"`
-	FromPlaceID  string  `json:"from_place_id,omitempty"`
-	ToPlaceID    string  `json:"to_place_id,omitempty"`
-	FromLocation *LatLng `json:"from_location,omitempty"`
-	ToLocation   *LatLng `json:"to_location,omitempty"`
-	Mode         string  `json:"mode,omitempty"`
-	Language     string  `json:"language,omitempty"`
-	Region       string  `json:"region,omitempty"`
-	Units        string  `json:"units,omitempty"`
+	From          string  `json:"from,omitempty"`
+	To            string  `json:"to,omitempty"`
+	FromPlaceID   string  `json:"from_place_id,omitempty"`
+	ToPlaceID     string  `json:"to_place_id,omitempty"`
+	FromLocation  *LatLng `json:"from_location,omitempty"`
+	ToLocation    *LatLng `json:"to_location,omitempty"`
+	Mode          string  `json:"mode,omitempty"`
+	Language      string  `json:"language,omitempty"`
+	Region        string  `json:"region,omitempty"`
+	Units         string  `json:"units,omitempty"`
+	AvoidTolls    bool    `json:"avoid_tolls,omitempty"`
+	AvoidHighways bool    `json:"avoid_highways,omitempty"`
+	AvoidFerries  bool    `json:"avoid_ferries,omitempty"`
 }
 
 // DirectionsResponse contains a single route summary and steps.
@@ -163,6 +166,9 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 		if _, ok := directionsUnits[req.Units]; !ok {
 			return ValidationError{Field: "units", Message: "must be metric or imperial"}
 		}
+	}
+	if (req.AvoidTolls || req.AvoidHighways || req.AvoidFerries) && req.Mode != directionsModeDrive {
+		return ValidationError{Field: "route_modifiers", Message: "avoid tolls/highways/ferries require drive mode"}
 	}
 	return nil
 }
@@ -289,6 +295,13 @@ func buildDirectionsBody(req DirectionsRequest) map[string]any {
 	}
 	if strings.TrimSpace(req.Region) != "" {
 		body["regionCode"] = strings.TrimSpace(req.Region)
+	}
+	if req.AvoidTolls || req.AvoidHighways || req.AvoidFerries {
+		body["routeModifiers"] = map[string]any{
+			"avoidTolls":    req.AvoidTolls,
+			"avoidHighways": req.AvoidHighways,
+			"avoidFerries":  req.AvoidFerries,
+		}
 	}
 	return body
 }

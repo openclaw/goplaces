@@ -16,6 +16,7 @@ type placeItem struct {
 	Types               []string            `json:"types,omitempty"`
 	CurrentOpeningHours *openingHours       `json:"currentOpeningHours,omitempty"`
 	RegularOpeningHours *openingHours       `json:"regularOpeningHours,omitempty"`
+	BusinessStatus      string              `json:"businessStatus,omitempty"`
 	NationalPhoneNumber string              `json:"nationalPhoneNumber,omitempty"`
 	WebsiteURI          string              `json:"websiteUri,omitempty"`
 	Reviews             []reviewPayload     `json:"reviews,omitempty"`

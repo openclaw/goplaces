@@ -47,7 +47,8 @@ func TestSearchSuccess(t *testing.T) {
       "userRatingCount": 532,
       "priceLevel": "PRICE_LEVEL_MODERATE",
       "types": ["cafe"],
-      "currentOpeningHours": {"openNow": true}
+      "currentOpeningHours": {"openNow": true},
+      "businessStatus": "OPERATIONAL"
     }
   ],
   "nextPageToken": "next"
@@ -101,6 +102,9 @@ func TestSearchSuccess(t *testing.T) {
 	}
 	if result.OpenNow == nil || *result.OpenNow != true {
 		t.Fatalf("unexpected openNow: %#v", result.OpenNow)
+	}
+	if result.BusinessStatus != "OPERATIONAL" {
+		t.Fatalf("unexpected business status: %s", result.BusinessStatus)
 	}
 	if response.NextPageToken != "next" {
 		t.Fatalf("unexpected token: %s", response.NextPageToken)
@@ -396,6 +400,7 @@ func TestDetailsSuccess(t *testing.T) {
   "types": ["park"],
   "regularOpeningHours": {"weekdayDescriptions": ["Mon: 9-5"]},
   "currentOpeningHours": {"openNow": false},
+  "businessStatus": "CLOSED_TEMPORARILY",
   "nationalPhoneNumber": "+1 555",
   "websiteUri": "https://example.com"
 }`))
@@ -419,6 +424,9 @@ func TestDetailsSuccess(t *testing.T) {
 	}
 	if place.OpenNow == nil || *place.OpenNow != false {
 		t.Fatalf("unexpected openNow")
+	}
+	if place.BusinessStatus != "CLOSED_TEMPORARILY" {
+		t.Fatalf("unexpected business status: %s", place.BusinessStatus)
 	}
 	if len(place.Hours) != 1 {
 		t.Fatalf("unexpected hours")

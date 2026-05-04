@@ -93,6 +93,7 @@ type PlaceSummary struct {
 	PriceLevel      *int     `json:"price_level,omitempty"`
 	Types           []string `json:"types,omitempty"`
 	OpenNow         *bool    `json:"open_now,omitempty"`
+	BusinessStatus  string   `json:"business_status,omitempty"`
 }
 
 // PlaceDetails is a detailed view of a place.
@@ -109,6 +110,7 @@ type PlaceDetails struct {
 	Website         string   `json:"website,omitempty"`
 	Hours           []string `json:"hours,omitempty"`
 	OpenNow         *bool    `json:"open_now,omitempty"`
+	BusinessStatus  string   `json:"business_status,omitempty"`
 	Reviews         []Review `json:"reviews,omitempty"`
 	Photos          []Photo  `json:"photos,omitempty"`
 }

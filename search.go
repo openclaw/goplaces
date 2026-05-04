@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const searchFieldMask = "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,nextPageToken"
+const searchFieldMask = "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,places.businessStatus,nextPageToken"
 
 // Search performs a text search with optional filters.
 func (c *Client) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
@@ -109,6 +109,7 @@ func mapPlaceSummary(place placeItem) PlaceSummary {
 		PriceLevel:      mapPriceLevel(place.PriceLevel),
 		Types:           place.Types,
 		OpenNow:         openNow(place.CurrentOpeningHours),
+		BusinessStatus:  strings.TrimSpace(place.BusinessStatus),
 	}
 }
 

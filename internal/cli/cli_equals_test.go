@@ -162,3 +162,55 @@ func TestRunDirectionsWithEqualsFlags(t *testing.T) {
 		t.Fatalf("unexpected stdout: %s", stdout.String())
 	}
 }
+
+func TestRunDirectionsWithAvoidFlags(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if payload["travelMode"] != directionsModeDriveAPI {
+			t.Fatalf("unexpected mode: %#v", payload["travelMode"])
+		}
+		modifiers, ok := payload["routeModifiers"].(map[string]any)
+		if !ok {
+			t.Fatalf("missing routeModifiers: %#v", payload)
+		}
+		if modifiers["avoidTolls"] != true || modifiers["avoidHighways"] != true || modifiers["avoidFerries"] != true {
+			t.Fatalf("unexpected routeModifiers: %#v", modifiers)
+		}
+		_, _ = w.Write([]byte(`{
+  "routes":[{"legs":[{"distanceMeters":1000,"duration":"600s","localizedValues":{"distance":{"text":"1 km"},"duration":{"text":"10 mins"}},"steps":[]}]}]
+}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from=A",
+		"--to=B",
+		"--api-key=test-key",
+		"--directions-base-url=" + server.URL,
+		"--mode=drive",
+		"--avoid-tolls",
+		"--avoid-highways",
+		"--avoid-ferries",
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "\"mode\": \"DRIVING\"") {
+		t.Fatalf("unexpected stdout: %s", stdout.String())
+	}
+}

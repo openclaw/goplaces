@@ -237,6 +237,7 @@ func writePlaceSummary(out *bytes.Buffer, color Color, place goplaces.PlaceSumma
 	writeRating(out, color, place.Rating, place.UserRatingCount, place.PriceLevel)
 	writeTypes(out, color, place.Types)
 	writeOpenNow(out, color, place.OpenNow)
+	writeLine(out, color, "Status", place.BusinessStatus)
 }
 
 func writeAutocompleteSuggestion(out *bytes.Buffer, color Color, suggestion goplaces.AutocompleteSuggestion) {
@@ -255,6 +256,7 @@ func writePlaceDetails(out *bytes.Buffer, color Color, place goplaces.PlaceDetai
 	writeRating(out, color, place.Rating, place.UserRatingCount, place.PriceLevel)
 	writeTypes(out, color, place.Types)
 	writeOpenNow(out, color, place.OpenNow)
+	writeLine(out, color, "Status", place.BusinessStatus)
 	writeLine(out, color, "Phone", place.Phone)
 	writeLine(out, color, "Website", place.Website)
 	writePhotos(out, color, place.Photos)

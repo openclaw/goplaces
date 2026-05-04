@@ -124,6 +124,14 @@ func TestDirectionsUnitsValidation(t *testing.T) {
 	}
 }
 
+func TestDirectionsRouteModifiersRequireDrive(t *testing.T) {
+	req := DirectionsRequest{From: "A", To: "B", Mode: "walk", AvoidTolls: true}
+	err := validateDirectionsRequest(applyDirectionsDefaults(req))
+	if err == nil || !strings.Contains(err.Error(), "route_modifiers") {
+		t.Fatalf("expected route modifier validation error, got %v", err)
+	}
+}
+
 func TestDirectionsLocationValidation(t *testing.T) {
 	req := DirectionsRequest{FromPlaceID: "a", From: "b", To: "c"}
 	if err := validateDirectionsRequest(applyDirectionsDefaults(req)); err == nil {
@@ -277,6 +285,49 @@ func TestDirectionsRequestLocaleAndImperialUnits(t *testing.T) {
 		Language: "en-US",
 		Region:   "US",
 		Units:    "imperial",
+	})
+	if err != nil {
+		t.Fatalf("Directions error: %v", err)
+	}
+}
+
+func TestDirectionsRequestRouteModifiers(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != routesPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		modifiers, ok := payload["routeModifiers"].(map[string]any)
+		if !ok {
+			t.Fatalf("missing routeModifiers: %#v", payload)
+		}
+		if modifiers["avoidTolls"] != true || modifiers["avoidHighways"] != true || modifiers["avoidFerries"] != true {
+			t.Fatalf("unexpected routeModifiers: %#v", modifiers)
+		}
+		_, _ = w.Write([]byte(`{
+  "routes":[{
+    "legs":[{
+      "distanceMeters":1609,
+      "duration":"300s",
+      "localizedValues":{"distance":{"text":"1 mi"},"duration":{"text":"5 mins"}},
+      "steps":[]
+    }]
+  }]
+}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+	_, err := client.Directions(context.Background(), DirectionsRequest{
+		From:          "Seattle",
+		To:            "Portland",
+		Mode:          "drive",
+		AvoidTolls:    true,
+		AvoidHighways: true,
+		AvoidFerries:  true,
 	})
 	if err != nil {
 		t.Fatalf("Directions error: %v", err)

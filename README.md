@@ -9,7 +9,7 @@ Modern Go client + CLI for the Google Places API (New). Fast for humans, tidy fo
 - Nearby search around a location restriction.
 - Place photos in details + photo media URLs.
 - Route search along a driving path (Routes API).
-- Directions between two points with distance, duration, and steps (Routes API).
+- Directions between two points with distance, duration, steps, and optional drive route modifiers (Routes API).
 - Location bias (lat/lng/radius) and pagination tokens.
 - Place details: hours, phone, website, rating, price, types.
 - Optional reviews in details (`--reviews` / `IncludeReviews`).
@@ -20,7 +20,7 @@ Modern Go client + CLI for the Google Places API (New). Fast for humans, tidy fo
 
 ## Install / Run
 
-Latest release: v0.3.0 (2026-02-14).
+Latest release: v0.4.0 (2026-05-04).
 
 - Homebrew: `brew install steipete/tap/goplaces`
 - Go: `go install github.com/steipete/goplaces/cmd/goplaces@latest`
@@ -129,6 +129,13 @@ goplaces directions --from "Pike Place Market" --to "Space Needle"
 goplaces directions --from-place-id <fromId> --to-place-id <toId> --compare drive --steps
 ```
 
+Driving route modifiers:
+
+```bash
+goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-tolls
+goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-highways --avoid-ferries
+```
+
 Units (default metric):
 
 ```bash
@@ -230,6 +237,8 @@ route, err := client.Route(ctx, goplaces.RouteRequest{
 - Reviews are returned only when `IncludeReviews`/`--reviews` is set.
 - Photos are returned only when `IncludePhotos`/`--photos` is set.
 - Route search requires the Google Routes API to be enabled.
+- `business_status` is returned for search, nearby, and details when Google includes it.
+- Direction route modifiers (`--avoid-tolls`, `--avoid-highways`, `--avoid-ferries`) require `--mode drive`.
 - Field masks are defined alongside each request (e.g. `search.go`, `details.go`, `autocomplete.go`).
 - The Places API is billed and quota-limited; keep an eye on your Cloud Console quotas.
 
@@ -252,3 +261,4 @@ Optional env overrides:
 - Override the search text used in E2E: `GOOGLE_PLACES_E2E_QUERY`
 - Override language code for E2E: `GOOGLE_PLACES_E2E_LANGUAGE`
 - Override region code for E2E: `GOOGLE_PLACES_E2E_REGION`
+- Override directions endpoints/locations: `GOOGLE_DIRECTIONS_E2E_BASE_URL`, `GOOGLE_PLACES_E2E_DIRECTIONS_FROM`, `GOOGLE_PLACES_E2E_DIRECTIONS_TO`

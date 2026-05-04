@@ -25,6 +25,7 @@ func TestRenderSearch(t *testing.T) {
 				PriceLevel:      &level,
 				Types:           []string{"cafe", "coffee_shop"},
 				OpenNow:         &open,
+				BusinessStatus:  "OPERATIONAL",
 			},
 		},
 		NextPageToken: "next",
@@ -42,6 +43,9 @@ func TestRenderSearch(t *testing.T) {
 	}
 	if !strings.Contains(output, "Open now") {
 		t.Fatalf("missing open now")
+	}
+	if !strings.Contains(output, "Status: OPERATIONAL") {
+		t.Fatalf("missing status")
 	}
 	if !strings.Contains(output, "next") {
 		t.Fatalf("missing next page token")
@@ -226,16 +230,17 @@ func TestRenderDetailsAndResolve(t *testing.T) {
 	open := false
 	level := 0
 	details := goplaces.PlaceDetails{
-		PlaceID:    "place-1",
-		Name:       "Park",
-		Address:    "Central",
-		Rating:     floatPtr(4.2),
-		PriceLevel: &level,
-		Types:      []string{"park"},
-		Phone:      "+1 555",
-		Website:    "https://example.com",
-		Hours:      []string{"Mon: 9-5"},
-		OpenNow:    &open,
+		PlaceID:        "place-1",
+		Name:           "Park",
+		Address:        "Central",
+		Rating:         floatPtr(4.2),
+		PriceLevel:     &level,
+		Types:          []string{"park"},
+		Phone:          "+1 555",
+		Website:        "https://example.com",
+		Hours:          []string{"Mon: 9-5"},
+		OpenNow:        &open,
+		BusinessStatus: "CLOSED_TEMPORARILY",
 		Photos: []goplaces.Photo{
 			{Name: "places/place-1/photos/photo-1", WidthPx: 1200, HeightPx: 800},
 		},
@@ -257,6 +262,9 @@ func TestRenderDetailsAndResolve(t *testing.T) {
 	}
 	if !strings.Contains(output, "Reviews:") || !strings.Contains(output, "Alice") {
 		t.Fatalf("missing reviews output: %s", output)
+	}
+	if !strings.Contains(output, "Status: CLOSED_TEMPORARILY") {
+		t.Fatalf("missing status output: %s", output)
 	}
 
 	resolve := goplaces.LocationResolveResponse{

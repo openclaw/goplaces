@@ -148,6 +148,46 @@ func TestE2ENearbySearch(t *testing.T) {
 	}
 }
 
+func TestE2EDirectionsAvoidTolls(t *testing.T) {
+	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
+	if apiKey == "" {
+		t.Skip("GOOGLE_PLACES_API_KEY not set")
+	}
+
+	from := os.Getenv("GOOGLE_PLACES_E2E_DIRECTIONS_FROM")
+	if from == "" {
+		from = "Paris, France"
+	}
+	to := os.Getenv("GOOGLE_PLACES_E2E_DIRECTIONS_TO")
+	if to == "" {
+		to = "Brest, France"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	client := NewClient(Options{
+		APIKey:            apiKey,
+		DirectionsBaseURL: os.Getenv("GOOGLE_DIRECTIONS_E2E_BASE_URL"),
+		Timeout:           15 * time.Second,
+	})
+
+	response, err := client.Directions(ctx, DirectionsRequest{
+		From:       from,
+		To:         to,
+		Mode:       "drive",
+		AvoidTolls: true,
+		Language:   "en",
+		Region:     "FR",
+	})
+	if err != nil {
+		t.Fatalf("directions error: %v", err)
+	}
+	if response.DistanceMeters == 0 || response.DurationSeconds == 0 {
+		t.Fatalf("expected distance and duration, got %#v", response)
+	}
+}
+
 func TestE2EPhotoMedia(t *testing.T) {
 	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
 	if apiKey == "" {

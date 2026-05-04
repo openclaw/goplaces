@@ -34,3 +34,4 @@ response, err := client.NearbySearch(ctx, goplaces.NearbySearchRequest{
 
 - Location restriction (lat/lng/radius) is required.
 - Use `IncludedTypes`/`--type` to filter result types.
+- Results include `business_status` when Google returns it.

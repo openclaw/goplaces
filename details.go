@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	detailsFieldMaskBase   = "id,displayName,formattedAddress,location,rating,userRatingCount,priceLevel,types,regularOpeningHours,currentOpeningHours,nationalPhoneNumber,websiteUri"
+	detailsFieldMaskBase   = "id,displayName,formattedAddress,location,rating,userRatingCount,priceLevel,types,regularOpeningHours,currentOpeningHours,businessStatus,nationalPhoneNumber,websiteUri"
 	detailsFieldMaskReview = "reviews"
 	detailsFieldMaskPhotos = "photos"
 )
@@ -73,6 +73,7 @@ func mapPlaceDetails(place placeItem) PlaceDetails {
 		Website:         place.WebsiteURI,
 		Hours:           weekdayDescriptions(place.RegularOpeningHours),
 		OpenNow:         openNow(place.CurrentOpeningHours),
+		BusinessStatus:  strings.TrimSpace(place.BusinessStatus),
 		Reviews:         mapReviews(place.Reviews),
 		Photos:          mapPhotos(place.Photos),
 	}
