@@ -466,7 +466,10 @@ p { color: var(--muted); margin: 14px 0 0; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-.card h3 { font-size: 21px; }
+.card h3 {
+  font-size: 21px;
+  margin-top: 8px;
+}
 .card p { font-size: 14.5px; line-height: 1.55; }
 
 .pill {
