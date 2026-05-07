@@ -1,12 +1,18 @@
-name: build
+name: release
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to (re)release (e.g. v0.1.0)"
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   goreleaser:
@@ -19,12 +25,51 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Stash GoReleaser config
+        run: cp .goreleaser.yml /tmp/.goreleaser.yml
+      - name: Checkout release tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: git checkout ${{ inputs.tag }}
+      - name: Verify Homebrew tap token
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN is missing; cannot publish Homebrew formula"
+            exit 1
+          fi
+          code="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $HOMEBREW_TAP_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/steipete/homebrew-tap || true)"
+          if [ "$code" != "200" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN cannot access steipete/homebrew-tap (HTTP $code)"
+            exit 1
+          fi
       - uses: goreleaser/goreleaser-action@v6
         with:
+          distribution: goreleaser
           version: "~> v2"
-          args: build --clean
-      - uses: actions/upload-artifact@v4
-        with:
-          name: goplaces-${{ github.ref_name }}
-          path: dist/**
-          if-no-files-found: error
+          args: release --clean --config /tmp/.goreleaser.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Verify Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            release_tag="${{ inputs.tag }}"
+          else
+            release_tag="${{ github.ref_name }}"
+          fi
+          release_version="${release_tag#v}"
+          formula="$(gh api repos/steipete/homebrew-tap/contents/Formula/goplaces.rb --jq '.content' | base64 --decode)"
+          if ! grep -q "version \"${release_version}\"" <<<"$formula"; then
+            echo "::error::steipete/homebrew-tap Formula/goplaces.rb was not updated to $release_version"
+            exit 1
+          fi
+          if ! grep -q "releases/download/v${release_version}/" <<<"$formula"; then
+            echo "::error::steipete/homebrew-tap Formula/goplaces.rb does not point at v$release_version assets"
+            exit 1
+          fi
