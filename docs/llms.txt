@@ -1,0 +1,20 @@
+# goplaces
+
+goplaces is a modern Go client and CLI for Google Places API (New) and Routes.
+
+Canonical documentation:
+- goplaces - Go client + CLI for Google Places API (New): https://goplaces.sh/ - A modern Go client and CLI for Google Places API (New) and Routes. Search, autocomplete, details, photos, route-aware queries — typed, JSON-friendly, one binary.
+- goplaces autocomplete: https://goplaces.sh/commands/autocomplete.html - Autocomplete place and query input with goplaces.
+- goplaces details: https://goplaces.sh/commands/details.html - Fetch place details by place ID with goplaces.
+- goplaces directions: https://goplaces.sh/commands/directions.html - Get route directions, distance, and duration with goplaces.
+- goplaces nearby: https://goplaces.sh/commands/nearby.html - Search nearby places by location with goplaces.
+- goplaces photo: https://goplaces.sh/commands/photo.html - Fetch a Places photo media URL with goplaces.
+- goplaces resolve: https://goplaces.sh/commands/resolve.html - Resolve free-form location text to candidate places with goplaces.
+- goplaces route: https://goplaces.sh/commands/route.html - Search for places along a route with goplaces.
+- goplaces search: https://goplaces.sh/commands/search.html - Search places by text query with goplaces.
+
+Source: https://github.com/steipete/goplaces
+
+Guidance for agents:
+- Prefer the canonical documentation URLs above over README excerpts or package metadata.
+- Fetch only the pages needed for the current task; this is an index, not a full-site corpus.
