@@ -53,6 +53,8 @@ type DirectionsRequest struct {
 	AvoidTolls    bool    `json:"avoid_tolls,omitempty"`
 	AvoidHighways bool    `json:"avoid_highways,omitempty"`
 	AvoidFerries  bool    `json:"avoid_ferries,omitempty"`
+	DepartureTime string  `json:"departure_time,omitempty"`
+	ArrivalTime   string  `json:"arrival_time,omitempty"`
 }
 
 // DirectionsResponse contains a single route summary and steps.
@@ -65,6 +67,8 @@ type DirectionsResponse struct {
 	DistanceMeters  int              `json:"distance_meters,omitempty"`
 	DurationText    string           `json:"duration_text,omitempty"`
 	DurationSeconds int              `json:"duration_seconds,omitempty"`
+	DepartureTime   string           `json:"departure_time,omitempty"`
+	ArrivalTime     string           `json:"arrival_time,omitempty"`
 	Warnings        []string         `json:"warnings,omitempty"`
 	Steps           []DirectionsStep `json:"steps,omitempty"`
 }
@@ -126,6 +130,8 @@ func (c *Client) Directions(ctx context.Context, req DirectionsRequest) (Directi
 		DistanceMeters:  leg.DistanceMeters,
 		DurationText:    strings.TrimSpace(leg.LocalizedValues.Duration.Text),
 		DurationSeconds: parseDurationSeconds(leg.Duration),
+		DepartureTime:   req.DepartureTime,
+		ArrivalTime:     req.ArrivalTime,
 		Warnings:        route.Warnings,
 		Steps:           steps,
 	}, nil
@@ -149,6 +155,8 @@ func applyDirectionsDefaults(req DirectionsRequest) DirectionsRequest {
 	if req.Units == "" {
 		req.Units = directionsUnitsMetric
 	}
+	req.DepartureTime = strings.TrimSpace(req.DepartureTime)
+	req.ArrivalTime = strings.TrimSpace(req.ArrivalTime)
 	return req
 }
 
@@ -169,6 +177,19 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 	}
 	if (req.AvoidTolls || req.AvoidHighways || req.AvoidFerries) && req.Mode != directionsModeDrive {
 		return ValidationError{Field: "route_modifiers", Message: "avoid tolls/highways/ferries require drive mode"}
+	}
+	if req.DepartureTime != "" && req.ArrivalTime != "" {
+		return ValidationError{Field: "time", Message: "use only one of departure_time or arrival_time"}
+	}
+	if req.DepartureTime != "" {
+		if _, err := time.Parse(time.RFC3339, req.DepartureTime); err != nil {
+			return ValidationError{Field: "departure_time", Message: "must be RFC3339, e.g. 2026-05-10T18:57:00-03:00"}
+		}
+	}
+	if req.ArrivalTime != "" {
+		if _, err := time.Parse(time.RFC3339, req.ArrivalTime); err != nil {
+			return ValidationError{Field: "arrival_time", Message: "must be RFC3339, e.g. 2026-05-10T18:57:00-03:00"}
+		}
 	}
 	return nil
 }
@@ -302,6 +323,15 @@ func buildDirectionsBody(req DirectionsRequest) map[string]any {
 			"avoidHighways": req.AvoidHighways,
 			"avoidFerries":  req.AvoidFerries,
 		}
+	}
+	if req.DepartureTime != "" {
+		body["departureTime"] = req.DepartureTime
+		if normalizeDirectionsMode(req.Mode) == directionsModeDrive {
+			body["routingPreference"] = "TRAFFIC_AWARE"
+		}
+	}
+	if req.ArrivalTime != "" {
+		body["arrivalTime"] = req.ArrivalTime
 	}
 	return body
 }

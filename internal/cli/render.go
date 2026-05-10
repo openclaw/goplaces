@@ -169,6 +169,8 @@ func renderDirections(color Color, response goplaces.DirectionsResponse, include
 	writeLine(&out, color, "Summary", response.Summary)
 	writeLine(&out, color, "Distance", response.DistanceText)
 	writeLine(&out, color, "Duration", response.DurationText)
+	writeLine(&out, color, "Departure", response.DepartureTime)
+	writeLine(&out, color, "Arrival", response.ArrivalTime)
 	if len(response.Warnings) > 0 {
 		out.WriteString(color.Dim("Warnings:"))
 		out.WriteString("\n")
