@@ -165,6 +165,13 @@ goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-tolls
 goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-highways --avoid-ferries
 ```
 
+Time-aware routing:
+
+```bash
+goplaces directions --from "GIG Airport" --to "Leblon, Rio de Janeiro" --mode drive --departure-time "2026-05-10T18:57:00-03:00"
+goplaces directions --from "Pike Place Market" --to "Space Needle" --arrival-time "2026-05-10T19:30:00-07:00"
+```
+
 Units (default metric):
 
 ```bash

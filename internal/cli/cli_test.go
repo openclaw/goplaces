@@ -400,6 +400,56 @@ func TestRunDirectionsJSON(t *testing.T) {
 	}
 }
 
+func TestRunDirectionsWithDepartureTime(t *testing.T) {
+	const departure = "2026-05-10T18:57:00-03:00"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if payload["departureTime"] != departure {
+			t.Fatalf("unexpected departure time: %#v", payload["departureTime"])
+		}
+		if payload["routingPreference"] != "TRAFFIC_AWARE" {
+			t.Fatalf("unexpected routing preference: %#v", payload["routingPreference"])
+		}
+		_, _ = w.Write([]byte(`{
+  "routes":[{"description":"Main","legs":[{"distanceMeters":26084,"duration":"2215s","localizedValues":{"distance":{"text":"26.1 km"},"duration":{"text":"37 mins"}},"steps":[]}]}]
+}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from-lat=-22.8112259",
+		"--from-lng=-43.2585631",
+		"--to-lat=-22.9837626",
+		"--to-lng=-43.2322048",
+		"--mode", "drive",
+		"--departure-time", departure,
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	var result goplaces.DirectionsResponse
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode output: %v (stdout=%s)", err, stdout.String())
+	}
+	if result.DepartureTime != departure || result.DurationSeconds != 2215 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
 func TestRunDirectionsCompareJSON(t *testing.T) {
 	seenModes := make(map[string]int)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -522,6 +572,14 @@ func TestRunDirectionsValidationErrors(t *testing.T) {
 		{
 			name: "partial to latlng",
 			args: []string{"directions", "--from", "A", "--to-lng", "2", "--api-key", "x"},
+		},
+		{
+			name: "departure and arrival",
+			args: []string{"directions", "--from", "A", "--to", "B", "--departure-time", "2026-05-10T18:57:00-03:00", "--arrival-time", "2026-05-10T19:57:00-03:00", "--api-key", "x"},
+		},
+		{
+			name: "invalid departure time",
+			args: []string{"directions", "--from", "A", "--to", "B", "--departure-time", "tomorrow", "--api-key", "x"},
 		},
 	}
 
