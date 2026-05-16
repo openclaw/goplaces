@@ -31,4 +31,4 @@ photo, err := client.PhotoMedia(ctx, goplaces.PhotoMediaRequest{
 ## Notes
 
 - Photo media always returns a URL (skip redirect) for easy downloading.
-- Use `max-width`/`max-height` to control the asset size.
+- Provide `max-width` or `max-height`; each provided dimension must be 1-4800.

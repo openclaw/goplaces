@@ -9,11 +9,22 @@ import (
 	"strings"
 )
 
+const maxPhotoDimensionPx = 4800
+
 // PhotoMedia fetches a photo URL for a photo resource name.
 func (c *Client) PhotoMedia(ctx context.Context, req PhotoMediaRequest) (PhotoMediaResponse, error) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return PhotoMediaResponse{}, ValidationError{Field: "name", Message: "required"}
+	}
+	if req.MaxWidthPx < 0 || req.MaxWidthPx > maxPhotoDimensionPx {
+		return PhotoMediaResponse{}, ValidationError{Field: "max_width_px", Message: fmt.Sprintf("must be 1-%d", maxPhotoDimensionPx)}
+	}
+	if req.MaxHeightPx < 0 || req.MaxHeightPx > maxPhotoDimensionPx {
+		return PhotoMediaResponse{}, ValidationError{Field: "max_height_px", Message: fmt.Sprintf("must be 1-%d", maxPhotoDimensionPx)}
+	}
+	if req.MaxWidthPx == 0 && req.MaxHeightPx == 0 {
+		return PhotoMediaResponse{}, ValidationError{Field: "max_width_px", Message: "max_width_px or max_height_px required"}
 	}
 
 	path := "/" + strings.TrimPrefix(name, "/") + "/media"

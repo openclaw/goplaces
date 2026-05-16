@@ -67,7 +67,7 @@ func validateNearbyRequest(req NearbySearchRequest) error {
 	if req.LocationRestriction == nil {
 		return ValidationError{Field: "location_restriction", Message: "required"}
 	}
-	if err := validateLocationBias(req.LocationRestriction); err != nil {
+	if err := validateCircle(req.LocationRestriction, "location_restriction"); err != nil {
 		return err
 	}
 	if req.Limit < 1 || req.Limit > maxNearbyLimit {

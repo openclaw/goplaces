@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Harden Places request validation and human CLI output sanitization.
+- Remove the advertised no-op `--verbose` flag.
+- Add time-aware directions with `--departure-time` and transit-only `--arrival-time`. - thanks @voska
+
 ## 0.4.0 - 2026-05-04
 
 - Add `business_status` to search, nearby, details, JSON output, and human CLI output. (#8) - thanks @doomsday-rgb

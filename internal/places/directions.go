@@ -183,12 +183,15 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 	}
 	if req.DepartureTime != "" {
 		if _, err := time.Parse(time.RFC3339, req.DepartureTime); err != nil {
-			return ValidationError{Field: "departure_time", Message: "must be RFC3339, e.g. 2026-05-10T18:57:00-03:00"}
+			return ValidationError{Field: "departure_time", Message: "must be RFC3339, e.g. 2030-05-10T18:57:00-03:00"}
 		}
 	}
 	if req.ArrivalTime != "" {
+		if req.Mode != directionsModeTransit {
+			return ValidationError{Field: "arrival_time", Message: "requires transit mode"}
+		}
 		if _, err := time.Parse(time.RFC3339, req.ArrivalTime); err != nil {
-			return ValidationError{Field: "arrival_time", Message: "must be RFC3339, e.g. 2026-05-10T18:57:00-03:00"}
+			return ValidationError{Field: "arrival_time", Message: "must be RFC3339, e.g. 2030-05-10T19:57:00-03:00"}
 		}
 	}
 	return nil

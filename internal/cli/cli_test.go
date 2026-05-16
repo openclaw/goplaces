@@ -13,14 +13,15 @@ import (
 )
 
 const (
-	placesSearchPath       = "/places:searchText"
-	placesNearbyPath       = "/places:searchNearby"
-	routesComputePath      = "/directions/v2:computeRoutes"
-	directionsPath         = routesComputePath
-	directionsModeWalkAPI  = "WALK"
-	directionsModeDriveAPI = "DRIVE"
-	directionsModeWalking  = "walking"
-	directionsModeDriving  = "driving"
+	placesSearchPath         = "/places:searchText"
+	placesNearbyPath         = "/places:searchNearby"
+	routesComputePath        = "/directions/v2:computeRoutes"
+	directionsPath           = routesComputePath
+	directionsModeWalkAPI    = "WALK"
+	directionsModeDriveAPI   = "DRIVE"
+	directionsModeTransitAPI = "TRANSIT"
+	directionsModeWalking    = "walking"
+	directionsModeDriving    = "driving"
 )
 
 func TestRunSearchJSON(t *testing.T) {
@@ -401,7 +402,7 @@ func TestRunDirectionsJSON(t *testing.T) {
 }
 
 func TestRunDirectionsWithDepartureTime(t *testing.T) {
-	const departure = "2026-05-10T18:57:00-03:00"
+	const departure = "2030-05-10T18:57:00-03:00"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != directionsPath {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -446,6 +447,54 @@ func TestRunDirectionsWithDepartureTime(t *testing.T) {
 		t.Fatalf("decode output: %v (stdout=%s)", err, stdout.String())
 	}
 	if result.DepartureTime != departure || result.DurationSeconds != 2215 {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestRunDirectionsWithTransitArrivalTime(t *testing.T) {
+	const arrival = "2030-05-10T19:57:00-03:00"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if payload["travelMode"] != directionsModeTransitAPI {
+			t.Fatalf("unexpected travel mode: %#v", payload["travelMode"])
+		}
+		if payload["arrivalTime"] != arrival {
+			t.Fatalf("unexpected arrival time: %#v", payload["arrivalTime"])
+		}
+		_, _ = w.Write([]byte(`{
+  "routes":[{"description":"Main","legs":[{"distanceMeters":26084,"duration":"2215s","localizedValues":{"distance":{"text":"26.1 km"},"duration":{"text":"37 mins"}},"steps":[]}]}]
+}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from", "Pike Place Market",
+		"--to", "Space Needle",
+		"--mode", "transit",
+		"--arrival-time", arrival,
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	var result goplaces.DirectionsResponse
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("decode output: %v (stdout=%s)", err, stdout.String())
+	}
+	if result.ArrivalTime != arrival || result.DurationSeconds != 2215 {
 		t.Fatalf("unexpected result: %#v", result)
 	}
 }
@@ -502,6 +551,36 @@ func TestRunDirectionsCompareJSON(t *testing.T) {
 	}
 	if seenModes[directionsModeWalkAPI] != 1 || seenModes[directionsModeDriveAPI] != 1 {
 		t.Fatalf("expected both modes requested once, got: %#v", seenModes)
+	}
+}
+
+func TestRunDirectionsArrivalTimeCompareRejectsBeforeRequest(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from", "A",
+		"--to", "B",
+		"--mode", "transit",
+		"--arrival-time", "2030-05-10T19:57:00-03:00",
+		"--compare", "drive",
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL,
+	}, &stdout, &stderr)
+
+	if exitCode != 2 {
+		t.Fatalf("expected validation exit code 2, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if requests != 0 {
+		t.Fatalf("expected no requests, got %d", requests)
 	}
 }
 
@@ -575,11 +654,15 @@ func TestRunDirectionsValidationErrors(t *testing.T) {
 		},
 		{
 			name: "departure and arrival",
-			args: []string{"directions", "--from", "A", "--to", "B", "--departure-time", "2026-05-10T18:57:00-03:00", "--arrival-time", "2026-05-10T19:57:00-03:00", "--api-key", "x"},
+			args: []string{"directions", "--from", "A", "--to", "B", "--departure-time", "2030-05-10T18:57:00-03:00", "--arrival-time", "2030-05-10T19:57:00-03:00", "--api-key", "x"},
 		},
 		{
 			name: "invalid departure time",
 			args: []string{"directions", "--from", "A", "--to", "B", "--departure-time", "tomorrow", "--api-key", "x"},
+		},
+		{
+			name: "arrival requires transit",
+			args: []string{"directions", "--from", "A", "--to", "B", "--mode", "drive", "--arrival-time", "2030-05-10T19:57:00-03:00", "--api-key", "x"},
 		},
 	}
 
@@ -741,6 +824,7 @@ func TestRunPhotoJSON(t *testing.T) {
 		"places/place-1/photos/photo-1",
 		"--api-key", "test-key",
 		"--base-url", server.URL,
+		"--max-width", "800",
 		"--json",
 	}, &stdout, &stderr)
 
@@ -766,6 +850,7 @@ func TestRunPhotoHuman(t *testing.T) {
 		"places/place-1/photos/photo-1",
 		"--api-key", "test-key",
 		"--base-url", server.URL,
+		"--max-width", "800",
 	}, &stdout, &stderr)
 
 	if exitCode != 0 {

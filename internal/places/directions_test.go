@@ -132,6 +132,37 @@ func TestDirectionsRouteModifiersRequireDrive(t *testing.T) {
 	}
 }
 
+func TestDirectionsTimeValidation(t *testing.T) {
+	req := DirectionsRequest{
+		From:          "A",
+		To:            "B",
+		DepartureTime: "2030-05-10T18:57:00-03:00",
+		ArrivalTime:   "2030-05-10T19:57:00-03:00",
+	}
+	err := validateDirectionsRequest(applyDirectionsDefaults(req))
+	if err == nil || !strings.Contains(err.Error(), "time") {
+		t.Fatalf("expected mutually exclusive time validation error, got %v", err)
+	}
+
+	req = DirectionsRequest{From: "A", To: "B", DepartureTime: "tomorrow"}
+	err = validateDirectionsRequest(applyDirectionsDefaults(req))
+	if err == nil || !strings.Contains(err.Error(), "departure_time") {
+		t.Fatalf("expected departure time validation error, got %v", err)
+	}
+
+	req = DirectionsRequest{From: "A", To: "B", Mode: "drive", ArrivalTime: "2030-05-10T19:57:00-03:00"}
+	err = validateDirectionsRequest(applyDirectionsDefaults(req))
+	if err == nil || !strings.Contains(err.Error(), "arrival_time") {
+		t.Fatalf("expected arrival time mode validation error, got %v", err)
+	}
+
+	req = DirectionsRequest{From: "A", To: "B", Mode: "transit", ArrivalTime: "tomorrow"}
+	err = validateDirectionsRequest(applyDirectionsDefaults(req))
+	if err == nil || !strings.Contains(err.Error(), "arrival_time") {
+		t.Fatalf("expected arrival time format validation error, got %v", err)
+	}
+}
+
 func TestDirectionsLocationValidation(t *testing.T) {
 	req := DirectionsRequest{FromPlaceID: "a", From: "b", To: "c"}
 	if err := validateDirectionsRequest(applyDirectionsDefaults(req)); err == nil {
@@ -332,6 +363,90 @@ func TestDirectionsRequestRouteModifiers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Directions error: %v", err)
 	}
+}
+
+func TestDirectionsRequestTimes(t *testing.T) {
+	t.Run("departure", func(t *testing.T) {
+		const departure = "2030-05-10T18:57:00-03:00"
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			if payload["departureTime"] != departure {
+				t.Fatalf("unexpected departure time: %#v", payload["departureTime"])
+			}
+			if payload["routingPreference"] != "TRAFFIC_AWARE" {
+				t.Fatalf("unexpected routing preference: %#v", payload["routingPreference"])
+			}
+			_, _ = w.Write([]byte(`{
+  "routes":[{
+    "legs":[{
+      "distanceMeters":1609,
+      "duration":"300s",
+      "localizedValues":{"distance":{"text":"1 mi"},"duration":{"text":"5 mins"}},
+      "steps":[]
+    }]
+  }]
+}`))
+		}))
+		defer server.Close()
+
+		client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+		response, err := client.Directions(context.Background(), DirectionsRequest{
+			From:          "Seattle",
+			To:            "Portland",
+			Mode:          "drive",
+			DepartureTime: departure,
+		})
+		if err != nil {
+			t.Fatalf("Directions error: %v", err)
+		}
+		if response.DepartureTime != departure {
+			t.Fatalf("unexpected departure time in response: %#v", response)
+		}
+	})
+
+	t.Run("arrival", func(t *testing.T) {
+		const arrival = "2030-05-10T19:57:00-03:00"
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			if payload["arrivalTime"] != arrival {
+				t.Fatalf("unexpected arrival time: %#v", payload["arrivalTime"])
+			}
+			if _, ok := payload["routingPreference"]; ok {
+				t.Fatalf("unexpected routing preference: %#v", payload["routingPreference"])
+			}
+			_, _ = w.Write([]byte(`{
+  "routes":[{
+    "legs":[{
+      "distanceMeters":1609,
+      "duration":"300s",
+      "localizedValues":{"distance":{"text":"1 mi"},"duration":{"text":"5 mins"}},
+      "steps":[]
+    }]
+  }]
+}`))
+		}))
+		defer server.Close()
+
+		client := NewClient(Options{APIKey: "test-key", DirectionsBaseURL: server.URL})
+		response, err := client.Directions(context.Background(), DirectionsRequest{
+			From:        "Seattle",
+			To:          "Portland",
+			Mode:        "transit",
+			ArrivalTime: arrival,
+		})
+		if err != nil {
+			t.Fatalf("Directions error: %v", err)
+		}
+		if response.ArrivalTime != arrival {
+			t.Fatalf("unexpected arrival time in response: %#v", response)
+		}
+	})
 }
 
 func TestDirectionsLocationBoundsValidation(t *testing.T) {

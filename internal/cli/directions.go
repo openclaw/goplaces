@@ -24,8 +24,8 @@ type DirectionsCmd struct {
 	AvoidTolls    bool     `help:"Avoid toll roads when driving."`
 	AvoidHighways bool     `help:"Avoid highways when driving."`
 	AvoidFerries  bool     `help:"Avoid ferries when driving."`
-	DepartureTime string   `help:"Route departure time as RFC3339 timestamp (for example 2026-05-10T18:57:00-03:00)." name:"departure-time"`
-	ArrivalTime   string   `help:"Route arrival time as RFC3339 timestamp; mutually exclusive with --departure-time." name:"arrival-time"`
+	DepartureTime string   `help:"Route departure time as RFC3339 timestamp (for example 2030-05-10T18:57:00-03:00)." name:"departure-time"`
+	ArrivalTime   string   `help:"Transit route arrival time as RFC3339 timestamp; mutually exclusive with --departure-time." name:"arrival-time"`
 	Language      string   `help:"BCP-47 language code (e.g. en, en-US)."`
 	Region        string   `help:"CLDR region code (e.g. US, DE)."`
 }
@@ -44,6 +44,9 @@ func (c *DirectionsCmd) Run(app *App) error {
 		}
 		if compareMode == primaryMode {
 			return goplaces.ValidationError{Field: "compare", Message: "must be different from mode"}
+		}
+		if strings.TrimSpace(c.ArrivalTime) != "" {
+			return goplaces.ValidationError{Field: "compare", Message: "cannot combine with arrival_time"}
 		}
 	}
 

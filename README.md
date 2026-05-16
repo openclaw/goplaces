@@ -91,7 +91,7 @@ Optional overrides:
 Long flags accept `--flag value` or `--flag=value` (examples use space).
 
 ```text
-goplaces [--api-key=KEY] [--base-url=URL] [--routes-base-url=URL] [--directions-base-url=URL] [--timeout=10s] [--json] [--no-color] [--verbose]
+goplaces [--api-key=KEY] [--base-url=URL] [--routes-base-url=URL] [--directions-base-url=URL] [--timeout=10s] [--json] [--no-color]
          <command>
 
 Commands:
@@ -168,9 +168,13 @@ goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-highways --
 Time-aware routing:
 
 ```bash
-goplaces directions --from "GIG Airport" --to "Leblon, Rio de Janeiro" --mode drive --departure-time "2026-05-10T18:57:00-03:00"
-goplaces directions --from "Pike Place Market" --to "Space Needle" --arrival-time "2026-05-10T19:30:00-07:00"
+DEPARTURE_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+ARRIVAL_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+goplaces directions --from "GIG Airport" --to "Leblon, Rio de Janeiro" --mode drive --departure-time "$DEPARTURE_TIME"
+goplaces directions --from "Pike Place Market" --to "Space Needle" --mode transit --arrival-time "$ARRIVAL_TIME"
 ```
+
+Transit arrival times must be within Google's schedule window: up to 7 days in the past or 100 days in the future.
 
 Units (default metric):
 
@@ -279,9 +283,10 @@ route, err := client.Route(ctx, goplaces.RouteRequest{
 ## Notes
 
 - `Filters.Types` maps to `includedType` (Google accepts a single value). Only the first type is sent.
-- Price levels map to Google enums: `0` (free) → `4` (very expensive).
+- Price levels in search filters map to Google enums: `1` (inexpensive) → `4` (very expensive).
 - Reviews are returned only when `IncludeReviews`/`--reviews` is set.
 - Photos are returned only when `IncludePhotos`/`--photos` is set.
+- Photo media requires `MaxWidthPx` or `MaxHeightPx`; each provided dimension must be 1-4800.
 - Route search requires the Google Routes API to be enabled.
 - `business_status` is returned for search, nearby, and details when Google includes it.
 - Direction route modifiers (`--avoid-tolls`, `--avoid-highways`, `--avoid-ferries`) require `--mode drive`.

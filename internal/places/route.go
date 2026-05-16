@@ -149,6 +149,9 @@ func validateRouteRequest(req RouteRequest) error {
 	if req.RadiusM <= 0 {
 		return ValidationError{Field: "radius_m", Message: "must be > 0"}
 	}
+	if req.RadiusM > maxCircleRadiusM {
+		return ValidationError{Field: "radius_m", Message: fmt.Sprintf("must be <= %d", maxCircleRadiusM)}
+	}
 	if req.MaxWaypoints < 1 || req.MaxWaypoints > maxRouteWaypoints {
 		return ValidationError{Field: "max_waypoints", Message: fmt.Sprintf("must be 1-%d", maxRouteWaypoints)}
 	}

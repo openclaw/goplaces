@@ -56,7 +56,7 @@ func TestSearchSuccess(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(Options{
-		APIKey:  "test-key",
+		APIKey:  " test-key\n",
 		BaseURL: server.URL + "/v1",
 		Timeout: time.Second,
 	})
@@ -166,5 +166,27 @@ func TestBuildSearchBodyOmitsEmptyPriceLevels(t *testing.T) {
 	}
 	if bytes.Contains(payload, []byte("priceLevels")) {
 		t.Fatalf("unexpected priceLevels in payload")
+	}
+
+	request = SearchRequest{Query: "coffee", Filters: &Filters{PriceLevels: []int{0, 2}}}
+	body = buildSearchBody(request)
+	levels, ok := body["priceLevels"].([]string)
+	if !ok || len(levels) != 1 || levels[0] != "PRICE_LEVEL_MODERATE" {
+		t.Fatalf("unexpected price levels: %#v", body["priceLevels"])
+	}
+}
+
+func TestSearchRejectsFreePriceLevelFilter(t *testing.T) {
+	err := validateSearchRequest(SearchRequest{
+		Query:   "coffee",
+		Limit:   1,
+		Filters: &Filters{PriceLevels: []int{0}},
+	})
+	var validationErr ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Field != "filters.price_levels" {
+		t.Fatalf("unexpected field: %s", validationErr.Field)
 	}
 }

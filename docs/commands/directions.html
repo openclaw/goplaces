@@ -10,7 +10,7 @@
 <body>
   <header class="topbar"><nav class="nav shell" aria-label="Primary"><a class="brand" href="../index.html"><span class="mark"></span><span>goplaces</span></a><div class="links"><a href="../index.html#commands">Commands</a><a href="../index.html#setup">Setup</a><a href="../index.html#library">Go API</a><a href="https://github.com/steipete/goplaces" rel="noopener">GitHub &nearr;</a></div></nav></header>
   <main class="shell">
-    <section class="command-hero"><span class="pill">Routes</span><h1>directions</h1><p class="lede">Get route distance, duration, warnings, optional steps, unit formatting, mode comparison, and driving route modifiers.</p></section>
+    <section class="command-hero"><span class="pill">Routes</span><h1>directions</h1><p class="lede">Get route distance, duration, warnings, optional steps, time-aware routing, unit formatting, mode comparison, and driving route modifiers.</p></section>
     <div class="command-layout">
       <aside class="side"><a href="search.html">search</a><a href="nearby.html">nearby</a><a href="autocomplete.html">autocomplete</a><a href="details.html">details</a><a href="photo.html">photo</a><a href="resolve.html">resolve</a><a href="route.html">route</a><a href="directions.html" aria-current="page">directions</a></aside>
       <article>
@@ -18,7 +18,10 @@
           <h2>Usage</h2>
           <p><code>goplaces directions [flags]</code></p>
           <div class="panel"><div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#example">Copy</button></div><pre id="example">goplaces directions --from "Pike Place Market" --to "Space Needle"
-goplaces directions --from-place-id FROM_ID --to-place-id TO_ID --compare drive --steps</pre></div>
+DEPARTURE_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+ARRIVAL_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+goplaces directions --from "GIG Airport" --to "Leblon, Rio de Janeiro" --mode drive --departure-time "$DEPARTURE_TIME"
+goplaces directions --from "Pike Place Market" --to "Space Needle" --mode transit --arrival-time "$ARRIVAL_TIME"</pre></div>
         </section>
         <section class="section">
           <h2>Inputs</h2>
@@ -36,6 +39,8 @@ goplaces directions --from-place-id FROM_ID --to-place-id TO_ID --compare drive 
             <tr><th><code>--compare</code></th><td>Add a second mode comparison.</td></tr>
             <tr><th><code>--steps</code></th><td>Include step-by-step instructions.</td></tr>
             <tr><th><code>--units</code></th><td>metric or imperial. Default: metric.</td></tr>
+            <tr><th><code>--departure-time</code></th><td>RFC3339 departure time.</td></tr>
+            <tr><th><code>--arrival-time</code></th><td>RFC3339 arrival time for transit routes. Mutually exclusive with departure time; transit times must be within Google's schedule window.</td></tr>
             <tr><th><code>--avoid-tolls</code>, <code>--avoid-highways</code>, <code>--avoid-ferries</code></th><td>Driving route modifiers.</td></tr>
             <tr><th><code>--language</code>, <code>--region</code></th><td>BCP-47 language and CLDR region hints.</td></tr>
           </tbody></table>

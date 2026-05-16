@@ -43,8 +43,10 @@ goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-highways --
 Time-aware routing:
 
 ```bash
-goplaces directions --from "GIG Airport" --to "Leblon, Rio de Janeiro" --mode drive --departure-time "2026-05-10T18:57:00-03:00"
-goplaces directions --from "Pike Place Market" --to "Space Needle" --arrival-time "2026-05-10T19:30:00-07:00"
+DEPARTURE_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+ARRIVAL_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+goplaces directions --from "GIG Airport" --to "Leblon, Rio de Janeiro" --mode drive --departure-time "$DEPARTURE_TIME"
+goplaces directions --from "Pike Place Market" --to "Space Needle" --mode transit --arrival-time "$ARRIVAL_TIME"
 ```
 
 ## Notes
@@ -53,5 +55,5 @@ goplaces directions --from "Pike Place Market" --to "Space Needle" --arrival-tim
 - Default units are metric (use `--units imperial` for miles/feet).
 - Use `--steps` for turn-by-turn instructions.
 - Use `--compare drive` to add a driving ETA.
-- Use `--departure-time` or `--arrival-time` with an RFC3339 timestamp to request time-aware routing. The two flags are mutually exclusive.
+- Use `--departure-time` or `--arrival-time` with an RFC3339 timestamp to request time-aware routing. The two flags are mutually exclusive; arrival time requires `--mode transit`. Google accepts transit trips only within its schedule window: up to 7 days in the past or 100 days in the future.
 - Use `--avoid-tolls`, `--avoid-highways`, and `--avoid-ferries` with `--mode drive` to request drive routes that avoid those features when reasonable.

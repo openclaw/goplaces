@@ -2,6 +2,7 @@ package places
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -37,5 +38,23 @@ func TestPhotoMediaSuccess(t *testing.T) {
 	}
 	if response.PhotoURI == "" {
 		t.Fatalf("expected photo uri")
+	}
+}
+
+func TestPhotoMediaValidation(t *testing.T) {
+	requests := []PhotoMediaRequest{
+		{Name: "places/place-1/photos/photo-1"},
+		{Name: "places/place-1/photos/photo-1", MaxWidthPx: -1},
+		{Name: "places/place-1/photos/photo-1", MaxHeightPx: -1},
+		{Name: "places/place-1/photos/photo-1", MaxWidthPx: maxPhotoDimensionPx + 1},
+		{Name: "places/place-1/photos/photo-1", MaxHeightPx: maxPhotoDimensionPx + 1},
+	}
+	client := NewClient(Options{APIKey: "test-key", BaseURL: "http://example.com"})
+	for _, request := range requests {
+		_, err := client.PhotoMedia(context.Background(), request)
+		var validationErr ValidationError
+		if !errors.As(err, &validationErr) {
+			t.Fatalf("expected validation error for %#v, got %v", request, err)
+		}
 	}
 }

@@ -89,6 +89,9 @@ func TestAutocompleteSuccess(t *testing.T) {
 	if gotRequest["regionCode"] != "US" {
 		t.Fatalf("unexpected regionCode: %#v", gotRequest["regionCode"])
 	}
+	if gotRequest["includeQueryPredictions"] != true {
+		t.Fatalf("expected includeQueryPredictions: %#v", gotRequest["includeQueryPredictions"])
+	}
 	locationBias := gotRequest["locationBias"].(map[string]any)
 	if locationBias["circle"] == nil {
 		t.Fatalf("missing location bias circle")

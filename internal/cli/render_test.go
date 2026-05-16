@@ -77,6 +77,30 @@ func TestRenderSearchEmpty(t *testing.T) {
 	}
 }
 
+func TestRenderSearchSanitizesTerminalControls(t *testing.T) {
+	response := goplaces.SearchResponse{
+		Results: []goplaces.PlaceSummary{
+			{
+				PlaceID:        "place-\x1b[31m1",
+				Name:           "\x1b]52;c;SGVsbG8=\x07Cafe",
+				Address:        "123\rStreet",
+				BusinessStatus: "\x1b[31mOPERATIONAL",
+			},
+		},
+		NextPageToken: "\x1b]0;title\x07next",
+	}
+
+	output := renderSearch(NewColor(false), response)
+	for _, control := range []string{"\x1b", "\x07", "\r"} {
+		if strings.Contains(output, control) {
+			t.Fatalf("output contains raw control %q: %q", control, output)
+		}
+	}
+	if !strings.Contains(output, "Cafe") || !strings.Contains(output, "Street") || !strings.Contains(output, "next") {
+		t.Fatalf("missing sanitized printable text: %q", output)
+	}
+}
+
 func TestRenderAutocomplete(t *testing.T) {
 	response := goplaces.AutocompleteResponse{
 		Suggestions: []goplaces.AutocompleteSuggestion{
@@ -197,6 +221,28 @@ func TestRenderDirectionsWarningsAndEmptySteps(t *testing.T) {
 	}
 	if !strings.Contains(output, "No results.") {
 		t.Fatalf("missing empty steps message: %s", output)
+	}
+}
+
+func TestRenderDirectionsSanitizesTerminalControls(t *testing.T) {
+	response := goplaces.DirectionsResponse{
+		Mode:         "\x1b[31mDRIVE",
+		StartAddress: "Start\x1b]0;x\x07",
+		EndAddress:   "End",
+		Warnings:     []string{"Use\rcaution"},
+		Steps: []goplaces.DirectionsStep{
+			{Instruction: "\x1b[31mHead north", DistanceText: "1\nkm"},
+		},
+	}
+
+	output := renderDirections(NewColor(false), response, true)
+	for _, control := range []string{"\x1b", "\x07", "\r"} {
+		if strings.Contains(output, control) {
+			t.Fatalf("output contains raw control %q: %q", control, output)
+		}
+	}
+	if !strings.Contains(output, "Head north") || !strings.Contains(output, "Use caution") {
+		t.Fatalf("missing sanitized directions text: %q", output)
 	}
 }
 

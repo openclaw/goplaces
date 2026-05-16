@@ -3,6 +3,7 @@ package places
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -184,6 +185,23 @@ func TestValidateRouteRequestBounds(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected bounds error")
+	}
+
+	err = validateRouteRequest(RouteRequest{
+		Query:        "coffee",
+		From:         "A",
+		To:           "B",
+		Mode:         travelModeDrive,
+		Limit:        1,
+		RadiusM:      maxCircleRadiusM + 1,
+		MaxWaypoints: 1,
+	})
+	var validationErr ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Field != "radius_m" {
+		t.Fatalf("unexpected field: %s", validationErr.Field)
 	}
 }
 

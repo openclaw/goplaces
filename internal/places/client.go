@@ -61,7 +61,7 @@ func NewClient(opts Options) *Client {
 	}
 
 	return &Client{
-		apiKey:            opts.APIKey,
+		apiKey:            strings.TrimSpace(opts.APIKey),
 		baseURL:           baseURL,
 		routesBaseURL:     routesBaseURL,
 		directionsBaseURL: directionsBaseURL,

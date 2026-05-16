@@ -85,6 +85,9 @@ func buildSearchBody(req SearchRequest) map[string]any {
 		if len(filters.PriceLevels) > 0 {
 			levels := make([]string, 0, len(filters.PriceLevels))
 			for _, level := range filters.PriceLevels {
+				if level <= 0 {
+					continue
+				}
 				if mapped, ok := priceLevelToEnum[level]; ok {
 					levels = append(levels, mapped)
 				}
@@ -135,8 +138,8 @@ func validateSearchRequest(req SearchRequest) error {
 			}
 		}
 		for _, level := range req.Filters.PriceLevels {
-			if level < 0 || level > 4 {
-				return ValidationError{Field: "filters.price_levels", Message: "must be 0-4"}
+			if level < 1 || level > 4 {
+				return ValidationError{Field: "filters.price_levels", Message: "must be 1-4"}
 			}
 		}
 	}

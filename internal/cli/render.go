@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/steipete/goplaces"
 )
@@ -30,7 +31,7 @@ func renderSearch(color Color, response goplaces.SearchResponse) string {
 		out.WriteString("\n")
 		out.WriteString(color.Dim("Next page token:"))
 		out.WriteString(" ")
-		out.WriteString(response.NextPageToken)
+		out.WriteString(sanitizeTerminalText(response.NextPageToken))
 	}
 
 	return out.String()
@@ -77,7 +78,7 @@ func renderNearby(color Color, response goplaces.NearbySearchResponse) string {
 		out.WriteString("\n")
 		out.WriteString(color.Dim("Next page token:"))
 		out.WriteString(" ")
-		out.WriteString(response.NextPageToken)
+		out.WriteString(sanitizeTerminalText(response.NextPageToken))
 	}
 
 	return out.String()
@@ -157,7 +158,7 @@ func renderRoute(color Color, response goplaces.RouteResponse) string {
 
 func renderDirections(color Color, response goplaces.DirectionsResponse, includeSteps bool) string {
 	var out bytes.Buffer
-	mode := strings.TrimSpace(response.Mode)
+	mode := strings.TrimSpace(sanitizeTerminalText(response.Mode))
 	header := "Directions"
 	if mode != "" {
 		header = fmt.Sprintf("Directions (%s)", mode)
@@ -175,6 +176,7 @@ func renderDirections(color Color, response goplaces.DirectionsResponse, include
 		out.WriteString(color.Dim("Warnings:"))
 		out.WriteString("\n")
 		for _, warning := range response.Warnings {
+			warning = sanitizeTerminalText(warning)
 			if strings.TrimSpace(warning) == "" {
 				continue
 			}
@@ -204,11 +206,12 @@ func renderDirections(color Color, response goplaces.DirectionsResponse, include
 }
 
 func formatTitle(color Color, name, address string) string {
-	display := strings.TrimSpace(name)
+	display := strings.TrimSpace(sanitizeTerminalText(name))
+	address = sanitizeTerminalText(address)
 	if display == "" {
 		display = "(no name)"
 	}
-	if address == "" {
+	if strings.TrimSpace(address) == "" {
 		return color.Cyan(display)
 	}
 	return color.Cyan(display) + " — " + address
@@ -268,7 +271,7 @@ func writePlaceDetails(out *bytes.Buffer, color Color, place goplaces.PlaceDetai
 		out.WriteString("\n")
 		for _, entry := range place.Hours {
 			out.WriteString("  - ")
-			out.WriteString(entry)
+			out.WriteString(sanitizeTerminalText(entry))
 			out.WriteString("\n")
 		}
 	}
@@ -390,6 +393,7 @@ func writeOpenNow(out *bytes.Buffer, color Color, openNow *bool) {
 }
 
 func writeLine(out *bytes.Buffer, color Color, label, value string) {
+	value = sanitizeTerminalText(value)
 	if strings.TrimSpace(value) == "" {
 		return
 	}
@@ -405,10 +409,10 @@ func reviewLine(review goplaces.Review) string {
 		parts = append(parts, fmt.Sprintf("%.1f stars", *review.Rating))
 	}
 	if review.Author != nil && strings.TrimSpace(review.Author.DisplayName) != "" {
-		parts = append(parts, "by "+review.Author.DisplayName)
+		parts = append(parts, "by "+sanitizeTerminalText(review.Author.DisplayName))
 	}
 	if strings.TrimSpace(review.RelativePublishTimeDescription) != "" {
-		parts = append(parts, "("+review.RelativePublishTimeDescription+")")
+		parts = append(parts, "("+sanitizeTerminalText(review.RelativePublishTimeDescription)+")")
 	}
 	text := reviewText(review)
 	if text != "" {
@@ -420,13 +424,13 @@ func reviewLine(review goplaces.Review) string {
 func photoLine(photo goplaces.Photo) string {
 	parts := make([]string, 0, 3)
 	if strings.TrimSpace(photo.Name) != "" {
-		parts = append(parts, photo.Name)
+		parts = append(parts, sanitizeTerminalText(photo.Name))
 	}
 	if photo.WidthPx > 0 && photo.HeightPx > 0 {
 		parts = append(parts, fmt.Sprintf("%dx%d", photo.WidthPx, photo.HeightPx))
 	}
 	if len(photo.AuthorAttributions) > 0 && strings.TrimSpace(photo.AuthorAttributions[0].DisplayName) != "" {
-		parts = append(parts, "by "+photo.AuthorAttributions[0].DisplayName)
+		parts = append(parts, "by "+sanitizeTerminalText(photo.AuthorAttributions[0].DisplayName))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -440,7 +444,7 @@ func reviewText(review goplaces.Review) string {
 	if strings.TrimSpace(text) == "" && review.OriginalText != nil {
 		text = review.OriginalText.Text
 	}
-	return truncateText(strings.TrimSpace(text), 200)
+	return truncateText(strings.TrimSpace(sanitizeTerminalText(text)), 200)
 }
 
 func truncateText(value string, maxLen int) string {
@@ -455,18 +459,37 @@ func truncateText(value string, maxLen int) string {
 }
 
 func directionsStepLine(step goplaces.DirectionsStep) string {
-	instruction := strings.TrimSpace(step.Instruction)
+	instruction := strings.TrimSpace(sanitizeTerminalText(step.Instruction))
 	if instruction == "" {
 		instruction = "(no instruction)"
 	}
 	parts := []string{instruction}
 	if strings.TrimSpace(step.DistanceText) != "" {
-		parts = append(parts, step.DistanceText)
+		parts = append(parts, sanitizeTerminalText(step.DistanceText))
 	}
 	if strings.TrimSpace(step.DurationText) != "" {
-		parts = append(parts, step.DurationText)
+		parts = append(parts, sanitizeTerminalText(step.DurationText))
 	}
 	return strings.Join(parts, " · ")
+}
+
+func sanitizeTerminalText(value string) string {
+	if value == "" {
+		return ""
+	}
+	var out strings.Builder
+	out.Grow(len(value))
+	for _, r := range value {
+		if unicode.IsControl(r) {
+			switch r {
+			case '\n', '\r', '\t':
+				out.WriteByte(' ')
+			}
+			continue
+		}
+		out.WriteRune(r)
+	}
+	return out.String()
 }
 
 func uniqueStrings(values []string) []string {

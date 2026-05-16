@@ -26,7 +26,6 @@ type GlobalOptions struct {
 	Timeout           time.Duration `help:"HTTP timeout." default:"10s"`
 	JSON              bool          `help:"Output JSON."`
 	NoColor           bool          `help:"Disable color output."`
-	Verbose           bool          `help:"Verbose logging."`
 	Version           VersionFlag   `name:"version" help:"Print version and exit."`
 }
 
@@ -41,7 +40,7 @@ type SearchCmd struct {
 	Type       []string `help:"Place type filter (includedType). Repeatable."`
 	OpenNow    *bool    `help:"Return only currently open places."`
 	MinRating  *float64 `help:"Minimum rating (0-5)."`
-	PriceLevel []int    `help:"Price levels 0-4. Repeatable."`
+	PriceLevel []int    `help:"Price levels 1-4. Repeatable."`
 	Lat        *float64 `help:"Latitude for location bias."`
 	Lng        *float64 `help:"Longitude for location bias."`
 	RadiusM    *float64 `help:"Radius in meters for location bias."`
@@ -83,8 +82,8 @@ type DetailsCmd struct {
 // PhotoCmd fetches a photo URL.
 type PhotoCmd struct {
 	Name        string `arg:"" name:"photo_name" help:"Photo resource name (places/.../photos/...)."`
-	MaxWidthPx  int    `help:"Max width in pixels." name:"max-width"`
-	MaxHeightPx int    `help:"Max height in pixels." name:"max-height"`
+	MaxWidthPx  int    `help:"Max width in pixels (1-4800). Required if --max-height is omitted." name:"max-width"`
+	MaxHeightPx int    `help:"Max height in pixels (1-4800). Required if --max-width is omitted." name:"max-height"`
 }
 
 // ResolveCmd resolves a location string into candidates.

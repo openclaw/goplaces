@@ -43,6 +43,11 @@ func TestValidationErrors(t *testing.T) {
 		t.Fatalf("expected location error")
 	}
 
+	_, err = client.Search(context.Background(), SearchRequest{Query: "coffee", LocationBias: &LocationBias{Lat: 1, Lng: 2, RadiusM: maxCircleRadiusM + 1}})
+	if err == nil {
+		t.Fatalf("expected max radius error")
+	}
+
 	_, err = client.Resolve(context.Background(), LocationResolveRequest{LocationText: ""})
 	if err == nil {
 		t.Fatalf("expected resolve error")

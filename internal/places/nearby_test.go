@@ -3,6 +3,7 @@ package places
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -80,5 +81,19 @@ func TestNearbySearchSuccess(t *testing.T) {
 	}
 	if _, ok := gotRequest["locationRestriction"].(map[string]any); !ok {
 		t.Fatalf("unexpected locationRestriction: %#v", gotRequest["locationRestriction"])
+	}
+}
+
+func TestNearbySearchValidationFieldNames(t *testing.T) {
+	err := validateNearbyRequest(NearbySearchRequest{
+		LocationRestriction: &LocationBias{Lat: 1, Lng: 2, RadiusM: 0},
+		Limit:               1,
+	})
+	var validationErr ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+	if validationErr.Field != "location_restriction.radius_m" {
+		t.Fatalf("unexpected field: %s", validationErr.Field)
 	}
 }

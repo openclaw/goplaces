@@ -18,7 +18,8 @@ func (c *Client) Autocomplete(ctx context.Context, req AutocompleteRequest) (Aut
 	}
 
 	body := map[string]any{
-		"input": strings.TrimSpace(req.Input),
+		"input":                   strings.TrimSpace(req.Input),
+		"includeQueryPredictions": true,
 	}
 	if strings.TrimSpace(req.SessionToken) != "" {
 		body["sessionToken"] = strings.TrimSpace(req.SessionToken)
