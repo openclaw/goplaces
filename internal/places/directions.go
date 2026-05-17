@@ -260,10 +260,7 @@ func normalizeDirectionsMode(mode string) string {
 }
 
 func directionsEndpoint(base string) string {
-	if strings.HasSuffix(base, routesPath) {
-		return base
-	}
-	return base + routesPath
+	return routesEndpoint(base)
 }
 
 func directionsTravelMode(mode string) string {

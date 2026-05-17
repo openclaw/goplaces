@@ -42,6 +42,29 @@ func TestComputeRoutePolyline(t *testing.T) {
 	}
 }
 
+func TestComputeRoutePolylineFullBaseURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != routesPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte("{\"routes\": [{\"polyline\": {\"encodedPolyline\": \"_p~iF~ps|U\"}}]}"))
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", RoutesBaseURL: server.URL + routesPath})
+	polyline, err := client.computeRoutePolyline(context.Background(), RouteRequest{
+		From: "Seattle",
+		To:   "Portland",
+		Mode: travelModeDrive,
+	})
+	if err != nil {
+		t.Fatalf("computeRoutePolyline error: %v", err)
+	}
+	if polyline == "" {
+		t.Fatalf("expected polyline")
+	}
+}
+
 func TestDecodePolyline(t *testing.T) {
 	points, err := decodePolyline("_p~iF~ps|U_ulLnnqC_mqNvxq`@")
 	if err != nil {

@@ -180,7 +180,7 @@ func (c *Client) computeRoutePolyline(ctx context.Context, req RouteRequest) (st
 		body["regionCode"] = req.Region
 	}
 
-	endpoint := c.routesBaseURL + routesPath
+	endpoint := routesEndpoint(c.routesBaseURL)
 	payload, err := c.doRequest(ctx, http.MethodPost, endpoint, body, routesFieldMask)
 	if err != nil {
 		return "", err
@@ -198,6 +198,13 @@ func (c *Client) computeRoutePolyline(ctx context.Context, req RouteRequest) (st
 		return "", errors.New("goplaces: empty route polyline")
 	}
 	return polyline, nil
+}
+
+func routesEndpoint(base string) string {
+	if strings.HasSuffix(base, routesPath) {
+		return base
+	}
+	return base + routesPath
 }
 
 func decodePolyline(encoded string) ([]LatLng, error) {
