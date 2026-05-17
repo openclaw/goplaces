@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.4.2 - 2026-05-17
 
 - Add CI audit checks for workflows, Staticcheck, gosec, govulncheck, and GoReleaser config.
