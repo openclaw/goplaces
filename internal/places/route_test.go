@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 )
 
@@ -299,13 +301,13 @@ func TestComputeRoutePolylineInvalidJSON(t *testing.T) {
 }
 
 func TestRouteEndToEnd(t *testing.T) {
-	searchCalls := 0
+	var searchCalls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case routesPath:
 			_, _ = w.Write([]byte("{\"routes\": [{\"polyline\": {\"encodedPolyline\": \"_p~iF~ps|U_ulLnnqC_mqNvxq`@\"}}]}"))
 		case "/places:searchText":
-			searchCalls++
+			searchCalls.Add(1)
 			_, _ = w.Write([]byte(`{"places":[{"id":"abc","displayName":{"text":"Cafe"}}]}`))
 		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -325,8 +327,49 @@ func TestRouteEndToEnd(t *testing.T) {
 	if len(response.Waypoints) == 0 {
 		t.Fatalf("expected waypoints")
 	}
-	if searchCalls == 0 {
+	if searchCalls.Load() == 0 {
 		t.Fatalf("expected search calls")
+	}
+}
+
+func TestRouteDeduplicatesResults(t *testing.T) {
+	var searchCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case routesPath:
+			_, _ = w.Write([]byte("{\"routes\": [{\"polyline\": {\"encodedPolyline\": \"_p~iF~ps|U_ulLnnqC_mqNvxq`@\"}}]}"))
+		case "/places:searchText":
+			call := searchCalls.Add(1)
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"places":[{"id":"dup","displayName":{"text":"Duplicate"}},{"id":"unique-%d","displayName":{"text":"Unique"}}]}`, call)))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", BaseURL: server.URL, RoutesBaseURL: server.URL})
+	response, err := client.Route(context.Background(), RouteRequest{
+		Query:        "coffee",
+		From:         "Seattle",
+		To:           "Portland",
+		MaxWaypoints: 3,
+	})
+	if err != nil {
+		t.Fatalf("route error: %v", err)
+	}
+	if len(response.Waypoints) != 3 {
+		t.Fatalf("expected 3 waypoints, got %d", len(response.Waypoints))
+	}
+	dupCount := 0
+	for _, waypoint := range response.Waypoints {
+		for _, result := range waypoint.Results {
+			if result.PlaceID == "dup" {
+				dupCount++
+			}
+		}
+	}
+	if dupCount != 1 {
+		t.Fatalf("expected one duplicate result after dedupe, got %d", dupCount)
 	}
 }
 

@@ -22,6 +22,7 @@ const (
 	defaultRouteRadiusM    = 1000
 	defaultRouteWaypoints  = 5
 	maxRouteWaypoints      = 20
+	maxRouteSearchParallel = 4
 	earthRadiusMeters      = 6371000.0
 	routePolylinePrecision = 1e5
 )
@@ -88,29 +89,92 @@ func (c *Client) Route(ctx context.Context, req RouteRequest) (RouteResponse, er
 		return RouteResponse{}, errors.New("goplaces: no route waypoints")
 	}
 
-	results := make([]RouteWaypoint, 0, len(waypoints))
-	for _, waypoint := range waypoints {
-		response, err := c.Search(ctx, SearchRequest{
-			Query:    req.Query,
-			Limit:    req.Limit,
-			Language: req.Language,
-			Region:   req.Region,
-			LocationBias: &LocationBias{
-				Lat:     waypoint.Lat,
-				Lng:     waypoint.Lng,
-				RadiusM: req.RadiusM,
-			},
-		})
-		if err != nil {
-			return RouteResponse{}, err
-		}
-		results = append(results, RouteWaypoint{
-			Location: waypoint,
-			Results:  response.Results,
-		})
+	results, err := c.searchRouteWaypoints(ctx, req, waypoints)
+	if err != nil {
+		return RouteResponse{}, err
 	}
 
 	return RouteResponse{Waypoints: results}, nil
+}
+
+type routeSearchResult struct {
+	index    int
+	waypoint LatLng
+	response SearchResponse
+	err      error
+}
+
+func (c *Client) searchRouteWaypoints(ctx context.Context, req RouteRequest, waypoints []LatLng) ([]RouteWaypoint, error) {
+	searchCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	parallel := min(maxRouteSearchParallel, len(waypoints))
+	sem := make(chan struct{}, parallel)
+	responses := make(chan routeSearchResult, len(waypoints))
+
+	for index, waypoint := range waypoints {
+		go func(index int, waypoint LatLng) {
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-searchCtx.Done():
+				responses <- routeSearchResult{index: index, waypoint: waypoint, err: searchCtx.Err()}
+				return
+			}
+
+			response, err := c.Search(searchCtx, SearchRequest{
+				Query:    req.Query,
+				Limit:    req.Limit,
+				Language: req.Language,
+				Region:   req.Region,
+				LocationBias: &LocationBias{
+					Lat:     waypoint.Lat,
+					Lng:     waypoint.Lng,
+					RadiusM: req.RadiusM,
+				},
+			})
+			responses <- routeSearchResult{index: index, waypoint: waypoint, response: response, err: err}
+		}(index, waypoint)
+	}
+
+	collected := make([]routeSearchResult, len(waypoints))
+	var firstErr error
+	for range waypoints {
+		result := <-responses
+		collected[result.index] = result
+		if result.err != nil && firstErr == nil {
+			firstErr = result.err
+			cancel()
+		}
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+
+	seen := make(map[string]struct{})
+	results := make([]RouteWaypoint, 0, len(waypoints))
+	for _, result := range collected {
+		results = append(results, RouteWaypoint{
+			Location: result.waypoint,
+			Results:  dedupePlaceSummaries(result.response.Results, seen),
+		})
+	}
+	return results, nil
+}
+
+func dedupePlaceSummaries(results []PlaceSummary, seen map[string]struct{}) []PlaceSummary {
+	deduped := make([]PlaceSummary, 0, len(results))
+	for _, result := range results {
+		id := strings.TrimSpace(result.PlaceID)
+		if id != "" {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+		}
+		deduped = append(deduped, result)
+	}
+	return deduped
 }
 
 func applyRouteDefaults(req RouteRequest) RouteRequest {

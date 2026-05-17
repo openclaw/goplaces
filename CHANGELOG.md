@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Run route waypoint searches in parallel and deduplicate repeated place results.
 - Normalize and escape details/photo resource paths, including full `places/...` names and photo names already ending in `/media`.
 - Surface public client methods in root package documentation and editor tooling.
 - Accept full Routes API endpoint overrides for route search without duplicating `/directions/v2:computeRoutes`.
