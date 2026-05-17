@@ -15,17 +15,16 @@ builds:
       - linux_arm64
       - windows_amd64
       - windows_arm64
-      - windows_arm64
     ldflags:
       - -s -w -X github.com/steipete/goplaces/internal/cli.Version={{.Version}}
 
 archives:
   - id: goplaces
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format: tar.gz
+    formats: [tar.gz]
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
@@ -42,6 +41,7 @@ brews:
     description: "Modern Go client + CLI for the Google Places API (New)."
     homepage: "https://github.com/steipete/goplaces"
     license: "MIT"
+    directory: Formula
     repository:
       owner: steipete
       name: homebrew-tap

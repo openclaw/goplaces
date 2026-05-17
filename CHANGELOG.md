@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.4.1 - 2026-05-17
 
 - Harden Places request validation and human CLI output sanitization.
