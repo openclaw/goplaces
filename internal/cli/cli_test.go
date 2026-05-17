@@ -50,9 +50,12 @@ func TestRunSearchJSON(t *testing.T) {
 	if stderr.Len() != 0 {
 		t.Fatalf("unexpected stderr: %s", stderr.String())
 	}
-	// JSON output should be an array, not an object with "results" key
-	if !strings.HasPrefix(strings.TrimSpace(stdout.String()), "[") {
-		t.Fatalf("expected JSON array output, got: %s", stdout.String())
+	var response goplaces.SearchResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
+		t.Fatalf("unexpected results: %#v", response.Results)
 	}
 }
 
@@ -126,9 +129,12 @@ func TestRunSearchWithFilters(t *testing.T) {
 	if stderr.Len() != 0 {
 		t.Fatalf("unexpected stderr: %s", stderr.String())
 	}
-	// JSON output should be an array, not an object with "results" key
-	if !strings.HasPrefix(strings.TrimSpace(stdout.String()), "[") {
-		t.Fatalf("expected JSON array output, got: %s", stdout.String())
+	var response goplaces.SearchResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
+		t.Fatalf("unexpected results: %#v", response.Results)
 	}
 }
 
@@ -213,9 +219,12 @@ func TestRunNearbyJSON(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d", exitCode)
 	}
-	// JSON output should be an array, not an object with "results" key
-	if !strings.HasPrefix(strings.TrimSpace(stdout.String()), "[") {
-		t.Fatalf("expected JSON array output, got: %s", stdout.String())
+	var response goplaces.NearbySearchResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
+		t.Fatalf("unexpected results: %#v", response.Results)
 	}
 }
 
@@ -1016,13 +1025,18 @@ func TestRunSearchJSONWithNextPageToken(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
 	}
-	// JSON output should be an array
-	if !strings.HasPrefix(strings.TrimSpace(stdout.String()), "[") {
-		t.Fatalf("expected JSON array output, got: %s", stdout.String())
+	var response goplaces.SearchResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("decode json: %v", err)
 	}
-	// next_page_token should be written to stderr
-	if !strings.Contains(stderr.String(), "next_page_token: token123") {
-		t.Fatalf("expected next_page_token in stderr, got: %s", stderr.String())
+	if response.NextPageToken != "token123" {
+		t.Fatalf("expected next_page_token in JSON, got: %#v", response)
+	}
+	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
+		t.Fatalf("unexpected results: %#v", response.Results)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got: %s", stderr.String())
 	}
 }
 
@@ -1051,13 +1065,18 @@ func TestRunNearbyJSONWithNextPageToken(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d", exitCode)
 	}
-	// JSON output should be an array
-	if !strings.HasPrefix(strings.TrimSpace(stdout.String()), "[") {
-		t.Fatalf("expected JSON array output, got: %s", stdout.String())
+	var response goplaces.NearbySearchResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("decode json: %v", err)
 	}
-	// next_page_token should be written to stderr
-	if !strings.Contains(stderr.String(), "next_page_token: nearby-token") {
-		t.Fatalf("expected next_page_token in stderr, got: %s", stderr.String())
+	if response.NextPageToken != "nearby-token" {
+		t.Fatalf("expected next_page_token in JSON, got: %#v", response)
+	}
+	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
+		t.Fatalf("unexpected results: %#v", response.Results)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got: %s", stderr.String())
 	}
 }
 

@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/steipete/goplaces"
 )
 
 func TestRunSearchWithEqualsFlags(t *testing.T) {
@@ -34,8 +36,12 @@ func TestRunSearchWithEqualsFlags(t *testing.T) {
 	if stderr.Len() != 0 {
 		t.Fatalf("unexpected stderr: %s", stderr.String())
 	}
-	if !strings.HasPrefix(strings.TrimSpace(stdout.String()), "[") {
-		t.Fatalf("expected JSON array output, got: %s", stdout.String())
+	var response goplaces.SearchResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
+		t.Fatalf("unexpected results: %#v", response.Results)
 	}
 }
 
@@ -70,8 +76,12 @@ func TestRunNearbyWithEqualsFlags(t *testing.T) {
 	if stderr.Len() != 0 {
 		t.Fatalf("unexpected stderr: %s", stderr.String())
 	}
-	if !strings.HasPrefix(strings.TrimSpace(stdout.String()), "[") {
-		t.Fatalf("expected JSON array output, got: %s", stdout.String())
+	var response goplaces.NearbySearchResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("decode json: %v", err)
+	}
+	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
+		t.Fatalf("unexpected results: %#v", response.Results)
 	}
 }
 

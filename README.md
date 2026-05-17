@@ -208,17 +208,23 @@ JSON output:
 goplaces search "sushi" --json
 ```
 
-Example JSON result fields include:
+Search and nearby JSON include `results` and any returned `next_page_token`.
+Example result fields include:
 
 ```json
 {
-  "place_id": "ChIJ-bfVTh8VkFQRDZLQnmioK9s",
-  "name": "Space Needle",
-  "address": "400 Broad St, Seattle, WA 98109, USA",
-  "rating": 4.6,
-  "user_rating_count": 58186,
-  "open_now": true,
-  "business_status": "OPERATIONAL"
+  "results": [
+    {
+      "place_id": "ChIJ-bfVTh8VkFQRDZLQnmioK9s",
+      "name": "Space Needle",
+      "address": "400 Broad St, Seattle, WA 98109, USA",
+      "rating": 4.6,
+      "user_rating_count": 58186,
+      "open_now": true,
+      "business_status": "OPERATIONAL"
+    }
+  ],
+  "next_page_token": "..."
 }
 ```
 

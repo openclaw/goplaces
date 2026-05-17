@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Return full search and nearby response objects for JSON output, including `next_page_token`.
 - Fix manual release dispatch tag handling to avoid shell interpolation and validate tag shape.
 - Restore support for free (`0`) price-level search filters.
 

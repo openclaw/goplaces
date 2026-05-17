@@ -170,13 +170,7 @@ func (c *SearchCmd) Run(app *App) error {
 	}
 
 	if app.json {
-		if err := writeJSON(app.out, response.Results); err != nil {
-			return err
-		}
-		if response.NextPageToken != "" {
-			_, _ = fmt.Fprintln(app.err, "next_page_token:", response.NextPageToken)
-		}
-		return nil
+		return writeJSON(app.out, response)
 	}
 
 	_, err = fmt.Fprintln(app.out, renderSearch(app.color, response))
@@ -242,13 +236,7 @@ func (c *NearbyCmd) Run(app *App) error {
 	}
 
 	if app.json {
-		if err := writeJSON(app.out, response.Results); err != nil {
-			return err
-		}
-		if response.NextPageToken != "" {
-			_, _ = fmt.Fprintln(app.err, "next_page_token:", response.NextPageToken)
-		}
-		return nil
+		return writeJSON(app.out, response)
 	}
 
 	_, err = fmt.Fprintln(app.out, renderNearby(app.color, response))
