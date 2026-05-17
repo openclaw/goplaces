@@ -40,7 +40,7 @@ type SearchCmd struct {
 	Type       []string `help:"Place type filter (includedType). Repeatable."`
 	OpenNow    *bool    `help:"Return only currently open places."`
 	MinRating  *float64 `help:"Minimum rating (0-5)."`
-	PriceLevel []int    `help:"Price levels 1-4. Repeatable."`
+	PriceLevel []int    `help:"Price levels 0-4. Repeatable."`
 	Lat        *float64 `help:"Latitude for location bias."`
 	Lng        *float64 `help:"Longitude for location bias."`
 	RadiusM    *float64 `help:"Radius in meters for location bias."`

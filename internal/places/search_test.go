@@ -171,16 +171,27 @@ func TestBuildSearchBodyOmitsEmptyPriceLevels(t *testing.T) {
 	request = SearchRequest{Query: "coffee", Filters: &Filters{PriceLevels: []int{0, 2}}}
 	body = buildSearchBody(request)
 	levels, ok := body["priceLevels"].([]string)
-	if !ok || len(levels) != 1 || levels[0] != "PRICE_LEVEL_MODERATE" {
+	if !ok || len(levels) != 2 || levels[0] != "PRICE_LEVEL_FREE" || levels[1] != "PRICE_LEVEL_MODERATE" {
 		t.Fatalf("unexpected price levels: %#v", body["priceLevels"])
 	}
 }
 
-func TestSearchRejectsFreePriceLevelFilter(t *testing.T) {
+func TestSearchAllowsFreePriceLevelFilter(t *testing.T) {
 	err := validateSearchRequest(SearchRequest{
 		Query:   "coffee",
 		Limit:   1,
 		Filters: &Filters{PriceLevels: []int{0}},
+	})
+	if err != nil {
+		t.Fatalf("expected free price level to be valid, got %v", err)
+	}
+}
+
+func TestSearchRejectsInvalidPriceLevelFilter(t *testing.T) {
+	err := validateSearchRequest(SearchRequest{
+		Query:   "coffee",
+		Limit:   1,
+		Filters: &Filters{PriceLevels: []int{-1}},
 	})
 	var validationErr ValidationError
 	if !errors.As(err, &validationErr) {

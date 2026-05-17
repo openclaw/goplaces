@@ -283,7 +283,7 @@ route, err := client.Route(ctx, goplaces.RouteRequest{
 ## Notes
 
 - `Filters.Types` maps to `includedType` (Google accepts a single value). Only the first type is sent.
-- Price levels in search filters map to Google enums: `1` (inexpensive) → `4` (very expensive).
+- Price levels in search filters map to Google enums: `0` (free) → `4` (very expensive).
 - Reviews are returned only when `IncludeReviews`/`--reviews` is set.
 - Photos are returned only when `IncludePhotos`/`--photos` is set.
 - Photo media requires `MaxWidthPx` or `MaxHeightPx`; each provided dimension must be 1-4800.

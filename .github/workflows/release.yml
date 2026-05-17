@@ -25,11 +25,30 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Resolve release tag
+        id: release-tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            release_tag="$INPUT_TAG"
+          else
+            release_tag="$REF_NAME"
+          fi
+          if ! [[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9._-]+)?$ ]]; then
+            echo "::error::Invalid release tag: $release_tag"
+            exit 1
+          fi
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
       - name: Stash GoReleaser config
         run: cp .goreleaser.yml /tmp/.goreleaser.yml
       - name: Checkout release tag
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: git checkout ${{ inputs.tag }}
+        env:
+          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+        run: git checkout --detach "refs/tags/$RELEASE_TAG"
       - name: Verify Homebrew tap token
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -57,13 +76,9 @@ jobs:
       - name: Verify Homebrew formula
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            release_tag="${{ inputs.tag }}"
-          else
-            release_tag="${{ github.ref_name }}"
-          fi
-          release_version="${release_tag#v}"
+          release_version="${RELEASE_TAG#v}"
           formula="$(gh api repos/steipete/homebrew-tap/contents/Formula/goplaces.rb --jq '.content' | base64 --decode)"
           if ! grep -q "version \"${release_version}\"" <<<"$formula"; then
             echo "::error::steipete/homebrew-tap Formula/goplaces.rb was not updated to $release_version"

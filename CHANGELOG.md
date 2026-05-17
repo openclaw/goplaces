@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fix manual release dispatch tag handling to avoid shell interpolation and validate tag shape.
+- Restore support for free (`0`) price-level search filters.
+
 ## 0.4.1 - 2026-05-17
 
 - Harden Places request validation and human CLI output sanitization.
