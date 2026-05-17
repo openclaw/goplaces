@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add CI audit checks for workflows, Staticcheck, gosec, govulncheck, and GoReleaser config.
 - Make human output truncation UTF-8 safe and strip Unicode format controls.
 - Run route waypoint searches in parallel and deduplicate repeated place results.
 - Normalize and escape details/photo resource paths, including full `places/...` names and photo names already ending in `/media`.
