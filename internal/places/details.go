@@ -26,7 +26,12 @@ func (c *Client) DetailsWithOptions(ctx context.Context, req DetailsRequest) (Pl
 		return PlaceDetails{}, ValidationError{Field: "place_id", Message: "required"}
 	}
 
-	endpoint, err := c.buildURL("/places/"+placeID, map[string]string{
+	path, err := placeDetailsPath(placeID)
+	if err != nil {
+		return PlaceDetails{}, err
+	}
+
+	endpoint, err := c.buildURL(path, map[string]string{
 		"languageCode": strings.TrimSpace(req.Language),
 		"regionCode":   strings.TrimSpace(req.Region),
 	})
@@ -45,6 +50,18 @@ func (c *Client) DetailsWithOptions(ctx context.Context, req DetailsRequest) (Pl
 	}
 
 	return mapPlaceDetails(place), nil
+}
+
+func placeDetailsPath(placeID string) (string, error) {
+	placeID = strings.TrimPrefix(strings.TrimSpace(placeID), "/")
+	placeID = strings.TrimPrefix(placeID, "places/")
+	if placeID == "" {
+		return "", ValidationError{Field: "place_id", Message: "required"}
+	}
+	if strings.Contains(placeID, "/") {
+		return "", ValidationError{Field: "place_id", Message: "must be a place ID or places/{place_id}"}
+	}
+	return "/places/" + pathEscapeSegment(placeID), nil
 }
 
 func detailsFieldMaskForRequest(req DetailsRequest) string {

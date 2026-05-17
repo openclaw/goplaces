@@ -27,7 +27,10 @@ func (c *Client) PhotoMedia(ctx context.Context, req PhotoMediaRequest) (PhotoMe
 		return PhotoMediaResponse{}, ValidationError{Field: "max_width_px", Message: "max_width_px or max_height_px required"}
 	}
 
-	path := "/" + strings.TrimPrefix(name, "/") + "/media"
+	path, err := photoMediaPath(name)
+	if err != nil {
+		return PhotoMediaResponse{}, err
+	}
 	query := map[string]string{"skipHttpRedirect": "true"}
 	if req.MaxWidthPx > 0 {
 		query["maxWidthPx"] = strconv.Itoa(req.MaxWidthPx)
@@ -52,6 +55,16 @@ func (c *Client) PhotoMedia(ctx context.Context, req PhotoMediaRequest) (PhotoMe
 	}
 
 	return PhotoMediaResponse(response), nil
+}
+
+func photoMediaPath(name string) (string, error) {
+	name = strings.TrimPrefix(strings.TrimSpace(name), "/")
+	name = strings.TrimSuffix(name, "/media")
+	parts := strings.Split(name, "/")
+	if len(parts) != 4 || parts[0] != "places" || parts[2] != "photos" || parts[1] == "" || parts[3] == "" {
+		return "", ValidationError{Field: "name", Message: "must be places/{place_id}/photos/{photo_id}"}
+	}
+	return "/" + pathEscapeSegments(parts) + "/media", nil
 }
 
 type photoMediaPayload struct {

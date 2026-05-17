@@ -2,6 +2,7 @@ package places
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -63,6 +64,34 @@ func TestDetailsSuccess(t *testing.T) {
 	}
 	if len(place.Hours) != 1 {
 		t.Fatalf("unexpected hours")
+	}
+}
+
+func TestDetailsNormalizesPlaceResourceName(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.EscapedPath() != "/v1/places/place%20id" {
+			t.Fatalf("unexpected path: %s", r.URL.EscapedPath())
+		}
+		_, _ = w.Write([]byte(`{"id": "place id"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", BaseURL: server.URL + "/v1"})
+	place, err := client.Details(context.Background(), "places/place id")
+	if err != nil {
+		t.Fatalf("details error: %v", err)
+	}
+	if place.PlaceID != "place id" {
+		t.Fatalf("unexpected id: %s", place.PlaceID)
+	}
+}
+
+func TestDetailsRejectsInvalidResourceName(t *testing.T) {
+	client := NewClient(Options{APIKey: "test-key", BaseURL: "http://example.com"})
+	_, err := client.Details(context.Background(), "places/place-123/reviews/1")
+	var validationErr ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected validation error, got %v", err)
 	}
 }
 

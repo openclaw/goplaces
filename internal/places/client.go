@@ -148,3 +148,15 @@ func (c *Client) buildURL(path string, query map[string]string) (string, error) 
 	parsed.RawQuery = values.Encode()
 	return parsed.String(), nil
 }
+
+func pathEscapeSegment(segment string) string {
+	return url.PathEscape(segment)
+}
+
+func pathEscapeSegments(segments []string) string {
+	escaped := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		escaped = append(escaped, pathEscapeSegment(segment))
+	}
+	return strings.Join(escaped, "/")
+}

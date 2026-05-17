@@ -41,6 +41,28 @@ func TestPhotoMediaSuccess(t *testing.T) {
 	}
 }
 
+func TestPhotoMediaNormalizesMediaName(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.EscapedPath() != "/v1/places/place%20id/photos/photo%20id/media" {
+			t.Fatalf("unexpected path: %s", r.URL.EscapedPath())
+		}
+		_, _ = w.Write([]byte(`{"name": "places/place id/photos/photo id", "photoUri": "https://example.com/photo.jpg"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(Options{APIKey: "test-key", BaseURL: server.URL + "/v1"})
+	response, err := client.PhotoMedia(context.Background(), PhotoMediaRequest{
+		Name:       "/places/place id/photos/photo id/media",
+		MaxWidthPx: 800,
+	})
+	if err != nil {
+		t.Fatalf("photo media error: %v", err)
+	}
+	if response.PhotoURI == "" {
+		t.Fatalf("expected photo uri")
+	}
+}
+
 func TestPhotoMediaValidation(t *testing.T) {
 	requests := []PhotoMediaRequest{
 		{Name: "places/place-1/photos/photo-1"},
@@ -48,6 +70,8 @@ func TestPhotoMediaValidation(t *testing.T) {
 		{Name: "places/place-1/photos/photo-1", MaxHeightPx: -1},
 		{Name: "places/place-1/photos/photo-1", MaxWidthPx: maxPhotoDimensionPx + 1},
 		{Name: "places/place-1/photos/photo-1", MaxHeightPx: maxPhotoDimensionPx + 1},
+		{Name: "place-1/photos/photo-1", MaxWidthPx: 800},
+		{Name: "places/place-1/photos/photo-1/media/media", MaxWidthPx: 800},
 	}
 	client := NewClient(Options{APIKey: "test-key", BaseURL: "http://example.com"})
 	for _, request := range requests {
