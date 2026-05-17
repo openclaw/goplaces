@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/steipete/goplaces"
 )
@@ -243,6 +244,29 @@ func TestRenderDirectionsSanitizesTerminalControls(t *testing.T) {
 	}
 	if !strings.Contains(output, "Head north") || !strings.Contains(output, "Use caution") {
 		t.Fatalf("missing sanitized directions text: %q", output)
+	}
+}
+
+func TestSanitizeTerminalTextStripsFormatControls(t *testing.T) {
+	output := sanitizeTerminalText("safe\u202Egnirts\u2066")
+	if strings.Contains(output, "\u202E") || strings.Contains(output, "\u2066") {
+		t.Fatalf("format controls were not stripped: %q", output)
+	}
+	if output != "safegnirts" {
+		t.Fatalf("unexpected sanitized text: %q", output)
+	}
+}
+
+func TestTruncateTextIsRuneSafe(t *testing.T) {
+	output := truncateText(strings.Repeat("🙂", 201), 200)
+	if !utf8.ValidString(output) {
+		t.Fatalf("truncated text is invalid UTF-8: %q", output)
+	}
+	if got := utf8.RuneCountInString(strings.TrimSuffix(output, "...")); got != 200 {
+		t.Fatalf("unexpected rune count: %d", got)
+	}
+	if !strings.HasSuffix(output, "...") {
+		t.Fatalf("missing ellipsis suffix: %q", output)
 	}
 }
 

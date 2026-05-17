@@ -451,11 +451,11 @@ func truncateText(value string, maxLen int) string {
 	if maxLen <= 0 || value == "" {
 		return value
 	}
-	if len(value) <= maxLen {
+	runes := []rune(value)
+	if len(runes) <= maxLen {
 		return value
 	}
-	// Byte-based truncation is OK here because we only display previews.
-	return strings.TrimSpace(value[:maxLen]) + "..."
+	return strings.TrimSpace(string(runes[:maxLen])) + "..."
 }
 
 func directionsStepLine(step goplaces.DirectionsStep) string {
@@ -480,11 +480,15 @@ func sanitizeTerminalText(value string) string {
 	var out strings.Builder
 	out.Grow(len(value))
 	for _, r := range value {
+		switch r {
+		case '\n', '\r', '\t':
+			out.WriteByte(' ')
+			continue
+		}
 		if unicode.IsControl(r) {
-			switch r {
-			case '\n', '\r', '\t':
-				out.WriteByte(' ')
-			}
+			continue
+		}
+		if unicode.Is(unicode.Cf, r) {
 			continue
 		}
 		out.WriteRune(r)
