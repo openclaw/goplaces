@@ -340,7 +340,7 @@ func TestRouteDeduplicatesResults(t *testing.T) {
 			_, _ = w.Write([]byte("{\"routes\": [{\"polyline\": {\"encodedPolyline\": \"_p~iF~ps|U_ulLnnqC_mqNvxq`@\"}}]}"))
 		case "/places:searchText":
 			call := searchCalls.Add(1)
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"places":[{"id":"dup","displayName":{"text":"Duplicate"}},{"id":"unique-%d","displayName":{"text":"Unique"}}]}`, call)))
+			_, _ = fmt.Fprintf(w, `{"places":[{"id":"dup","displayName":{"text":"Duplicate"}},{"id":"unique-%d","displayName":{"text":"Unique"}}]}`, call)
 		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
