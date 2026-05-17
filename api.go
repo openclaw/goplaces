@@ -1,7 +1,11 @@
 // Package goplaces provides a Go client for the Google Places API (New).
 package goplaces
 
-import "github.com/steipete/goplaces/internal/places"
+import (
+	"context"
+
+	"github.com/steipete/goplaces/internal/places"
+)
 
 // DefaultBaseURL is the default endpoint for the Places API (New).
 const DefaultBaseURL = places.DefaultBaseURL
@@ -11,12 +15,60 @@ var ErrMissingAPIKey = places.ErrMissingAPIKey
 
 // NewClient builds a client with sane defaults.
 func NewClient(opts Options) *Client {
-	return places.NewClient(opts)
+	return &Client{inner: *places.NewClient(opts)}
+}
+
+// Client wraps access to the Google Places API.
+type Client struct {
+	inner places.Client
+}
+
+// Search runs a Places text search.
+func (c *Client) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
+	return c.inner.Search(ctx, req)
+}
+
+// Autocomplete returns place and query suggestions for partial input.
+func (c *Client) Autocomplete(ctx context.Context, req AutocompleteRequest) (AutocompleteResponse, error) {
+	return c.inner.Autocomplete(ctx, req)
+}
+
+// NearbySearch searches places near a lat/lng radius.
+func (c *Client) NearbySearch(ctx context.Context, req NearbySearchRequest) (NearbySearchResponse, error) {
+	return c.inner.NearbySearch(ctx, req)
+}
+
+// Details fetches place details by place ID.
+func (c *Client) Details(ctx context.Context, placeID string) (PlaceDetails, error) {
+	return c.inner.Details(ctx, placeID)
+}
+
+// DetailsWithOptions fetches place details with optional locale and field options.
+func (c *Client) DetailsWithOptions(ctx context.Context, req DetailsRequest) (PlaceDetails, error) {
+	return c.inner.DetailsWithOptions(ctx, req)
+}
+
+// PhotoMedia fetches a photo media URL.
+func (c *Client) PhotoMedia(ctx context.Context, req PhotoMediaRequest) (PhotoMediaResponse, error) {
+	return c.inner.PhotoMedia(ctx, req)
+}
+
+// Resolve resolves a free-form location into place candidates.
+func (c *Client) Resolve(ctx context.Context, req LocationResolveRequest) (LocationResolveResponse, error) {
+	return c.inner.Resolve(ctx, req)
+}
+
+// Route searches for places along a route between two locations.
+func (c *Client) Route(ctx context.Context, req RouteRequest) (RouteResponse, error) {
+	return c.inner.Route(ctx, req)
+}
+
+// Directions fetches directions between two locations.
+func (c *Client) Directions(ctx context.Context, req DirectionsRequest) (DirectionsResponse, error) {
+	return c.inner.Directions(ctx, req)
 }
 
 type (
-	// Client wraps access to the Google Places API.
-	Client = places.Client
 	// Options configures the Places client.
 	Options = places.Options
 	// ValidationError describes an invalid request payload.

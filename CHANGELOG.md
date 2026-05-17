@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Surface public client methods in root package documentation and editor tooling.
 - Accept full Routes API endpoint overrides for route search without duplicating `/directions/v2:computeRoutes`.
 - Return full search and nearby response objects for JSON output, including `next_page_token`.
 - Fix manual release dispatch tag handling to avoid shell interpolation and validate tag shape.
