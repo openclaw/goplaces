@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.4.3 - 2026-05-20
+
+- Sanitize API error text before writing CLI errors to stderr.
+- Apply directions `--avoid-*` flags to a driving comparison request when the primary mode is not driving.
 - Release: publish Homebrew formula updates through `openclaw/tap`.
 - Docs: point Homebrew install and release links at `openclaw/tap` and `openclaw/goplaces`.
 

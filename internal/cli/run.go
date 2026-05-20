@@ -320,13 +320,17 @@ func handleError(writer io.Writer, err error) int {
 	}
 	var validation goplaces.ValidationError
 	if errors.As(err, &validation) {
-		_, _ = fmt.Fprintln(writer, validation.Error())
+		writeError(writer, validation.Error())
 		return 2
 	}
 	if errors.Is(err, goplaces.ErrMissingAPIKey) {
-		_, _ = fmt.Fprintln(writer, err.Error())
+		writeError(writer, err.Error())
 		return 2
 	}
-	_, _ = fmt.Fprintln(writer, err.Error())
+	writeError(writer, err.Error())
 	return 1
+}
+
+func writeError(writer io.Writer, message string) {
+	_, _ = fmt.Fprintln(writer, sanitizeTerminalText(message))
 }

@@ -29,7 +29,7 @@ Typical jobs:
 
 ## Install / Run
 
-Latest release: v0.4.2 (2026-05-17).
+Latest release: v0.4.3 (2026-05-20).
 
 - Homebrew: `brew install openclaw/tap/goplaces`
 - Go: `go install github.com/steipete/goplaces/cmd/goplaces@latest`

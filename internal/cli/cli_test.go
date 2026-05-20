@@ -21,7 +21,6 @@ const (
 	directionsModeDriveAPI   = "DRIVE"
 	directionsModeTransitAPI = "TRANSIT"
 	directionsModeWalking    = "walking"
-	directionsModeDriving    = "driving"
 )
 
 func TestRunSearchJSON(t *testing.T) {
@@ -135,6 +134,40 @@ func TestRunSearchWithFilters(t *testing.T) {
 	}
 	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
 		t.Fatalf("unexpected results: %#v", response.Results)
+	}
+}
+
+func TestRunSearchSanitizesAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("bad \x1b]52;c;clipboard\x07\rname\u202E"))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"search",
+		"coffee",
+		"--api-key", "test-key",
+		"--base-url", server.URL,
+	}, &stdout, &stderr)
+
+	if exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("unexpected stdout: %s", stdout.String())
+	}
+	output := stderr.String()
+	for _, unsafe := range []string{"\x1b", "\x07", "\r", "\u202E"} {
+		if strings.Contains(output, unsafe) {
+			t.Fatalf("stderr contains unsafe terminal text %q: %q", unsafe, output)
+		}
+	}
+	if !strings.Contains(output, "goplaces: api error (400): bad ]52;c;clipboard name") {
+		t.Fatalf("missing sanitized error text: %q", output)
 	}
 }
 
@@ -560,6 +593,60 @@ func TestRunDirectionsCompareJSON(t *testing.T) {
 	}
 	if seenModes[directionsModeWalkAPI] != 1 || seenModes[directionsModeDriveAPI] != 1 {
 		t.Fatalf("expected both modes requested once, got: %#v", seenModes)
+	}
+}
+
+func TestRunDirectionsCompareDriveWithAvoidFlags(t *testing.T) {
+	seenModifiers := make(map[string]map[string]any)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		mode, _ := payload["travelMode"].(string)
+		if modifiers, ok := payload["routeModifiers"].(map[string]any); ok {
+			seenModifiers[mode] = modifiers
+		} else {
+			seenModifiers[mode] = nil
+		}
+		responseBody := `{
+  "routes":[{"description":"Main","legs":[{"distanceMeters":1000,"duration":"600s","localizedValues":{"distance":{"text":"1 km"},"duration":{"text":"10 mins"}},"steps":[]}]}]
+}`
+		if mode == directionsModeDriveAPI {
+			responseBody = `{
+  "routes":[{"description":"Main","legs":[{"distanceMeters":1000,"duration":"240s","localizedValues":{"distance":{"text":"1 km"},"duration":{"text":"4 mins"}},"steps":[]}]}]
+}`
+		}
+		_, _ = w.Write([]byte(responseBody))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from", "A",
+		"--to", "B",
+		"--compare", "drive",
+		"--avoid-tolls",
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if seenModifiers[directionsModeWalkAPI] != nil {
+		t.Fatalf("walking request should not include routeModifiers: %#v", seenModifiers[directionsModeWalkAPI])
+	}
+	driveModifiers := seenModifiers[directionsModeDriveAPI]
+	if driveModifiers["avoidTolls"] != true {
+		t.Fatalf("driving comparison missing avoidTolls: %#v", driveModifiers)
 	}
 }
 

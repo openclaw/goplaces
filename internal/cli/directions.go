@@ -7,6 +7,8 @@ import (
 	"github.com/steipete/goplaces"
 )
 
+const directionsModeDriving = "driving"
+
 // DirectionsCmd fetches directions between two points.
 type DirectionsCmd struct {
 	From          string   `help:"Origin address or place name."`
@@ -50,6 +52,11 @@ func (c *DirectionsCmd) Run(app *App) error {
 		}
 	}
 
+	hasAvoidModifiers := c.AvoidTolls || c.AvoidHighways || c.AvoidFerries
+	if hasAvoidModifiers && primaryMode != directionsModeDriving && compareMode != directionsModeDriving {
+		return goplaces.ValidationError{Field: "avoid", Message: "requires mode or compare to be drive"}
+	}
+
 	request := goplaces.DirectionsRequest{
 		From:          c.From,
 		To:            c.To,
@@ -57,13 +64,15 @@ func (c *DirectionsCmd) Run(app *App) error {
 		ToPlaceID:     c.ToPlaceID,
 		Mode:          primaryMode,
 		Units:         c.Units,
-		AvoidTolls:    c.AvoidTolls,
-		AvoidHighways: c.AvoidHighways,
-		AvoidFerries:  c.AvoidFerries,
 		DepartureTime: c.DepartureTime,
 		ArrivalTime:   c.ArrivalTime,
 		Language:      c.Language,
 		Region:        c.Region,
+	}
+	if primaryMode == directionsModeDriving {
+		request.AvoidTolls = c.AvoidTolls
+		request.AvoidHighways = c.AvoidHighways
+		request.AvoidFerries = c.AvoidFerries
 	}
 	if c.FromLat != nil || c.FromLng != nil {
 		if c.FromLat == nil || c.FromLng == nil {
@@ -87,9 +96,15 @@ func (c *DirectionsCmd) Run(app *App) error {
 	if compareMode != "" {
 		compareRequest := request
 		compareRequest.Mode = compareMode
-		compareRequest.AvoidTolls = false
-		compareRequest.AvoidHighways = false
-		compareRequest.AvoidFerries = false
+		if compareMode == directionsModeDriving {
+			compareRequest.AvoidTolls = c.AvoidTolls
+			compareRequest.AvoidHighways = c.AvoidHighways
+			compareRequest.AvoidFerries = c.AvoidFerries
+		} else {
+			compareRequest.AvoidTolls = false
+			compareRequest.AvoidHighways = false
+			compareRequest.AvoidFerries = false
+		}
 		second, err := app.client.Directions(context.Background(), compareRequest)
 		if err != nil {
 			return err
@@ -122,7 +137,7 @@ func normalizeDirectionsMode(mode string) string {
 	case "walk", "walking":
 		return "walking"
 	case "drive", "driving":
-		return "driving"
+		return directionsModeDriving
 	case "bike", "bicycle", "bicycling":
 		return "bicycling"
 	case "transit":
