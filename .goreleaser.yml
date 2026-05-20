@@ -39,11 +39,11 @@ changelog:
 brews:
   - name: goplaces
     description: "Modern Go client + CLI for the Google Places API (New)."
-    homepage: "https://github.com/steipete/goplaces"
+    homepage: "https://github.com/openclaw/goplaces"
     license: "MIT"
     directory: Formula
     repository:
-      owner: steipete
+      owner: openclaw
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     install: |
