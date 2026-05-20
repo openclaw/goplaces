@@ -20,7 +20,7 @@
         <a href="#setup">Setup</a>
         <a href="#library">Go API</a>
         <a href="#architecture">Architecture</a>
-        <a href="https://github.com/steipete/goplaces" rel="noopener">GitHub &nearr;</a>
+        <a href="https://github.com/openclaw/goplaces" rel="noopener">GitHub &nearr;</a>
       </div>
     </nav>
   </header>
@@ -35,11 +35,11 @@
         <div class="actions">
           <a class="button primary" href="#commands">Browse commands <span class="arrow">&rarr;</span></a>
           <a class="button" href="#setup">Install</a>
-          <a class="button" href="https://github.com/steipete/goplaces" rel="noopener">View source</a>
+          <a class="button" href="https://github.com/openclaw/goplaces" rel="noopener">View source</a>
         </div>
         <div class="qi" role="group" aria-label="Quick install">
           <span class="dollar">$</span>
-          <span class="text" id="qi-cmd">brew install steipete/tap/goplaces</span>
+          <span class="text" id="qi-cmd">brew install openclaw/tap/goplaces</span>
           <button class="copy" data-copy="#qi-cmd" aria-label="Copy install command">Copy</button>
         </div>
         <div class="stats" aria-label="Project at a glance">
@@ -199,11 +199,11 @@ Joe Coffee Company       <span class="tk-num">4.3</span>  <span class="tk-warn">
           </div>
 
           <div role="tabpanel" id="t-brew" class="tab-panel is-active">
-            <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#code-brew" data-copy-text="brew install steipete/tap/goplaces
+            <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#code-brew" data-copy-text="brew install openclaw/tap/goplaces
 export GOOGLE_PLACES_API_KEY=&quot;...&quot;
 goplaces search &quot;bookstore&quot;">Copy</button></div>
-<pre id="code-brew"><span class="tk-c"># Install via the steipete tap</span>
-<span class="tk-prompt">$ </span>brew install steipete/tap/goplaces
+<pre id="code-brew"><span class="tk-c"># Install via the OpenClaw tap</span>
+<span class="tk-prompt">$ </span>brew install openclaw/tap/goplaces
 <span class="tk-prompt">$ </span>export GOOGLE_PLACES_API_KEY=<span class="tk-str">"..."</span>
 <span class="tk-prompt">$ </span>goplaces search <span class="tk-str">"bookstore"</span></pre>
           </div>
@@ -219,10 +219,10 @@ goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4">Copy</button></div>
           </div>
 
           <div role="tabpanel" id="t-bin" class="tab-panel">
-            <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#code-bin" data-copy-text="gh release download --repo steipete/goplaces --pattern &quot;goplaces_*_$(go env GOOS)_$(go env GOARCH).tar.gz&quot; --output - | tar xz
+            <div class="codebar"><span class="pill">shell</span><button class="copy" data-copy="#code-bin" data-copy-text="gh release download --repo openclaw/goplaces --pattern &quot;goplaces_*_$(go env GOOS)_$(go env GOARCH).tar.gz&quot; --output - | tar xz
 ./goplaces --help">Copy</button></div>
 <pre id="code-bin"><span class="tk-c"># Stream the matching archive from the latest GitHub release</span>
-<span class="tk-prompt">$ </span>gh release download <span class="tk-flag">--repo</span> steipete/goplaces \
+<span class="tk-prompt">$ </span>gh release download <span class="tk-flag">--repo</span> openclaw/goplaces \
     <span class="tk-flag">--pattern</span> <span class="tk-str">"goplaces_*_$(go env GOOS)_$(go env GOARCH).tar.gz"</span> \
     <span class="tk-flag">--output</span> - | tar xz
 <span class="tk-prompt">$ </span>./goplaces --help</pre>
@@ -336,10 +336,10 @@ resp<span class="tk-pun">,</span> err <span class="tk-pun">:=</span> client<span
       </div>
       <div>
         <h4>Project</h4>
-        <a href="https://github.com/steipete/goplaces" rel="noopener">GitHub</a>
-        <a href="https://github.com/steipete/goplaces/releases" rel="noopener">Releases</a>
-        <a href="https://github.com/steipete/goplaces/blob/main/CHANGELOG.md" rel="noopener">Changelog</a>
-        <a href="https://github.com/steipete/goplaces/blob/main/LICENSE" rel="noopener">MIT License</a>
+        <a href="https://github.com/openclaw/goplaces" rel="noopener">GitHub</a>
+        <a href="https://github.com/openclaw/goplaces/releases" rel="noopener">Releases</a>
+        <a href="https://github.com/openclaw/goplaces/blob/main/CHANGELOG.md" rel="noopener">Changelog</a>
+        <a href="https://github.com/openclaw/goplaces/blob/main/LICENSE" rel="noopener">MIT License</a>
       </div>
     </div>
     <div class="shell foot-bar">

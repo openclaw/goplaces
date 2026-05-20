@@ -7,7 +7,7 @@ Quick, repeatable release checklist. Mirrors gifgrep cadence.
 - Update `CHANGELOG.md` for the new version.
 - Run gate: `./scripts/check-coverage.sh` + `golangci-lint run ./...`.
 - Ensure `main` is clean and pushed.
-- Ensure `gh` is authenticated for `steipete/goplaces` + `steipete/homebrew-tap`.
+- Ensure `gh` is authenticated for `openclaw/goplaces` + `openclaw/homebrew-tap`.
 
 ## Tag + Build
 
@@ -16,18 +16,14 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-GitHub Actions runs GoReleaser build on tag push (`.github/workflows/release.yml`).
-Artifacts are stored on the workflow run.
+GitHub Actions runs GoReleaser on tag push (`.github/workflows/release.yml`).
+GoReleaser publishes the GitHub release archives, checksums, and Homebrew formula.
 
-## Publish GitHub Release
+## Verify Release
 
-Create a release from the tag and upload built archives (`goplaces_<version>_<os>_<arch>.tar.gz|zip`):
-
-```bash
-gh release create vX.Y.Z ./dist-archives/* --repo steipete/goplaces --title vX.Y.Z --notes-file /tmp/release-notes.md
-```
-
-Homebrew update: see `docs/releasing-homebrew.md`.
+- GitHub release exists for `vX.Y.Z` with archives and checksums.
+- `openclaw/homebrew-tap` has `Formula/goplaces.rb` for `X.Y.Z`.
+- `brew update && brew install openclaw/tap/goplaces` works.
 
 ## Notes
 

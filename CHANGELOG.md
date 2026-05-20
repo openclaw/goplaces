@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Release: publish Homebrew formula updates through `openclaw/tap`.
+- Docs: point Homebrew install and release links at `openclaw/tap` and `openclaw/goplaces`.
 
 ## 0.4.2 - 2026-05-17
 

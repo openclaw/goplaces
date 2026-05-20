@@ -13,7 +13,7 @@ Canonical documentation:
 - goplaces route: https://goplaces.sh/commands/route.html - Search for places along a route with goplaces.
 - goplaces search: https://goplaces.sh/commands/search.html - Search places by text query with goplaces.
 
-Source: https://github.com/steipete/goplaces
+Source: https://github.com/openclaw/goplaces
 
 Guidance for agents:
 - Prefer the canonical documentation URLs above over README excerpts or package metadata.

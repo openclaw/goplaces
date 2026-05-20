@@ -1,27 +1,25 @@
 # goplaces Homebrew Release Playbook
 
-Manual/local tap update from GitHub release assets.
+Homebrew formula update notes for the automated release.
 
 ## Prereqs
 
 - Homebrew installed.
-- Access to `steipete/homebrew-tap`.
+- Access to `openclaw/homebrew-tap`.
 
 ## Release
 
 1) Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
-2) GitHub Actions builds binaries (workflow artifacts).
-3) Create/publish GitHub release `vX.Y.Z` and upload archives.
-4) Update the tap locally:
-   - In `../homebrew-tap/Formula/goplaces.rb`, set `version`, `url`, `sha256`.
-   - Commit + push in `../homebrew-tap`.
+2) GitHub Actions runs GoReleaser.
+3) GoReleaser updates `openclaw/homebrew-tap` at `Formula/goplaces.rb`.
 
 ## Verify install
 
 ```bash
-brew update && brew install steipete/tap/goplaces
+brew update && brew install openclaw/tap/goplaces
 ```
 
 ## Troubleshooting
 
-- CI does not publish GitHub releases or Homebrew automatically.
+- If the formula is missing or stale, inspect the release workflow token check and GoReleaser `brews` config.
+- If a root-level `goplaces.rb` appears in the tap, remove it; `Formula/goplaces.rb` is canonical.

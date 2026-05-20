@@ -9,7 +9,7 @@ const cname = fs.readFileSync(path.join(docsDir, "CNAME"), "utf8").trim();
 const origin = "https://" + cname;
 const productName = "goplaces";
 const productDescription = "goplaces is a modern Go client and CLI for Google Places API (New) and Routes.";
-const source = "https://github.com/steipete/goplaces";
+const source = "https://github.com/openclaw/goplaces";
 
 const pages = allHtml(docsDir)
   .map((file) => {
