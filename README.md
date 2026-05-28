@@ -1,6 +1,6 @@
-![goplaces banner](docs/assets/readme-banner.jpg)
-
 # goplaces
+
+![goplaces banner](docs/assets/readme-banner.jpg)
 
 Modern Go client and CLI for the Google Places API (New), plus selected Routes API workflows.
 
