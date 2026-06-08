@@ -39,7 +39,13 @@ jobs:
       - name: Staticcheck
         run: go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./...
       - name: Deadcode
-        run: go run golang.org/x/tools/cmd/deadcode@v0.45.0 -test ./...
+        run: |
+          output_file=$(mktemp)
+          go run golang.org/x/tools/cmd/deadcode@v0.45.0 -test ./... > "$output_file"
+          if [ -s "$output_file" ]; then
+            cat "$output_file"
+            exit 1
+          fi
       - name: Security scan
         run: go run github.com/securego/gosec/v2/cmd/gosec@v2.26.1 ./...
       - name: Vulnerability scan
