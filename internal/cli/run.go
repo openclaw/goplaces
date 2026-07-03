@@ -51,7 +51,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	ctx, exited, err := parseWithExit(parser, args, &exitCode)
+	ctx, exited, err := parseWithExit(parser, normalizeNegativeNumericFlagArgs(args), &exitCode)
 	if exited {
 		return exitCode
 	}
