@@ -84,7 +84,8 @@ jobs:
             echo "::error::openclaw/homebrew-tap Casks/goplaces.rb was not updated to $release_version"
             exit 1
           fi
-          if ! grep -q "releases/download/v${release_version}/" <<<"$cask"; then
+          if ! grep -q 'releases/download/v#{version}/' <<<"$cask" &&
+             ! grep -q "releases/download/v${release_version}/" <<<"$cask"; then
             echo "::error::openclaw/homebrew-tap Casks/goplaces.rb does not point at v$release_version assets"
             exit 1
           fi
