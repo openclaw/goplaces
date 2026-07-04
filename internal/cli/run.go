@@ -39,6 +39,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		kong.Description("Search and resolve places via the Google Places API (New)."),
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{Compact: true, Summary: true}),
+		kong.WithHyphenPrefixedParameters(true),
 		kong.Writers(stdout, stderr),
 		kong.Exit(func(code int) {
 			exitCode = code
