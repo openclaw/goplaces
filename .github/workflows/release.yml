@@ -65,7 +65,47 @@ jobs:
             echo "::error::HOMEBREW_TAP_TOKEN cannot access openclaw/homebrew-tap (HTTP $code)"
             exit 1
           fi
+      - name: Detect completed release publication
+        id: published-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+        run: |
+          release_version="${RELEASE_TAG#v}"
+          release="$(gh api "repos/openclaw/goplaces/releases/tags/$RELEASE_TAG" 2>/dev/null || true)"
+          complete=true
+
+          expected_assets=(
+            "goplaces_${release_version}_darwin_amd64.tar.gz"
+            "goplaces_${release_version}_darwin_arm64.tar.gz"
+            "goplaces_${release_version}_linux_amd64.tar.gz"
+            "goplaces_${release_version}_linux_arm64.tar.gz"
+            "goplaces_${release_version}_windows_amd64.zip"
+            "goplaces_${release_version}_windows_arm64.zip"
+            "goplaces_checksums.txt"
+          )
+          for asset in "${expected_assets[@]}"; do
+            if ! jq -e --arg asset "$asset" \
+              '.assets[] | select(.name == $asset and .state == "uploaded" and .size > 0 and (.digest | startswith("sha256:")))' \
+              <<<"$release" >/dev/null; then
+              complete=false
+              break
+            fi
+          done
+
+          cask="$(GH_TOKEN="$HOMEBREW_TAP_TOKEN" gh api repos/openclaw/homebrew-tap/contents/Casks/goplaces.rb --jq '.content' 2>/dev/null | base64 --decode || true)"
+          if ! grep -q "version \"${release_version}\"" <<<"$cask"; then
+            complete=false
+          fi
+          if ! grep -q 'releases/download/v#{version}/' <<<"$cask" &&
+             ! grep -q "releases/download/v${release_version}/" <<<"$cask"; then
+            complete=false
+          fi
+
+          echo "complete=$complete" >> "$GITHUB_OUTPUT"
       - uses: goreleaser/goreleaser-action@v7
+        if: ${{ steps.published-release.outputs.complete != 'true' }}
         with:
           distribution: goreleaser
           version: "~> v2"
