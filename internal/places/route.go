@@ -199,22 +199,22 @@ func applyRouteDefaults(req RouteRequest) RouteRequest {
 
 func validateRouteRequest(req RouteRequest) error {
 	if req.Query == "" {
-		return ValidationError{Field: "query", Message: "required"}
+		return ValidationError{Field: validationFieldQuery, Message: validationMessageRequired}
 	}
 	if req.From == "" {
-		return ValidationError{Field: "from", Message: "required"}
+		return ValidationError{Field: validationFieldFrom, Message: validationMessageRequired}
 	}
 	if req.To == "" {
-		return ValidationError{Field: "to", Message: "required"}
+		return ValidationError{Field: "to", Message: validationMessageRequired}
 	}
 	if req.Limit < 1 || req.Limit > maxSearchLimit {
-		return ValidationError{Field: "limit", Message: fmt.Sprintf("must be 1-%d", maxSearchLimit)}
+		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxSearchLimit)}
 	}
 	if req.RadiusM <= 0 {
-		return ValidationError{Field: "radius_m", Message: "must be > 0"}
+		return ValidationError{Field: validationFieldRadiusM, Message: "must be > 0"}
 	}
 	if req.RadiusM > maxCircleRadiusM {
-		return ValidationError{Field: "radius_m", Message: fmt.Sprintf("must be <= %d", maxCircleRadiusM)}
+		return ValidationError{Field: validationFieldRadiusM, Message: fmt.Sprintf("must be <= %d", maxCircleRadiusM)}
 	}
 	if req.MaxWaypoints < 1 || req.MaxWaypoints > maxRouteWaypoints {
 		return ValidationError{Field: "max_waypoints", Message: fmt.Sprintf("must be 1-%d", maxRouteWaypoints)}
@@ -228,10 +228,10 @@ func validateRouteRequest(req RouteRequest) error {
 func (c *Client) computeRoutePolyline(ctx context.Context, req RouteRequest) (string, error) {
 	body := map[string]any{
 		"origin": map[string]any{
-			"address": req.From,
+			payloadFieldAddress: req.From,
 		},
 		"destination": map[string]any{
-			"address": req.To,
+			payloadFieldAddress: req.To,
 		},
 		"travelMode":       req.Mode,
 		"polylineQuality":  "OVERVIEW",

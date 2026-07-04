@@ -17,10 +17,12 @@ const (
 const directionsFieldMask = "routes.description,routes.warnings,routes.legs.distanceMeters,routes.legs.duration,routes.legs.localizedValues.distance,routes.legs.localizedValues.duration,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration,routes.legs.steps.localizedValues.distance,routes.legs.steps.localizedValues.staticDuration,routes.legs.steps.navigationInstruction.instructions,routes.legs.steps.navigationInstruction.maneuver,routes.legs.steps.travelMode"
 
 const (
-	directionsModeWalk    = "walking"
-	directionsModeDrive   = "driving"
-	directionsModeBicycle = "bicycling"
-	directionsModeTransit = "transit"
+	directionsModeWalk       = "walking"
+	directionsModeDrive      = "driving"
+	directionsModeBicycle    = "bicycling"
+	directionsModeTransit    = "transit"
+	directionsModeAliasWalk  = "walk"
+	directionsModeAliasDrive = "drive"
 )
 
 const (
@@ -164,7 +166,7 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 	if normalizeDirectionsMode(req.Mode) == "" {
 		return ValidationError{Field: "mode", Message: "must be walk, drive, bicycle, or transit"}
 	}
-	if err := validateDirectionsLocation("from", req.FromPlaceID, req.FromLocation, req.From); err != nil {
+	if err := validateDirectionsLocation(validationFieldFrom, req.FromPlaceID, req.FromLocation, req.From); err != nil {
 		return err
 	}
 	if err := validateDirectionsLocation("to", req.ToPlaceID, req.ToLocation, req.To); err != nil {
@@ -215,7 +217,7 @@ func validateDirectionsLocation(label, placeID string, location *LatLng, text st
 		provided++
 	}
 	if provided == 0 {
-		return ValidationError{Field: label, Message: "required"}
+		return ValidationError{Field: label, Message: validationMessageRequired}
 	}
 	if provided > 1 {
 		return ValidationError{Field: label, Message: "use only one of text, place_id, or lat/lng"}
@@ -246,13 +248,13 @@ func directionsLocationLabel(placeID string, location *LatLng, text string) stri
 
 func normalizeDirectionsMode(mode string) string {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "walk", "walking":
+	case directionsModeAliasWalk, directionsModeWalk:
 		return directionsModeWalk
-	case "drive", "driving":
+	case directionsModeAliasDrive, directionsModeDrive:
 		return directionsModeDrive
-	case "bike", "bicycle", "bicycling":
+	case "bike", "bicycle", directionsModeBicycle:
 		return directionsModeBicycle
-	case "transit":
+	case directionsModeTransit:
 		return directionsModeTransit
 	default:
 		return ""
@@ -301,7 +303,7 @@ func directionsWaypoint(placeID string, location *LatLng, text string) map[strin
 			},
 		}
 	}
-	return map[string]any{"address": strings.TrimSpace(text)}
+	return map[string]any{payloadFieldAddress: strings.TrimSpace(text)}
 }
 
 func buildDirectionsBody(req DirectionsRequest) map[string]any {

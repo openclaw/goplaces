@@ -21,7 +21,7 @@ const (
 	directionsModeWalkAPI    = "WALK"
 	directionsModeDriveAPI   = "DRIVE"
 	directionsModeTransitAPI = "TRANSIT"
-	directionsModeWalking    = "walking"
+	directionsModeWalkingAPI = "walking"
 )
 
 func TestRunSearchJSON(t *testing.T) {
@@ -893,7 +893,7 @@ func TestRunDirectionsValidationErrors(t *testing.T) {
 		},
 		{
 			name: "same compare mode",
-			args: []string{"directions", "--from", "A", "--to", "B", "--mode", "walk", "--compare", directionsModeWalking, "--api-key", "x"},
+			args: []string{"directions", "--from", "A", "--to", "B", "--mode", "walk", "--compare", directionsModeWalkingAPI, "--api-key", "x"},
 		},
 		{
 			name: "partial from latlng",
@@ -931,8 +931,8 @@ func TestRunDirectionsValidationErrors(t *testing.T) {
 
 func TestNormalizeDirectionsMode(t *testing.T) {
 	cases := map[string]string{
-		"walk":      directionsModeWalking,
-		"walking":   directionsModeWalking,
+		"walk":      directionsModeWalkingAPI,
+		"walking":   directionsModeWalkingAPI,
 		"drive":     directionsModeDriving,
 		"driving":   directionsModeDriving,
 		"bike":      "bicycling",

@@ -65,13 +65,13 @@ func applyNearbyDefaults(req NearbySearchRequest) NearbySearchRequest {
 
 func validateNearbyRequest(req NearbySearchRequest) error {
 	if req.LocationRestriction == nil {
-		return ValidationError{Field: "location_restriction", Message: "required"}
+		return ValidationError{Field: "location_restriction", Message: validationMessageRequired}
 	}
 	if err := validateCircle(req.LocationRestriction, "location_restriction"); err != nil {
 		return err
 	}
 	if req.Limit < 1 || req.Limit > maxNearbyLimit {
-		return ValidationError{Field: "limit", Message: fmt.Sprintf("must be 1-%d", maxNearbyLimit)}
+		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxNearbyLimit)}
 	}
 	return nil
 }

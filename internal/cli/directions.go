@@ -7,7 +7,16 @@ import (
 	"github.com/steipete/goplaces"
 )
 
-const directionsModeDriving = "driving"
+const (
+	directionsModeWalk               = "walk"
+	directionsModeWalking            = "walking"
+	directionsModeDrive              = "drive"
+	directionsModeDriving            = "driving"
+	directionsModeBicycling          = "bicycling"
+	directionsModeTransit            = "transit"
+	directionsValidationFieldCompare = "compare"
+	directionsValidationMessageModes = "must be walk, drive, bicycle, or transit"
+)
 
 // DirectionsCmd fetches directions between two points.
 type DirectionsCmd struct {
@@ -42,13 +51,13 @@ func (c *DirectionsCmd) Run(app *App) error {
 	if strings.TrimSpace(c.Compare) != "" {
 		compareMode = normalizeDirectionsMode(c.Compare)
 		if compareMode == "" {
-			return goplaces.ValidationError{Field: "compare", Message: "must be walk, drive, bicycle, or transit"}
+			return goplaces.ValidationError{Field: directionsValidationFieldCompare, Message: directionsValidationMessageModes}
 		}
 		if compareMode == primaryMode {
-			return goplaces.ValidationError{Field: "compare", Message: "must be different from mode"}
+			return goplaces.ValidationError{Field: directionsValidationFieldCompare, Message: "must be different from mode"}
 		}
 		if strings.TrimSpace(c.ArrivalTime) != "" {
-			return goplaces.ValidationError{Field: "compare", Message: "cannot combine with arrival_time"}
+			return goplaces.ValidationError{Field: directionsValidationFieldCompare, Message: "cannot combine with arrival_time"}
 		}
 	}
 
@@ -134,14 +143,14 @@ func (c *DirectionsCmd) Run(app *App) error {
 
 func normalizeDirectionsMode(mode string) string {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "walk", "walking":
-		return "walking"
-	case "drive", "driving":
+	case directionsModeWalk, directionsModeWalking:
+		return directionsModeWalking
+	case directionsModeDrive, directionsModeDriving:
 		return directionsModeDriving
-	case "bike", "bicycle", "bicycling":
-		return "bicycling"
-	case "transit":
-		return "transit"
+	case "bike", "bicycle", directionsModeBicycling:
+		return directionsModeBicycling
+	case directionsModeTransit:
+		return directionsModeTransit
 	default:
 		return ""
 	}

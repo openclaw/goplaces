@@ -8,7 +8,10 @@ import (
 	"strings"
 )
 
-const autocompleteFieldMask = "suggestions.placePrediction.placeId,suggestions.placePrediction.place,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.types,suggestions.placePrediction.distanceMeters,suggestions.queryPrediction.text,suggestions.queryPrediction.structuredFormat"
+const (
+	autocompleteFieldMask           = "suggestions.placePrediction.placeId,suggestions.placePrediction.place,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.types,suggestions.placePrediction.distanceMeters,suggestions.queryPrediction.text,suggestions.queryPrediction.structuredFormat"
+	autocompleteSuggestionKindQuery = validationFieldQuery
+)
 
 // Autocomplete returns place and query suggestions for an input string.
 func (c *Client) Autocomplete(ctx context.Context, req AutocompleteRequest) (AutocompleteResponse, error) {
@@ -115,7 +118,7 @@ func mapAutocompleteSuggestion(payload autocompleteSuggestionPayload) (Autocompl
 		prediction := payload.QueryPrediction
 		structured := prediction.StructuredFormat
 		return AutocompleteSuggestion{
-			Kind:          "query",
+			Kind:          autocompleteSuggestionKindQuery,
 			Text:          autocompleteText(prediction.Text),
 			MainText:      autocompleteText(structuredText(structured, true)),
 			SecondaryText: autocompleteText(structuredText(structured, false)),
@@ -150,10 +153,10 @@ func applyAutocompleteDefaults(req AutocompleteRequest) AutocompleteRequest {
 
 func validateAutocompleteRequest(req AutocompleteRequest) error {
 	if strings.TrimSpace(req.Input) == "" {
-		return ValidationError{Field: "input", Message: "required"}
+		return ValidationError{Field: "input", Message: validationMessageRequired}
 	}
 	if req.Limit < 1 || req.Limit > maxAutocompleteLimit {
-		return ValidationError{Field: "limit", Message: fmt.Sprintf("must be 1-%d", maxAutocompleteLimit)}
+		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxAutocompleteLimit)}
 	}
 	if req.LocationBias != nil {
 		if err := validateLocationBias(req.LocationBias); err != nil {

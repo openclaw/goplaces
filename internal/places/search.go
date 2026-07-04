@@ -122,10 +122,10 @@ func applySearchDefaults(req SearchRequest) SearchRequest {
 
 func validateSearchRequest(req SearchRequest) error {
 	if strings.TrimSpace(req.Query) == "" {
-		return ValidationError{Field: "query", Message: "required"}
+		return ValidationError{Field: validationFieldQuery, Message: validationMessageRequired}
 	}
 	if req.Limit < 1 || req.Limit > maxSearchLimit {
-		return ValidationError{Field: "limit", Message: fmt.Sprintf("must be 1-%d", maxSearchLimit)}
+		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxSearchLimit)}
 	}
 
 	if req.Filters != nil {

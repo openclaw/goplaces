@@ -21,7 +21,7 @@ jobs:
       - name: Test (coverage >= 90%)
         run: ./scripts/check-coverage.sh
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
       - name: Lint
         run: make lint
   audit:
