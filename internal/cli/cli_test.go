@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -137,6 +138,44 @@ func TestRunSearchWithFilters(t *testing.T) {
 	}
 }
 
+func TestRunSearchAcceptsSpaceSeparatedNegativeLongitude(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != placesSearchPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		assertNestedFloat(t, payload, 42.3467, "locationBias", "circle", "center", "latitude")
+		assertNestedFloat(t, payload, -71.0972, "locationBias", "circle", "center", "longitude")
+		assertNestedFloat(t, payload, 1500, "locationBias", "circle", "radius")
+		_, _ = w.Write([]byte(`{"places": [{"id": "abc"}]}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"search",
+		"coffee",
+		"--lat", "42.3467",
+		"--lng", "-71.0972",
+		"--radius-m", "1500",
+		"--api-key", "test-key",
+		"--base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+}
+
 func TestRunSearchSanitizesAPIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -227,6 +266,44 @@ func TestRunAutocompleteHuman(t *testing.T) {
 	}
 }
 
+func TestRunAutocompleteAcceptsSpaceSeparatedNegativeLongitude(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/places:autocomplete" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		assertNestedFloat(t, payload, 40.7411, "locationBias", "circle", "center", "latitude")
+		assertNestedFloat(t, payload, -73.9897, "locationBias", "circle", "center", "longitude")
+		assertNestedFloat(t, payload, 1500, "locationBias", "circle", "radius")
+		_, _ = w.Write([]byte(`{"suggestions": [{"placePrediction": {"placeId": "abc"}}]}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"autocomplete",
+		"pizza",
+		"--lat", "40.7411",
+		"--lng", "-73.9897",
+		"--radius-m", "1500",
+		"--api-key", "test-key",
+		"--base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+}
+
 func TestRunNearbyJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != placesNearbyPath {
@@ -258,6 +335,43 @@ func TestRunNearbyJSON(t *testing.T) {
 	}
 	if len(response.Results) != 1 || response.Results[0].PlaceID != "abc" {
 		t.Fatalf("unexpected results: %#v", response.Results)
+	}
+}
+
+func TestRunNearbyAcceptsSpaceSeparatedNegativeLongitude(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != placesNearbyPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		assertNestedFloat(t, payload, 47.6062, "locationRestriction", "circle", "center", "latitude")
+		assertNestedFloat(t, payload, -122.3321, "locationRestriction", "circle", "center", "longitude")
+		assertNestedFloat(t, payload, 1500, "locationRestriction", "circle", "radius")
+		_, _ = w.Write([]byte(`{"places": [{"id": "abc"}]}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"nearby",
+		"--lat", "47.6062",
+		"--lng", "-122.3321",
+		"--radius-m", "1500",
+		"--api-key", "test-key",
+		"--base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
 	}
 }
 
@@ -490,6 +604,47 @@ func TestRunDirectionsWithDepartureTime(t *testing.T) {
 	}
 	if result.DepartureTime != departure || result.DurationSeconds != 2215 {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestRunDirectionsAcceptsSpaceSeparatedNegativeCoordinates(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != directionsPath {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		assertNestedFloat(t, payload, -22.8112259, "origin", "location", "latLng", "latitude")
+		assertNestedFloat(t, payload, -43.2585631, "origin", "location", "latLng", "longitude")
+		assertNestedFloat(t, payload, -22.9837626, "destination", "location", "latLng", "latitude")
+		assertNestedFloat(t, payload, -43.2322048, "destination", "location", "latLng", "longitude")
+		_, _ = w.Write([]byte(`{
+  "routes":[{"legs":[{"distanceMeters":26084,"duration":"2215s","localizedValues":{"distance":{"text":"26.1 km"},"duration":{"text":"37 mins"}},"steps":[]}]}]
+}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := Run([]string{
+		"directions",
+		"--from-lat", "-22.8112259",
+		"--from-lng", "-43.2585631",
+		"--to-lat", "-22.9837626",
+		"--to-lng", "-43.2322048",
+		"--api-key", "test-key",
+		"--directions-base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stdout=%s stderr=%s)", exitCode, stdout.String(), stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
 	}
 }
 
@@ -1196,5 +1351,29 @@ func TestHandleError(t *testing.T) {
 	}
 	if code := handleError(&bytes.Buffer{}, errors.New("boom")); code != 1 {
 		t.Fatalf("expected generic exit 1")
+	}
+}
+
+func assertNestedFloat(t *testing.T, payload map[string]any, want float64, path ...string) {
+	t.Helper()
+
+	var current any = payload
+	for _, key := range path {
+		node, ok := current.(map[string]any)
+		if !ok {
+			t.Fatalf("payload path %v reached non-object %#v", path, current)
+		}
+		current, ok = node[key]
+		if !ok {
+			t.Fatalf("payload missing path %v at %q", path, key)
+		}
+	}
+
+	got, ok := current.(float64)
+	if !ok {
+		t.Fatalf("payload path %v = %#v, want float64", path, current)
+	}
+	if math.Abs(got-want) > 1e-9 {
+		t.Fatalf("payload path %v = %v, want %v", path, got, want)
 	}
 }

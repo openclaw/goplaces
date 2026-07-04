@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CLI: accept space-separated negative numeric flag values such as coordinates. (#17) - thanks @technicalpickles
+
 ## 0.4.3 - 2026-05-20
 
 - Sanitize API error text before writing CLI errors to stderr.
