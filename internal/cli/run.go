@@ -13,6 +13,8 @@ import (
 	"github.com/steipete/goplaces"
 )
 
+const locationCoordinatesRequired = "lat, lng, radius required"
+
 // App wires CLI output and API access.
 type App struct {
 	client *goplaces.Client
@@ -156,7 +158,7 @@ func (c *SearchCmd) Run(app *App) error {
 
 	if c.Lat != nil || c.Lng != nil || c.RadiusM != nil {
 		if c.Lat == nil || c.Lng == nil || c.RadiusM == nil {
-			return goplaces.ValidationError{Field: "location_bias", Message: "lat, lng, radius required"}
+			return goplaces.ValidationError{Field: "location_bias", Message: locationCoordinatesRequired}
 		}
 		request.LocationBias = &goplaces.LocationBias{
 			Lat:     *c.Lat,
@@ -190,7 +192,7 @@ func (c *AutocompleteCmd) Run(app *App) error {
 
 	if c.Lat != nil || c.Lng != nil || c.RadiusM != nil {
 		if c.Lat == nil || c.Lng == nil || c.RadiusM == nil {
-			return goplaces.ValidationError{Field: "location_bias", Message: "lat, lng, radius required"}
+			return goplaces.ValidationError{Field: "location_bias", Message: locationCoordinatesRequired}
 		}
 		request.LocationBias = &goplaces.LocationBias{
 			Lat:     *c.Lat,
@@ -215,7 +217,7 @@ func (c *AutocompleteCmd) Run(app *App) error {
 // Run executes the nearby command.
 func (c *NearbyCmd) Run(app *App) error {
 	if c.Lat == nil || c.Lng == nil || c.RadiusM == nil {
-		return goplaces.ValidationError{Field: "location_restriction", Message: "lat, lng, radius required"}
+		return goplaces.ValidationError{Field: "location_restriction", Message: locationCoordinatesRequired}
 	}
 
 	request := goplaces.NearbySearchRequest{

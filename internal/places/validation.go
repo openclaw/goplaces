@@ -2,6 +2,16 @@ package places
 
 import "fmt"
 
+const (
+	payloadFieldAddress       = "address"
+	validationFieldFrom       = "from"
+	validationFieldLimit      = "limit"
+	validationFieldPlaceID    = "place_id"
+	validationFieldQuery      = "query"
+	validationFieldRadiusM    = "radius_m"
+	validationMessageRequired = "required"
+)
+
 const maxCircleRadiusM = 50000
 
 func validateLocationBias(bias *LocationBias) error {

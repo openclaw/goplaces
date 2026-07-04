@@ -17,13 +17,13 @@ git push origin vX.Y.Z
 ```
 
 GitHub Actions runs GoReleaser on tag push (`.github/workflows/release.yml`).
-GoReleaser publishes the GitHub release archives, checksums, and Homebrew formula.
+GoReleaser publishes the GitHub release archives, checksums, and Homebrew cask.
 
 ## Verify Release
 
 - GitHub release exists for `vX.Y.Z` with archives and checksums.
-- `openclaw/homebrew-tap` has `Formula/goplaces.rb` for `X.Y.Z`.
-- `brew update && brew install openclaw/tap/goplaces` works.
+- `openclaw/homebrew-tap` has `Casks/goplaces.rb` for `X.Y.Z` and maps former Formula users through `tap_migrations.json`.
+- `brew update && brew install --cask openclaw/tap/goplaces` works.
 
 ## Notes
 

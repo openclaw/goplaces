@@ -69,10 +69,10 @@ func applyResolveDefaults(req LocationResolveRequest) LocationResolveRequest {
 
 func validateResolveRequest(req LocationResolveRequest) error {
 	if strings.TrimSpace(req.LocationText) == "" {
-		return ValidationError{Field: "location_text", Message: "required"}
+		return ValidationError{Field: "location_text", Message: validationMessageRequired}
 	}
 	if req.Limit < 1 || req.Limit > maxResolveLimit {
-		return ValidationError{Field: "limit", Message: fmt.Sprintf("must be 1-%d", maxResolveLimit)}
+		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxResolveLimit)}
 	}
 	return nil
 }

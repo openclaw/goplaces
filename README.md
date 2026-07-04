@@ -33,7 +33,7 @@ Typical jobs:
 
 Latest release: v0.4.3 (2026-05-20).
 
-- Homebrew: `brew install openclaw/tap/goplaces`
+- Homebrew: `brew install --cask openclaw/tap/goplaces`
 - Go: `go install github.com/steipete/goplaces/cmd/goplaces@latest`
 - Source: `make goplaces`
 

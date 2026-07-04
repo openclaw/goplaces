@@ -23,7 +23,7 @@ func (c *Client) Details(ctx context.Context, placeID string) (PlaceDetails, err
 func (c *Client) DetailsWithOptions(ctx context.Context, req DetailsRequest) (PlaceDetails, error) {
 	placeID := strings.TrimSpace(req.PlaceID)
 	if placeID == "" {
-		return PlaceDetails{}, ValidationError{Field: "place_id", Message: "required"}
+		return PlaceDetails{}, ValidationError{Field: validationFieldPlaceID, Message: validationMessageRequired}
 	}
 
 	path, err := placeDetailsPath(placeID)
@@ -56,10 +56,10 @@ func placeDetailsPath(placeID string) (string, error) {
 	placeID = strings.TrimPrefix(strings.TrimSpace(placeID), "/")
 	placeID = strings.TrimPrefix(placeID, "places/")
 	if placeID == "" {
-		return "", ValidationError{Field: "place_id", Message: "required"}
+		return "", ValidationError{Field: validationFieldPlaceID, Message: validationMessageRequired}
 	}
 	if strings.Contains(placeID, "/") {
-		return "", ValidationError{Field: "place_id", Message: "must be a place ID or places/{place_id}"}
+		return "", ValidationError{Field: validationFieldPlaceID, Message: "must be a place ID or places/{place_id}"}
 	}
 	return "/places/" + pathEscapeSegment(placeID), nil
 }

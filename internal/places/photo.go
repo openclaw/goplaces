@@ -15,7 +15,7 @@ const maxPhotoDimensionPx = 4800
 func (c *Client) PhotoMedia(ctx context.Context, req PhotoMediaRequest) (PhotoMediaResponse, error) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
-		return PhotoMediaResponse{}, ValidationError{Field: "name", Message: "required"}
+		return PhotoMediaResponse{}, ValidationError{Field: "name", Message: validationMessageRequired}
 	}
 	if req.MaxWidthPx < 0 || req.MaxWidthPx > maxPhotoDimensionPx {
 		return PhotoMediaResponse{}, ValidationError{Field: "max_width_px", Message: fmt.Sprintf("must be 1-%d", maxPhotoDimensionPx)}
