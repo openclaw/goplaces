@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Release: accept interpolated Cask URLs and make completed release reruns idempotent.
+
 ## 0.4.4 - 2026-07-04
 
 - CLI: accept space-separated negative numeric flag values such as coordinates. (#17) - thanks @technicalpickles
