@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.4 - 2026-07-04
 
 - CLI: accept space-separated negative numeric flag values such as coordinates. (#17) - thanks @technicalpickles
 - Release: update GoReleaser to 2.16.0 and migrate Homebrew publishing from Formula to Cask.
 - Build: require Go 1.26.4 and update golangci-lint to 2.12.2.
+- Docs: define project direction and compatibility policy.
 
 ## 0.4.3 - 2026-05-20
 
