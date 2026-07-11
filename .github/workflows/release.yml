@@ -1,170 +1,59 @@
-name: release
+name: release-check
 
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to (re)release (e.g. v0.1.0)"
-        required: true
-        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
+  validate:
+    # Tag CI is credential-free, but its release-contract mocks intentionally
+    # exercise macOS-only producer and verifier boundaries.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
-      - name: Resolve release tag
-        id: release-tag
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_TAG: ${{ inputs.tag }}
-          REF_NAME: ${{ github.ref_name }}
+      - name: Install dependencies
+        run: go mod download
+      - name: Install pinned ShellCheck
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            release_tag="$INPUT_TAG"
-          else
-            release_tag="$REF_NAME"
-          fi
-          if ! [[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9._-]+)?$ ]]; then
-            echo "::error::Invalid release tag: $release_tag"
-            exit 1
-          fi
-          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
-      - name: Stash GoReleaser config
-        run: cp .goreleaser.yml /tmp/.goreleaser.yml
-      - name: Checkout release tag
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        env:
-          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
-        run: git checkout --detach "refs/tags/$RELEASE_TAG"
-      - name: Verify Homebrew tap token
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          shellcheck_bin="$(./scripts/bootstrap-shellcheck.sh "$RUNNER_TEMP/shellcheck")"
+          printf '%s\n' "${shellcheck_bin%/*}" >> "$GITHUB_PATH"
+      - name: Unit and race tests
         run: |
-          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN is missing; cannot publish Homebrew cask"
-            exit 1
-          fi
-          code="$(curl -sS -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer $HOMEBREW_TAP_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/openclaw/homebrew-tap || true)"
-          if [ "$code" != "200" ]; then
-            echo "::error::HOMEBREW_TAP_TOKEN cannot access openclaw/homebrew-tap (HTTP $code)"
-            exit 1
-          fi
-      - name: Detect completed release publication
-        id: published-release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+          go test ./...
+          go test -race ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Release contract tests
         run: |
-          release_version="${RELEASE_TAG#v}"
-          release="$(gh api "repos/openclaw/goplaces/releases/tags/$RELEASE_TAG" 2>/dev/null || true)"
-          complete=true
-
-          expected_assets=(
-            "goplaces_${release_version}_darwin_amd64.tar.gz"
-            "goplaces_${release_version}_darwin_arm64.tar.gz"
-            "goplaces_${release_version}_linux_amd64.tar.gz"
-            "goplaces_${release_version}_linux_arm64.tar.gz"
-            "goplaces_${release_version}_windows_amd64.zip"
-            "goplaces_${release_version}_windows_arm64.zip"
-            "goplaces_checksums.txt"
-          )
-          for asset in "${expected_assets[@]}"; do
-            if ! jq -e --arg asset "$asset" \
-              '.assets[] | select(.name == $asset and .state == "uploaded" and .size > 0 and (.digest | startswith("sha256:")))' \
-              <<<"$release" >/dev/null; then
-              complete=false
-              break
-            fi
-          done
-
-          cask="$(GH_TOKEN="$HOMEBREW_TAP_TOKEN" gh api repos/openclaw/homebrew-tap/contents/Casks/goplaces.rb --jq '.content' 2>/dev/null | base64 --decode || true)"
-          if ! grep -q "version \"${release_version}\"" <<<"$cask"; then
-            complete=false
-          fi
-          if ! grep -q 'releases/download/v#{version}/' <<<"$cask" &&
-             ! grep -q "releases/download/v${release_version}/" <<<"$cask"; then
-            complete=false
-          fi
-
-          echo "complete=$complete" >> "$GITHUB_OUTPUT"
-      - uses: goreleaser/goreleaser-action@v7
-        if: ${{ steps.published-release.outputs.complete != 'true' }}
+          ./scripts/test-codesign-macos.sh
+          ./scripts/test-release-assets.sh
+          ./scripts/test-release-local.sh
+          ./scripts/test-security-ci.sh
+      - name: Install vulnerability scanner
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+      - name: Source vulnerability scan
+        run: '"$(go env GOPATH)/bin/govulncheck" -db=https://vuln.go.dev -test ./...'
+      - name: Build credential-free snapshot
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: "~> v2"
-          args: release --clean --config /tmp/.goreleaser.yml
+          version: v2.16.0
+          args: release --snapshot --clean --skip=publish --config .goreleaser.yml
+      - name: Snapshot binary vulnerability scan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-      - name: Verify Homebrew cask
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
-        run: |
-          release_version="${RELEASE_TAG#v}"
-          cask="$(gh api repos/openclaw/homebrew-tap/contents/Casks/goplaces.rb --jq '.content' | base64 --decode)"
-          if ! grep -q "version \"${release_version}\"" <<<"$cask"; then
-            echo "::error::openclaw/homebrew-tap Casks/goplaces.rb was not updated to $release_version"
-            exit 1
-          fi
-          if ! grep -q 'releases/download/v#{version}/' <<<"$cask" &&
-             ! grep -q "releases/download/v${release_version}/" <<<"$cask"; then
-            echo "::error::openclaw/homebrew-tap Casks/goplaces.rb does not point at v$release_version assets"
-            exit 1
-          fi
-      - name: Migrate Homebrew formula users to the cask
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          gh auth setup-git
-          tap_dir="$RUNNER_TEMP/homebrew-tap"
-          git clone https://github.com/openclaw/homebrew-tap.git "$tap_dir"
-          cd "$tap_dir"
-
-          if [ -f tap_migrations.json ]; then
-            jq -e 'type == "object"' tap_migrations.json >/dev/null
-          else
-            echo '{}' > tap_migrations.json
-          fi
-          jq -S '. + {"goplaces": "goplaces"}' tap_migrations.json > tap_migrations.json.tmp
-          mv tap_migrations.json.tmp tap_migrations.json
-          rm -f Formula/goplaces.rb
-
-          if [ -z "$(git status --porcelain -- Formula/goplaces.rb tap_migrations.json)" ]; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --all -- Formula/goplaces.rb tap_migrations.json
-          git commit -m "chore: migrate goplaces formula to cask"
-          git push origin HEAD:main
-      - name: Verify Homebrew migration
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          if gh api repos/openclaw/homebrew-tap/contents/Formula/goplaces.rb >/dev/null 2>&1; then
-            echo "::error::openclaw/homebrew-tap still contains Formula/goplaces.rb"
-            exit 1
-          fi
-          migrations="$(gh api repos/openclaw/homebrew-tap/contents/tap_migrations.json --jq '.content' | base64 --decode)"
-          if ! jq -e '.goplaces == "goplaces"' <<<"$migrations" >/dev/null; then
-            echo "::error::openclaw/homebrew-tap does not migrate goplaces to its cask"
-            exit 1
-          fi
+          SNAPSHOT_REQUIRE_CLEAN: "1"
+        run: ./scripts/verify-snapshot-security.sh
+      - name: Reproduce snapshot binaries
+        run: ./scripts/test-reproducible-builds.sh dist

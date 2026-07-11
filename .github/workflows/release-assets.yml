@@ -1,0 +1,282 @@
+name: release-assets
+
+run-name: Verify ${{ inputs.tag }} ${{ inputs.state }} release ${{ inputs.release_id }} nonce ${{ inputs.dispatch_nonce }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Signed annotated release tag
+        required: true
+        type: string
+      state:
+        description: Exact release state
+        required: true
+        type: choice
+        options:
+          - draft
+          - published
+      expected_default_sha:
+        description: Protected current default-branch commit
+        required: true
+        type: string
+      expected_tag_commit:
+        description: Peeled release-tag commit
+        required: true
+        type: string
+      expected_tag_object:
+        description: Annotated release-tag object
+        required: true
+        type: string
+      release_id:
+        description: Numeric GitHub release ID
+        required: true
+        type: string
+      dispatch_nonce:
+        description: Exact local dispatch-intent nonce
+        required: true
+        type: string
+
+# Draft visibility requires write scope. The token is exposed to exactly one
+# download step; trusted verifier code and candidate execution receive none.
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    name: verify-${{ matrix.proof_arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            proof_arch: arm64
+            archive_arch: arm64
+            native_arch: arm64
+          - runner: macos-15-intel
+            proof_arch: x86_64
+            archive_arch: amd64
+            native_arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Require protected current-default invocation
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EXPECTED_DEFAULT_SHA: ${{ inputs.expected_default_sha }}
+          EXPECTED_TAG_COMMIT: ${{ inputs.expected_tag_commit }}
+          EXPECTED_TAG_OBJECT: ${{ inputs.expected_tag_object }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          DISPATCH_NONCE: ${{ inputs.dispatch_nonce }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          NATIVE_ARCH: ${{ matrix.native_arch }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == openclaw/goplaces ]]
+          [[ "$DEFAULT_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]
+          [[ "$EVENT_REF" == "refs/heads/$DEFAULT_BRANCH" ]]
+          [[ "$WORKFLOW_REF" == "$REPOSITORY/.github/workflows/release-assets.yml@refs/heads/$DEFAULT_BRANCH" ]]
+          [[ "$EXPECTED_DEFAULT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_TAG_COMMIT" == "$EXPECTED_DEFAULT_SHA" ]]
+          [[ "$EVENT_SHA" == "$EXPECTED_DEFAULT_SHA" ]]
+          [[ "$WORKFLOW_SHA" == "$EXPECTED_DEFAULT_SHA" ]]
+          [[ "$EXPECTED_TAG_OBJECT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
+          # Intentional overflow-safe lexical bound.
+          # shellcheck disable=SC2071
+          [[ ${#RELEASE_ID} -lt 16 || (${#RELEASE_ID} -eq 16 && "$RELEASE_ID" < 9007199254740992) ]]
+          [[ "$DISPATCH_NONCE" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9][A-Za-z0-9._-]*)?$ ]]
+          [[ "$(/usr/bin/uname -m)" == "$NATIVE_ARCH" ]]
+
+      - name: Fetch protected verifier code and exact tag source
+        id: source
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EXPECTED_DEFAULT_SHA: ${{ inputs.expected_default_sha }}
+          EXPECTED_TAG_COMMIT: ${{ inputs.expected_tag_commit }}
+          EXPECTED_TAG_OBJECT: ${{ inputs.expected_tag_object }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          trusted="$RUNNER_TEMP/trusted"
+          source="$RUNNER_TEMP/source"
+          git_home="$RUNNER_TEMP/git-home"
+          git_template="$RUNNER_TEMP/git-template"
+          mkdir -p "$git_home" "$git_template"
+          safe_git() {
+            /usr/bin/env -i \
+              PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+              HOME="$git_home" \
+              LC_ALL=C \
+              GIT_CONFIG_NOSYSTEM=1 \
+              GIT_CONFIG_SYSTEM=/dev/null \
+              GIT_CONFIG_GLOBAL=/dev/null \
+              GIT_NO_REPLACE_OBJECTS=1 \
+              GIT_TERMINAL_PROMPT=0 \
+              /usr/bin/git \
+                -c core.hooksPath=/dev/null \
+                -c init.templateDir="$git_template" \
+                -c commit.gpgSign=false \
+                -c tag.gpgSign=false \
+                -c tag.forceSignAnnotated=false \
+                "$@"
+          }
+          reject_git_indirection() {
+            repo=$1
+            git_dir="$(safe_git -C "$repo" rev-parse --absolute-git-dir)"
+            grafts="$(safe_git -C "$repo" rev-parse --git-path info/grafts)"
+            alternates="$(safe_git -C "$repo" rev-parse --git-path objects/info/alternates)"
+            [[ "$grafts" == /* ]] || grafts="$repo/$grafts"
+            [[ "$alternates" == /* ]] || alternates="$repo/$alternates"
+            [[ "$grafts" == "$git_dir"/* && "$alternates" == "$git_dir"/* ]]
+            [[ ! -e "$grafts" && ! -L "$grafts" ]]
+            [[ ! -e "$alternates" && ! -L "$alternates" ]]
+            [[ -z "$(safe_git -C "$repo" for-each-ref --format='%(refname)' refs/replace/)" ]]
+            ! safe_git -C "$repo" config --local --get-regexp \
+              '^(url\..*\.insteadof|include(if\..*)?\.path|core\.sshcommand|gpg\.ssh\.program)$' >/dev/null 2>&1
+          }
+          safe_git init -q "$trusted"
+          safe_git -C "$trusted" remote add origin https://github.com/openclaw/goplaces.git
+          reject_git_indirection "$trusted"
+          safe_git -C "$trusted" fetch -q --no-tags --depth=1 origin "refs/heads/$DEFAULT_BRANCH"
+          safe_git -C "$trusted" checkout -q --detach FETCH_HEAD
+          reject_git_indirection "$trusted"
+          [[ "$(safe_git -C "$trusted" rev-parse HEAD)" == "$EXPECTED_DEFAULT_SHA" ]]
+          [[ -z "$(safe_git -C "$trusted" status --porcelain --untracked-files=all)" ]]
+          (cd "$trusted" && ./scripts/verify-release-tag.sh "$RELEASE_TAG" "$EXPECTED_DEFAULT_SHA" "$RUNNER_TEMP/tag-record.json")
+          jq -e --arg object "$EXPECTED_TAG_OBJECT" --arg commit "$EXPECTED_TAG_COMMIT" \
+            '.object_sha == $object and .commit_sha == $commit' "$RUNNER_TEMP/tag-record.json" >/dev/null
+          [[ -z "$(safe_git -C "$trusted" status --porcelain --untracked-files=all)" ]]
+          safe_git init -q "$source"
+          safe_git -C "$source" remote add origin https://github.com/openclaw/goplaces.git
+          reject_git_indirection "$source"
+          safe_git -C "$source" fetch -q --no-tags --depth=1 origin \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          reject_git_indirection "$source"
+          [[ "$(safe_git -C "$source" rev-parse "refs/tags/$RELEASE_TAG^{tag}")" == "$EXPECTED_TAG_OBJECT" ]]
+          [[ "$(safe_git -C "$source" rev-parse "refs/tags/$RELEASE_TAG^{commit}")" == "$EXPECTED_TAG_COMMIT" ]]
+          safe_git -C "$source" checkout -q --detach "$EXPECTED_TAG_COMMIT"
+          [[ "$(safe_git -C "$source" rev-parse HEAD)" == "$EXPECTED_TAG_COMMIT" ]]
+          [[ -z "$(safe_git -C "$source" status --porcelain --untracked-files=all)" ]]
+          printf 'trusted=%s\n' "$trusted" >> "$GITHUB_OUTPUT"
+          printf 'source=%s\n' "$source" >> "$GITHUB_OUTPUT"
+
+      - name: Install exact pinned Go toolchain
+        shell: bash
+        env:
+          TRUSTED: ${{ steps.source.outputs.trusted }}
+        run: |
+          set -euo pipefail
+          go_root="$("$TRUSTED/scripts/bootstrap-go-toolchain.sh" "$RUNNER_TEMP/go-toolchain")"
+          printf '%s/bin\n' "$go_root" >> "$GITHUB_PATH"
+          printf 'GO_BIN=%s/bin/go\n' "$go_root" >> "$GITHUB_ENV"
+
+      - name: Prepare exact toolchain and source dependencies
+        shell: bash
+        env:
+          SOURCE: ${{ steps.source.outputs.source }}
+        run: |
+          set -euo pipefail
+          [[ -x "$GO_BIN" ]]
+          [[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$GO_BIN" env GOVERSION)" == go1.26.5 ]]
+          (cd "$SOURCE" && /usr/bin/env GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off \
+            GOFLAGS=-mod=readonly GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org \
+            GOVCS='*:off' "$GO_BIN" mod download all)
+          /usr/bin/env GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off \
+            GOBIN="$RUNNER_TEMP/tools" "$GO_BIN" install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+          [[ -x "$RUNNER_TEMP/tools/govulncheck" ]]
+          (cd "$SOURCE" && /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
+            GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off GOFLAGS=-mod=readonly \
+            GOPROXY=off GOSUMDB=off GOVCS='*:off' \
+            "$RUNNER_TEMP/tools/govulncheck" -db=https://vuln.go.dev -test ./...)
+
+      - name: Download exact numeric release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_STATE: ${{ inputs.state }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          TRUSTED: ${{ steps.source.outputs.trusted }}
+          EXPECTED_DEFAULT_SHA: ${{ inputs.expected_default_sha }}
+          EXPECTED_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          "$TRUSTED/scripts/download-release-assets.sh" "$RELEASE_TAG" "$RUNNER_TEMP/assets" "$RELEASE_ID"
+
+      - name: Freeze and statically verify release inventory
+        shell: bash
+        env:
+          RELEASE_STATE: ${{ inputs.state }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          EXPECTED_TAG_COMMIT: ${{ inputs.expected_tag_commit }}
+          EXPECTED_TAG_OBJECT: ${{ inputs.expected_tag_object }}
+          TRUSTED: ${{ steps.source.outputs.trusted }}
+          NATIVE_ARCH: ${{ matrix.native_arch }}
+        run: |
+          set -euo pipefail
+          /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
+            "$TRUSTED/scripts/validate-release-record.sh" \
+            "$RUNNER_TEMP/assets/release-record.json" "$RELEASE_TAG" "$EXPECTED_TAG_COMMIT" "$RELEASE_STATE" >/dev/null
+          actual_id="$(jq -r '.id' "$RUNNER_TEMP/assets/release-record.json")"
+          [[ "$actual_id" == "$RELEASE_ID" ]]
+          /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
+            "$TRUSTED/scripts/freeze-release-inventory.sh" \
+            "$RUNNER_TEMP/assets" "$RELEASE_TAG" "$RUNNER_TEMP/release-inventory.json" >/dev/null
+          /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
+            GOVULNCHECK_BIN="$RUNNER_TEMP/tools/govulncheck" \
+            MAC_VERIFY_BIN="$TRUSTED/scripts/verify-macos-binary.sh" \
+            "$TRUSTED/scripts/verify-release-assets.sh" \
+            "$RUNNER_TEMP/assets" "$RELEASE_TAG" "$NATIVE_ARCH" \
+            "$RUNNER_TEMP/release-inventory.json" "$RUNNER_TEMP/verified"
+
+      - name: Rebuild exact non-Darwin bytes
+        shell: bash
+        env:
+          EXPECTED_TAG_COMMIT: ${{ inputs.expected_tag_commit }}
+          EXPECTED_TAG_OBJECT: ${{ inputs.expected_tag_object }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          SOURCE: ${{ steps.source.outputs.source }}
+          TRUSTED: ${{ steps.source.outputs.trusted }}
+        run: |
+          set -euo pipefail
+          /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
+            EXPECTED_TAG_COMMIT="$EXPECTED_TAG_COMMIT" \
+            EXPECTED_TAG_OBJECT="$EXPECTED_TAG_OBJECT" \
+            "$TRUSTED/scripts/rebuild-release-assets.sh" \
+            "$SOURCE" "$RUNNER_TEMP/verified" "$RELEASE_TAG" "$RUNNER_TEMP/release-inventory.json"
+
+      - name: Recheck tag and execute native candidate last
+        shell: bash
+        env:
+          EXPECTED_DEFAULT_SHA: ${{ inputs.expected_default_sha }}
+          EXPECTED_TAG_COMMIT: ${{ inputs.expected_tag_commit }}
+          EXPECTED_TAG_OBJECT: ${{ inputs.expected_tag_object }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          TRUSTED: ${{ steps.source.outputs.trusted }}
+          ARCHIVE_ARCH: ${{ matrix.archive_arch }}
+          PROOF_ARCH: ${{ matrix.proof_arch }}
+          NATIVE_ARCH: ${{ matrix.native_arch }}
+        run: |
+          set -euo pipefail
+          (cd "$TRUSTED" && /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
+            ./scripts/verify-release-tag.sh "$RELEASE_TAG" "$EXPECTED_DEFAULT_SHA" "$RUNNER_TEMP/tag-final.json") >/dev/null
+          jq -e --arg object "$EXPECTED_TAG_OBJECT" --arg commit "$EXPECTED_TAG_COMMIT" \
+            '.object_sha == $object and .commit_sha == $commit' "$RUNNER_TEMP/tag-final.json" >/dev/null
+          inventory_sha="$(/usr/bin/shasum -a 256 "$RUNNER_TEMP/release-inventory.json" | /usr/bin/awk '{print $1}')"
+          candidate="$RUNNER_TEMP/verified/darwin_${ARCHIVE_ARCH}/goplaces"
+          /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
+            "$TRUSTED/scripts/verify-macos-binary.sh" "$candidate" "$NATIVE_ARCH" "${RELEASE_TAG#v}" execute
+          printf 'GOPLACES_RELEASE_PROOF_V1 arch=%s run_id=%s tag=%s tag_object=%s tag_commit=%s release_id=%s default_sha=%s inventory_sha256=%s\n' \
+            "$PROOF_ARCH" "$GITHUB_RUN_ID" "$RELEASE_TAG" "$EXPECTED_TAG_OBJECT" "$EXPECTED_TAG_COMMIT" "$RELEASE_ID" "$EXPECTED_DEFAULT_SHA" "$inventory_sha"

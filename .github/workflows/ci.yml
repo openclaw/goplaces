@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -25,15 +27,24 @@ jobs:
       - name: Lint
         run: make lint
   audit:
-    runs-on: ubuntu-latest
+    # The release contract exercises pinned macOS signing/verifier tools with
+    # test doubles; run the whole audit on the platform whose system paths and
+    # BSD tool semantics those boundaries deliberately freeze.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
       - name: Install dependencies
         run: go mod download
+      - name: Install pinned ShellCheck
+        run: |
+          shellcheck_bin="$(./scripts/bootstrap-shellcheck.sh "$RUNNER_TEMP/shellcheck")"
+          printf '%s\n' "${shellcheck_bin%/*}" >> "$GITHUB_PATH"
       - name: Lint workflows
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
       - name: Staticcheck
@@ -48,10 +59,30 @@ jobs:
           fi
       - name: Security scan
         run: go run github.com/securego/gosec/v2/cmd/gosec@v2.27.1 ./...
-      - name: Vulnerability scan
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.5.0 ./...
+      - name: Install vulnerability scanner
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+      - name: Source vulnerability scan
+        run: '"$(go env GOPATH)/bin/govulncheck" -db=https://vuln.go.dev -test ./...'
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: v2.16.0
           args: check --config .goreleaser.yml
+      - name: Build credential-free snapshot
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: v2.16.0
+          args: release --snapshot --clean --skip=publish --config .goreleaser.yml
+      - name: Snapshot binary vulnerability scan
+        env:
+          SNAPSHOT_REQUIRE_CLEAN: "1"
+        run: ./scripts/verify-snapshot-security.sh
+      - name: Reproducible cross-platform binaries
+        run: ./scripts/test-reproducible-builds.sh dist
+      - name: Release contract tests
+        run: |
+          ./scripts/test-codesign-macos.sh
+          ./scripts/test-release-assets.sh
+          ./scripts/test-release-local.sh
+          ./scripts/test-security-ci.sh

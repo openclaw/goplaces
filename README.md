@@ -39,6 +39,8 @@ Latest release: v0.4.4 (2026-07-04).
 - Go: `go install github.com/steipete/goplaces/cmd/goplaces@latest`
 - Source: `make goplaces`
 
+Starting with v0.4.5, official macOS release archives use the hardened runtime, a secure timestamp, and notarization under `Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)`. A Go toolchain install reports its tagged module version; local source builds continue to report `dev`.
+
 ## API Setup
 
 `goplaces` needs a Google API key with the right APIs enabled:

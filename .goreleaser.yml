@@ -2,24 +2,48 @@ version: 2
 
 project_name: goplaces
 
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"
+
 builds:
   - id: goplaces
     main: ./cmd/goplaces
     binary: goplaces
     env:
       - CGO_ENABLED=0
+      - GOFLAGS=-mod=readonly
+    flags:
+      - -trimpath
     targets:
-      - darwin_amd64
-      - darwin_arm64
       - linux_amd64
       - linux_arm64
       - windows_amd64
       - windows_arm64
     ldflags:
       - -s -w -X github.com/steipete/goplaces/internal/cli.Version={{.Version}}
+  - id: goplaces_darwin
+    main: ./cmd/goplaces
+    binary: goplaces
+    env:
+      - CGO_ENABLED=0
+      - GOFLAGS=-mod=readonly
+    flags:
+      - -trimpath
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+    ldflags:
+      - -s -w -X github.com/steipete/goplaces/internal/cli.Version={{.Version}}
+    hooks:
+      post:
+        - ./scripts/codesign-macos.sh "{{ .Path }}" "{{ .IsSnapshot }}"
 
 archives:
-  - id: goplaces
+  - ids:
+      - goplaces
+      - goplaces_darwin
+    files:
+      - none*
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats: [tar.gz]
     format_overrides:
@@ -36,20 +60,9 @@ changelog:
       - '^docs:'
       - '^test:'
 
-homebrew_casks:
-  - name: goplaces
-    binaries:
-      - goplaces
-    description: "Modern Go client + CLI for the Google Places API (New)."
-    homepage: "https://github.com/openclaw/goplaces"
-    directory: Casks
-    repository:
-      owner: openclaw
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/goplaces"]
-          end
+release:
+  draft: true
+  target_commitish: "{{ .Commit }}"
+
+snapshot:
+  version_template: '{{ if index .Env "GOPLACES_PILOT_VERSION" }}{{ index .Env "GOPLACES_PILOT_VERSION" }}{{ else }}{{ .Version }}-snapshot{{ end }}'

@@ -1,14 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.4.5 - Unreleased
 
 - Release: accept interpolated Cask URLs and make completed release reruns idempotent.
+- Security: require Go 1.26.5 and scan both source and built binaries with pinned govulncheck.
+- CLI: report the tagged module version for `go install github.com/steipete/goplaces/cmd/goplaces@latest`; linked release versions still win and local builds remain `dev`.
+- Release: sign and notarize official macOS binaries with the OpenClaw Foundation Developer ID while keeping ordinary and cross-platform builds credential-free.
 
 ## 0.4.4 - 2026-07-04
 
 - CLI: accept space-separated negative numeric flag values such as coordinates. (#17) - thanks @technicalpickles
 - Release: update GoReleaser to 2.16.0 and migrate Homebrew publishing from Formula to Cask.
-- Build: require Go 1.26.4 and update golangci-lint to 2.12.2.
+- Build: refresh the required Go toolchain and update golangci-lint to 2.12.2.
 - Docs: define project direction and compatibility policy.
 
 ## 0.4.3 - 2026-05-20

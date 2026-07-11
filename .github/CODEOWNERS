@@ -4,5 +4,10 @@
 /go.mod @openclaw/openclaw-secops
 /go.sum @openclaw/openclaw-secops
 /.github/actionlint.yaml @openclaw/openclaw-secops
+/.github/release-allowed-signers @openclaw/openclaw-secops
 /.agents/skills/ @openclaw/openclaw-secops
 /.crabbox.yaml @openclaw/openclaw-secops
+/.goreleaser.yml @openclaw/openclaw-secops
+/.mac-release.env.example @openclaw/openclaw-secops
+/scripts/ @openclaw/openclaw-secops
+/docs/releasing*.md @openclaw/openclaw-secops

@@ -30,6 +30,7 @@ go.work.sum
 .env
 .env.*
 .envrc
+/.mac-release.env
 
 # Editor/IDE
 .idea/

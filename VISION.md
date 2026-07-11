@@ -43,7 +43,7 @@ Before 1.0, a necessary breaking change must still be deliberate: document the r
 - Filters, locale hints, pagination, time-aware routing, route modifiers, and fields that materially improve those workflows.
 - Deterministic JSON suitable for scripts and agents.
 - Mockable endpoint overrides, focused client tests, and opt-in authenticated end-to-end tests.
-- Release archives, checksums, Go installation, and Homebrew Cask installation.
+- Release archives, checksums, Go installation, and Homebrew installation.
 
 ## Non-Goals
 
@@ -75,6 +75,9 @@ A new user-facing workflow is ready when it has:
 ## Release Policy
 
 - “Shipped” means available in a tagged GitHub Release, not merely merged to `main`.
-- Releases include versioned archives, checksums, and a verified Homebrew Cask update.
+- Releases include versioned archives, checksums, and verified downstream installation proof.
+- Official macOS archives use the hardened runtime, a secure timestamp, Developer ID Application signing, and notarization. Homebrew must preserve quarantine and install the verified published bytes.
+- Official release artifacts come from a fresh official-remote checkout pinned to the verified signed tag, never mutable maintainer working-tree bytes.
+- Ordinary source and cross-platform builds remain credential-free. Only the managed local release path may access signing or notarization credentials, and CI must never publish unsigned Darwin artifacts.
 - User-visible changes belong in `CHANGELOG.md`.
 - Release automation must fail closed when credentials, artifacts, package metadata, or downstream installation proof are missing.

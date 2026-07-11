@@ -1,0 +1,3394 @@
+#!/bin/bash -p
+# shellcheck disable=SC2016
+set -euo pipefail
+set +vx
+unset BASH_ENV ENV CDPATH
+
+umask 077
+
+readonly REPOSITORY="openclaw/goplaces"
+readonly EXPECTED_ORIGIN_HTTPS="https://github.com/${REPOSITORY}"
+readonly API_VERSION="2026-03-10"
+readonly EXPECTED_GO_VERSION="go1.26.5"
+readonly VERIFIER_WORKFLOW=".github/workflows/release-assets.yml"
+readonly VERIFIER_WORKFLOW_ID="309911276"
+readonly TAP_REPOSITORY="openclaw/homebrew-tap"
+readonly TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd"
+readonly TAP_WORKFLOW=".github/workflows/update-formula.yml"
+readonly TAP_WORKFLOW_ID="220664022"
+readonly TAP_UPDATER=".github/scripts/update_formula.py"
+readonly EXPECTED_TAP_ORIGIN_HTTPS="https://github.com/${TAP_REPOSITORY}"
+readonly HOMEBREW_REPOSITORY="Homebrew/brew"
+readonly EXPECTED_HOMEBREW_ORIGIN_HTTPS="https://github.com/${HOMEBREW_REPOSITORY}"
+readonly RELEASE_MAC_APP_DEFAULT="/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release"
+readonly RELEASE_MAC_APP_EXPECTED_SHA256="34bb6c6ac8529c3aa6d6b4bb738655840c4ae7c00595154219ef806b17460454"
+readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="ce78a32104c58ee3b5141a25a2dd74a99b00c4692bcd0e25df3fb5fadbe6fbb0"
+readonly CLEAN_SYSTEM_PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+readonly SECRET_SCOPE_SYSTEM_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+readonly SSH_KEYGEN_BIN="/usr/bin/ssh-keygen"
+readonly SYSTEM_GIT_BIN="/usr/bin/git"
+readonly REALPATH_BIN="/bin/realpath"
+readonly SHASUM_BIN="/usr/bin/shasum"
+readonly STAT_BIN="/usr/bin/stat"
+readonly MKTEMP_BIN="/usr/bin/mktemp"
+readonly SED_BIN="/usr/bin/sed"
+readonly GREP_BIN="/usr/bin/grep"
+readonly CMP_BIN="/usr/bin/cmp"
+readonly TAR_BIN="/usr/bin/bsdtar"
+readonly UNAME_BIN="/usr/bin/uname"
+readonly EXPECTED_GORELEASER_VERSION="2.16.0"
+readonly EXPECTED_NODE_VERSION="v26.5.0"
+readonly EXPECTED_EXPECT_VERSION="expect version 5.45.4"
+readonly EXPECTED_PYTHON_VERSION="Python 3.14.6"
+readonly EXPECTED_GH_VERSION="2.96.0"
+readonly EXPECTED_JQ_VERSION="jq-1.8.2"
+readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:jGVVuNZ7NrBJlFB7IBkZ/R9c8gYCja+SWqrHpBCYJZA="
+
+repo_root="$(cd "$(/usr/bin/dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+cd "$repo_root"
+
+case "${GOPLACES_RELEASE_LOCAL_TESTING:-0}:${GOPLACES_RELEASE_LOCAL_SOURCE_ONLY:-0}" in
+  0:0) ;;
+  1:1)
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+      echo "release-local: source-only test mode cannot be executed directly" >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "release-local: test controls are restricted to paired source-only fixtures" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
+  PATH="$CLEAN_SYSTEM_PATH"
+  export PATH
+fi
+
+release_mac_app="$RELEASE_MAC_APP_DEFAULT"
+test_release_mac_app_source=""
+if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == "1" && -n "${RELEASE_MAC_APP_BIN:-}" ]]; then
+  release_mac_app="$RELEASE_MAC_APP_BIN"
+  test_release_mac_app_source="$RELEASE_MAC_APP_BIN"
+elif [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != "1" && -n "${RELEASE_MAC_APP_BIN+x}" ]]; then
+  echo "release-local: RELEASE_MAC_APP_BIN is test-only" >&2
+  exit 1
+fi
+
+default_branch=""
+default_sha=""
+tag_object=""
+tag_commit=""
+release_state_dir=""
+git_isolation_root=""
+git_binary=""
+protected_source_root=""
+draft_github_token=""
+draft_intent_created=false
+homebrew_intent_created=false
+gh_binary=""
+gh_binary_sha256=""
+gh_binary_identity=""
+jq_binary=""
+jq_binary_sha256=""
+jq_binary_identity=""
+brew_binary=""
+brew_binary_sha256=""
+brew_binary_identity=""
+brew_repository_root=""
+brew_repository_sha=""
+brew_runtime_sha256=""
+brew_prefix=""
+release_mac_app_sha256=""
+release_mac_app_identity=""
+release_mac_app_lib=""
+release_mac_app_lib_sha256=""
+release_mac_app_lib_identity=""
+release_manifest=""
+release_manifest_sha256=""
+release_manifest_identity=""
+producer_go=""
+producer_go_sha256=""
+producer_go_identity=""
+producer_goreleaser=""
+producer_goreleaser_sha256=""
+producer_goreleaser_identity=""
+producer_node=""
+producer_node_sha256=""
+producer_node_identity=""
+producer_node_target=""
+producer_node_target_sha256=""
+producer_node_target_identity=""
+producer_expect=""
+producer_expect_sha256=""
+producer_expect_identity=""
+producer_expect_target=""
+producer_expect_target_sha256=""
+producer_expect_target_identity=""
+producer_python=""
+producer_python_sha256=""
+producer_python_identity=""
+producer_python_target=""
+producer_python_target_sha256=""
+producer_python_target_identity=""
+
+die() {
+  echo "release-local: $*" >&2
+  exit 1
+}
+
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  scripts/release-local --check
+  scripts/release-local pilot vX.Y.Z
+  scripts/release-local draft vX.Y.Z
+  scripts/release-local verify-draft vX.Y.Z
+  scripts/release-local publish vX.Y.Z
+  scripts/release-local homebrew vX.Y.Z
+EOF
+  exit 2
+}
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || die "$1 is required"
+}
+
+require_regular_file() {
+  [[ -f "$1" && ! -L "$1" ]] || die "required regular file is missing or a symlink: $1"
+}
+
+pinned_sha256_file() {
+  local file="$1" digest
+  [[ -x "$SHASUM_BIN" && ! -L "$SHASUM_BIN" ]] || die "pinned system shasum is unavailable"
+  digest="$($SHASUM_BIN -a 256 "$file")"
+  digest="${digest%% *}"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || die "could not compute a pinned SHA-256 digest"
+  printf '%s\n' "$digest"
+}
+
+pinned_file_identity() {
+  local file="$1" identity
+  [[ -x "$STAT_BIN" && ! -L "$STAT_BIN" ]] || die "pinned system stat is unavailable"
+  identity="$($STAT_BIN -f '%d:%i' "$file")" || die "could not inspect executable identity"
+  [[ "$identity" =~ ^[0-9]+:[0-9]+$ ]] || die "executable identity is malformed"
+  printf '%s\n' "$identity"
+}
+
+require_canonical_executable() {
+  local path="$1" label="$2" canonical
+  [[ "$path" == /* ]] || die "$label path is not absolute"
+  [[ -x "$REALPATH_BIN" && ! -L "$REALPATH_BIN" ]] || die "pinned system realpath is unavailable"
+  canonical="$($REALPATH_BIN "$path")" || die "could not canonicalize $label"
+  [[ "$canonical" == "$path" ]] || die "$label path is not canonical"
+  [[ -f "$path" && ! -L "$path" && -x "$path" ]] || die "$label is not a regular nonsymlink executable"
+}
+
+require_canonical_regular_file() {
+  local path="$1" label="$2" canonical
+  [[ "$path" == /* ]] || die "$label path is not absolute"
+  canonical="$($REALPATH_BIN "$path")" || die "could not canonicalize $label"
+  [[ "$canonical" == "$path" ]] || die "$label path is not canonical"
+  [[ -f "$path" && ! -L "$path" ]] || die "$label is not a regular nonsymlink file"
+}
+
+resolve_executable() {
+  local name="$1" candidate canonical
+  candidate="$(type -P "$name")" || die "$name is required"
+  [[ "$candidate" == /* ]] || die "$name did not resolve to an absolute path"
+  canonical="$($REALPATH_BIN "$candidate")" || die "could not resolve $name"
+  require_canonical_executable "$canonical" "$name"
+  printf '%s\n' "$canonical"
+}
+
+goreleaser_version() {
+  local binary="$1" output version
+  output="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC "$binary" --version 2>&1)" ||
+    die "could not query GoReleaser version"
+  version="$($SED_BIN -n 's/^GitVersion:[[:space:]]*//p' <<<"$output")"
+  [[ "$($GREP_BIN -c '^GitVersion:' <<<"$output")" == 1 && "$version" == "$EXPECTED_GORELEASER_VERSION" ]] ||
+    die "GoReleaser must be v${EXPECTED_GORELEASER_VERSION}"
+}
+
+write_pinned_launcher() {
+  local destination="$1" target="$2"
+  shift 2
+  {
+    printf '#!/bin/bash -p\nexec '
+    printf '%q ' "$target" "$@"
+    printf '"$@"\n'
+  } > "$destination"
+  /bin/chmod 500 "$destination"
+  require_canonical_executable "$destination" "pinned helper launcher"
+}
+
+resolve_producer_tools() {
+  local go_version node_version expect_version python_version
+  local resolved_go resolved_goreleaser resolved_node resolved_expect resolved_python producer_bin
+  ensure_git_isolation
+  resolved_go="$(resolve_executable go)"
+  resolved_goreleaser="$(resolve_executable goreleaser)"
+  resolved_node="$(resolve_executable node)"
+  resolved_expect="$(resolve_executable expect)"
+  resolved_python="$(resolve_executable python3)"
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
+    [[ "$resolved_go" =~ ^(/opt/homebrew|/usr/local)/Cellar/go/1\.26\.5/libexec/bin/go$ ]] || die "Go must resolve to the canonical Homebrew 1.26.5 executable"
+    [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.16\.0/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.16.0 executable"
+    [[ "$resolved_node" =~ ^(/opt/homebrew|/usr/local)/Cellar/node/26\.5\.0/bin/node$ ]] || die "Node must resolve to the canonical Homebrew 26.5.0 executable"
+    [[ "$resolved_expect" =~ ^(/opt/homebrew|/usr/local)/Cellar/expect/5\.45\.4_3/bin/expect$ ]] || die "Expect must resolve to the canonical Homebrew 5.45.4_3 executable"
+    [[ "$resolved_python" =~ ^(/opt/homebrew|/usr/local)/Cellar/python@3\.14/3\.14\.6/Frameworks/Python\.framework/Versions/3\.14/bin/python3\.14$ ]] || die "Python must resolve to the canonical Homebrew 3.14.6 executable"
+  fi
+  producer_bin="$($MKTEMP_BIN -d "${git_isolation_root}/producer-bin.XXXXXX")"
+  producer_bin="$(cd "$producer_bin" && pwd -P)"
+  /bin/chmod 700 "$producer_bin"
+  /bin/ln "$resolved_go" "${producer_bin}/go" || die "could not freeze the exact Go executable"
+  /bin/ln "$resolved_goreleaser" "${producer_bin}/goreleaser" || die "could not freeze the exact GoReleaser executable"
+  write_pinned_launcher "${producer_bin}/node" "$resolved_node"
+  write_pinned_launcher "${producer_bin}/expect" "$resolved_expect"
+  write_pinned_launcher "${producer_bin}/python3" "$resolved_python" -I
+  producer_go="${producer_bin}/go"
+  producer_goreleaser="${producer_bin}/goreleaser"
+  producer_node="${producer_bin}/node"
+  producer_expect="${producer_bin}/expect"
+  producer_python="${producer_bin}/python3"
+  producer_node_target="$resolved_node"
+  producer_expect_target="$resolved_expect"
+  producer_python_target="$resolved_python"
+  require_canonical_executable "$producer_go" "frozen Go"
+  require_canonical_executable "$producer_goreleaser" "frozen GoReleaser"
+  [[ "$(pinned_file_identity "$producer_go")" == "$(pinned_file_identity "$resolved_go")" ]] || die "frozen Go identity differs from the resolved executable"
+  [[ "$(pinned_file_identity "$producer_goreleaser")" == "$(pinned_file_identity "$resolved_goreleaser")" ]] || die "frozen GoReleaser identity differs from the resolved executable"
+  go_version="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC GOENV=off GOTOOLCHAIN=local "$producer_go" env GOVERSION)" ||
+    die "could not query native Go version"
+  [[ "$go_version" == "$EXPECTED_GO_VERSION" ]] || die "requires native $EXPECTED_GO_VERSION, found $go_version"
+  goreleaser_version "$producer_goreleaser"
+  node_version="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC "$producer_node_target" --version 2>&1)" || die "could not query Node version"
+  expect_version="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC "$producer_expect_target" -v 2>&1)" || die "could not query Expect version"
+  python_version="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC PYTHONNOUSERSITE=1 "$producer_python_target" -I --version 2>&1)" || die "could not query Python version"
+  [[ "$node_version" == "$EXPECTED_NODE_VERSION" ]] || die "requires $EXPECTED_NODE_VERSION, found $node_version"
+  [[ "$expect_version" == "$EXPECTED_EXPECT_VERSION" ]] || die "requires $EXPECTED_EXPECT_VERSION, found $expect_version"
+  [[ "$python_version" == "$EXPECTED_PYTHON_VERSION" ]] || die "requires $EXPECTED_PYTHON_VERSION, found $python_version"
+  producer_go_sha256="$(pinned_sha256_file "$producer_go")"
+  producer_go_identity="$(pinned_file_identity "$producer_go")"
+  producer_goreleaser_sha256="$(pinned_sha256_file "$producer_goreleaser")"
+  producer_goreleaser_identity="$(pinned_file_identity "$producer_goreleaser")"
+  producer_node_sha256="$(pinned_sha256_file "$producer_node")"
+  producer_node_identity="$(pinned_file_identity "$producer_node")"
+  producer_node_target_sha256="$(pinned_sha256_file "$producer_node_target")"
+  producer_node_target_identity="$(pinned_file_identity "$producer_node_target")"
+  producer_expect_sha256="$(pinned_sha256_file "$producer_expect")"
+  producer_expect_identity="$(pinned_file_identity "$producer_expect")"
+  producer_expect_target_sha256="$(pinned_sha256_file "$producer_expect_target")"
+  producer_expect_target_identity="$(pinned_file_identity "$producer_expect_target")"
+  producer_python_sha256="$(pinned_sha256_file "$producer_python")"
+  producer_python_identity="$(pinned_file_identity "$producer_python")"
+  producer_python_target_sha256="$(pinned_sha256_file "$producer_python_target")"
+  producer_python_target_identity="$(pinned_file_identity "$producer_python_target")"
+}
+
+validate_release_mac_app() {
+  local source_entry source_lib helper_bundle digest identity lib_digest lib_identity source_digest source_identity source_lib_digest source_lib_identity
+  if [[ -n "$release_mac_app_sha256" || -n "$release_mac_app_identity" || -n "$release_mac_app_lib_sha256" || -n "$release_mac_app_lib_identity" ]]; then
+    require_canonical_executable "$release_mac_app" "frozen release-mac-app"
+    require_canonical_regular_file "$release_mac_app_lib" "frozen release-mac-app library"
+    digest="$(pinned_sha256_file "$release_mac_app")"
+    identity="$(pinned_file_identity "$release_mac_app")"
+    lib_digest="$(pinned_sha256_file "$release_mac_app_lib")"
+    lib_identity="$(pinned_file_identity "$release_mac_app_lib")"
+    [[ "$digest" == "$release_mac_app_sha256" && "$identity" == "$release_mac_app_identity" ]] || die "release-mac-app changed before secret entry"
+    [[ "$lib_digest" == "$release_mac_app_lib_sha256" && "$lib_identity" == "$release_mac_app_lib_identity" ]] || die "release-mac-app library changed before secret entry"
+    return 0
+  fi
+  source_entry="$release_mac_app"
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
+    [[ "$source_entry" == "$RELEASE_MAC_APP_DEFAULT" ]] || die "production release-mac-app path is not pinned"
+  fi
+  require_canonical_executable "$source_entry" "release-mac-app"
+  source_lib="${source_entry%/*}/lib/mac_release.sh"
+  require_canonical_regular_file "$source_lib" "release-mac-app library"
+  source_digest="$(pinned_sha256_file "$source_entry")"
+  source_identity="$(pinned_file_identity "$source_entry")"
+  source_lib_digest="$(pinned_sha256_file "$source_lib")"
+  source_lib_identity="$(pinned_file_identity "$source_lib")"
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
+    [[ "$source_digest" == "$RELEASE_MAC_APP_EXPECTED_SHA256" ]] ||
+      die "release-mac-app bytes differ from the reviewed release helper"
+    [[ "$source_lib_digest" == "$RELEASE_MAC_APP_LIB_EXPECTED_SHA256" ]] ||
+      die "release-mac-app library bytes differ from the reviewed release helper"
+  fi
+  helper_bundle="$($MKTEMP_BIN -d "${git_isolation_root}/release-mac-app.XXXXXX")"
+  helper_bundle="$(cd "$helper_bundle" && pwd -P)"
+  /bin/chmod 700 "$helper_bundle"
+  /bin/mkdir "${helper_bundle}/lib"
+  /bin/chmod 700 "${helper_bundle}/lib"
+  /bin/cp "$source_entry" "${helper_bundle}/mac-release" || die "could not freeze release-mac-app"
+  /bin/cp "$source_lib" "${helper_bundle}/lib/mac_release.sh" || die "could not freeze release-mac-app library"
+  /bin/chmod 500 "${helper_bundle}/mac-release"
+  /bin/chmod 400 "${helper_bundle}/lib/mac_release.sh"
+  release_mac_app="${helper_bundle}/mac-release"
+  release_mac_app_lib="${helper_bundle}/lib/mac_release.sh"
+  require_canonical_executable "$release_mac_app" "frozen release-mac-app"
+  require_canonical_regular_file "$release_mac_app_lib" "frozen release-mac-app library"
+  digest="$(pinned_sha256_file "$release_mac_app")"
+  identity="$(pinned_file_identity "$release_mac_app")"
+  lib_digest="$(pinned_sha256_file "$release_mac_app_lib")"
+  lib_identity="$(pinned_file_identity "$release_mac_app_lib")"
+  [[ "$digest" == "$source_digest" && "$identity" != "$source_identity" ]] || die "frozen release-mac-app copy does not match a distinct source inode"
+  [[ "$lib_digest" == "$source_lib_digest" && "$lib_identity" != "$source_lib_identity" ]] || die "frozen release-mac-app library copy does not match a distinct source inode"
+  release_mac_app_sha256="$digest"
+  release_mac_app_identity="$identity"
+  release_mac_app_lib_sha256="$lib_digest"
+  release_mac_app_lib_identity="$lib_identity"
+}
+
+prepare_producer_gate() {
+  ensure_git_isolation
+  validate_release_mac_app
+  resolve_producer_tools
+}
+
+recheck_producer_gate() {
+  local go_digest goreleaser_digest node_digest expect_digest python_digest
+  [[ -n "$release_mac_app_sha256" && -n "$release_mac_app_identity" && -n "$release_mac_app_lib_sha256" && -n "$release_mac_app_lib_identity" && -n "$producer_go_sha256" && -n "$producer_go_identity" && -n "$producer_goreleaser_sha256" && -n "$producer_goreleaser_identity" && -n "$producer_node_sha256" && -n "$producer_node_target_sha256" && -n "$producer_expect_sha256" && -n "$producer_expect_target_sha256" && -n "$producer_python_sha256" && -n "$producer_python_target_sha256" ]] || die "producer gate was not prepared"
+  validate_release_mac_app
+  go_digest="$(pinned_sha256_file "$producer_go")"
+  goreleaser_digest="$(pinned_sha256_file "$producer_goreleaser")"
+  node_digest="$(pinned_sha256_file "$producer_node")"
+  expect_digest="$(pinned_sha256_file "$producer_expect")"
+  python_digest="$(pinned_sha256_file "$producer_python")"
+  [[ "$go_digest" == "$producer_go_sha256" ]] || die "Go changed before secret entry"
+  [[ "$goreleaser_digest" == "$producer_goreleaser_sha256" ]] || die "GoReleaser changed before secret entry"
+  [[ "$node_digest" == "$producer_node_sha256" && "$(pinned_sha256_file "$producer_node_target")" == "$producer_node_target_sha256" ]] || die "Node changed before secret entry"
+  [[ "$expect_digest" == "$producer_expect_sha256" && "$(pinned_sha256_file "$producer_expect_target")" == "$producer_expect_target_sha256" ]] || die "Expect changed before secret entry"
+  [[ "$python_digest" == "$producer_python_sha256" && "$(pinned_sha256_file "$producer_python_target")" == "$producer_python_target_sha256" ]] || die "Python changed before secret entry"
+  require_canonical_executable "$producer_go" "Go"
+  require_canonical_executable "$producer_goreleaser" "GoReleaser"
+  require_canonical_executable "$producer_node" "Node launcher"
+  require_canonical_executable "$producer_expect" "Expect launcher"
+  require_canonical_executable "$producer_python" "Python launcher"
+  require_canonical_executable "$producer_node_target" "Node target"
+  require_canonical_executable "$producer_expect_target" "Expect target"
+  require_canonical_executable "$producer_python_target" "Python target"
+  [[ "$(pinned_file_identity "$producer_go")" == "$producer_go_identity" ]] || die "Go identity changed before secret entry"
+  [[ "$(pinned_file_identity "$producer_goreleaser")" == "$producer_goreleaser_identity" ]] || die "GoReleaser identity changed before secret entry"
+  [[ "$(pinned_file_identity "$producer_node")" == "$producer_node_identity" && "$(pinned_file_identity "$producer_node_target")" == "$producer_node_target_identity" ]] || die "Node identity changed before secret entry"
+  [[ "$(pinned_file_identity "$producer_expect")" == "$producer_expect_identity" && "$(pinned_file_identity "$producer_expect_target")" == "$producer_expect_target_identity" ]] || die "Expect identity changed before secret entry"
+  [[ "$(pinned_file_identity "$producer_python")" == "$producer_python_identity" && "$(pinned_file_identity "$producer_python_target")" == "$producer_python_target_identity" ]] || die "Python identity changed before secret entry"
+}
+
+parse_release_manifest() {
+  local manifest="$1" line keychain_path bundle_count=0 identity_count=0 managed_count=0 passwordless_count=0 login_count=0 keychain_count=0 profile_count=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      ''|'#'*) ;;
+      "MAC_RELEASE_BUNDLE_ID='org.openclaw.goplaces'") ((bundle_count += 1)) ;;
+      "MAC_RELEASE_CODESIGN_IDENTITY='Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)'") ((identity_count += 1)) ;;
+      'MAC_RELEASE_CODESIGN_KEYCHAIN_MANAGED=1') ((managed_count += 1)) ;;
+      'MAC_RELEASE_CODESIGN_PASSWORDLESS=1') ((passwordless_count += 1)) ;;
+      'MAC_RELEASE_RUN_LOGIN_SHELL=0') ((login_count += 1)) ;;
+      *)
+        if [[ "$line" =~ ^MAC_RELEASE_CODESIGN_KEYCHAIN=\'(/[A-Za-z0-9._/-]+)\'$ ]]; then
+          keychain_path="${BASH_REMATCH[1]}"
+          [[ "$keychain_path" != *'/../'* && "$keychain_path" != */.. && "$keychain_path" != *'//'* ]] || die "local release manifest keychain locator is not normalized"
+          ((keychain_count += 1))
+        elif [[ "$line" =~ ^export[[:space:]]+NOTARYTOOL_KEYCHAIN_PROFILE=\'([A-Za-z0-9._-]+)\'$ ]]; then
+          ((profile_count += 1))
+        else
+          die "local release manifest contains a forbidden setting or shell syntax"
+        fi
+        ;;
+    esac
+  done < "$manifest"
+  [[ "$bundle_count" == 1 && "$identity_count" == 1 && "$managed_count" == 1 && "$passwordless_count" == 1 && "$login_count" == 1 && "$keychain_count" == 1 && "$profile_count" == 1 ]] ||
+    die "local release manifest must contain the exact direct managed-keychain contract"
+}
+
+validate_release_manifest() {
+  local source_manifest manifest_dir mode
+  source_manifest="${repo_root}/.mac-release.env"
+  require_canonical_regular_file "$source_manifest" "local release manifest"
+  mode="$($STAT_BIN -f '%Lp' "$source_manifest")" || die "could not inspect local release manifest permissions"
+  [[ "$mode" == 400 || "$mode" == 600 ]] || die "local release manifest must have mode 0400 or 0600"
+  manifest_dir="$($MKTEMP_BIN -d "${git_isolation_root}/release-manifest.XXXXXX")"
+  manifest_dir="$(cd "$manifest_dir" && pwd -P)"
+  /bin/chmod 700 "$manifest_dir"
+  release_manifest="${manifest_dir}/manifest.env"
+  /bin/cp "$source_manifest" "$release_manifest" || die "could not freeze local release manifest"
+  /bin/chmod 400 "$release_manifest"
+  require_canonical_regular_file "$release_manifest" "frozen release manifest"
+  parse_release_manifest "$release_manifest"
+  release_manifest_sha256="$(pinned_sha256_file "$release_manifest")"
+  release_manifest_identity="$(pinned_file_identity "$release_manifest")"
+}
+
+recheck_release_manifest() {
+  [[ -n "$release_manifest" && -n "$release_manifest_sha256" && -n "$release_manifest_identity" ]] || die "frozen release manifest is absent"
+  require_canonical_regular_file "$release_manifest" "frozen release manifest"
+  [[ "$($STAT_BIN -f '%Lp' "$release_manifest")" == 400 ]] || die "frozen release manifest permissions changed"
+  [[ "$(pinned_sha256_file "$release_manifest")" == "$release_manifest_sha256" ]] || die "frozen release manifest bytes changed before secret entry"
+  [[ "$(pinned_file_identity "$release_manifest")" == "$release_manifest_identity" ]] || die "frozen release manifest identity changed before secret entry"
+  parse_release_manifest "$release_manifest"
+}
+
+prepare_official_producer_gate() {
+  prepare_producer_gate
+  validate_release_manifest
+}
+
+run_protected_script() {
+  local relative="$1" script name secret_token="" protected_jq_bin="" command_status
+  # macOS ships Bash 3.2, where expanding an empty array under nounset fails.
+  local -a forwarded_environment=(LC_ALL=C)
+  shift
+  [[ "$relative" =~ ^scripts/[A-Za-z0-9._-]+$ ]] || die "unsafe protected script path: $relative"
+  script="${protected_source_root}/${relative}"
+  require_regular_file "$script"
+  [[ -x "$script" ]] || die "protected script is not executable: $relative"
+  freeze_jq_parser
+  protected_jq_bin="$jq_binary"
+  [[ "$protected_jq_bin" == /* ]] || die "protected helper jq path is not absolute"
+  case "$relative" in
+    scripts/validate-release-record.sh|scripts/validate-verifier-dispatch.sh)
+      forwarded_environment+=("JQ_BIN=${protected_jq_bin}")
+      ;;
+  esac
+  for name in EXPECTED_RELEASE_STATE EXPECTED_TAG_COMMIT EXPECTED_TAG_OBJECT EXPECTED_RUN_ID EXPECTED_DISPATCH_NONCE DISPATCH_RESPONSE_JSON RECOVERED_DISPATCH REQUIRE_SUCCESS RELEASE_STATE; do
+    if [[ -n "${!name+x}" ]]; then
+      forwarded_environment+=("${name}=${!name}")
+    fi
+  done
+  if [[ -n "${GH_TOKEN+x}" ]]; then
+    [[ "$GH_TOKEN" =~ ^[A-Za-z0-9_]+$ ]] || die "protected helper token is empty or unsafe"
+    secret_token="$GH_TOKEN"
+    if printf '%s\n' "$secret_token" | /usr/bin/env -i -C "$protected_source_root" \
+      "${forwarded_environment[@]}" \
+      PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
+      GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 \
+      /bin/bash -p -c 'IFS= read -r GH_TOKEN; [[ "$GH_TOKEN" =~ ^[A-Za-z0-9_]+$ ]] || exit 97; export GH_TOKEN; exec "$@"' \
+      _ "$script" "$@"; then
+      command_status=0
+    else
+      command_status=$?
+    fi
+    secret_token=""
+  else
+    if /usr/bin/env -i -C "$protected_source_root" \
+      "${forwarded_environment[@]}" \
+      PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
+      GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 \
+      "$script" "$@"; then
+      command_status=0
+    else
+      command_status=$?
+    fi
+  fi
+  recheck_jq_parser
+  return "$command_status"
+}
+
+validate_tag() {
+  local tag="$1"
+  [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || die "invalid release tag: $tag"
+}
+
+version_from_tag() {
+  printf '%s\n' "${1#v}"
+}
+
+reject_ambient_build_controls() {
+  local name
+  local -a names=(
+    GO111MODULE GOAMD64 GOARCH GOARM64 GOCACHE CGO_ENABLED CC CFLAGS CPPFLAGS CXX CXXFLAGS
+    GOENV GOEXPERIMENT GOFLAGS GOMODCACHE GONOPROXY GONOSUMDB GOOS GOPATH GOPRIVATE GOPROXY
+    GOSUMDB GOTELEMETRY GOTOOLCHAIN GOVCS GOWORK LDFLAGS PKG_CONFIG SOURCE_DATE_EPOCH
+    GORELEASER_CURRENT_TAG GORELEASER_PREVIOUS_TAG GORELEASER_EXPERIMENTAL GORELEASER_FORCE_TOKEN
+  )
+  for name in "${names[@]}"; do
+    if [[ -n "${!name+x}" ]]; then
+      die "ambient build control must be unset: $name"
+    fi
+  done
+  for name in GH_TOKEN GITHUB_TOKEN HOMEBREW_GITHUB_API_TOKEN HOMEBREW_TAP_GITHUB_TOKEN; do
+    if [[ -n "${!name+x}" ]]; then
+      die "ambient authentication variable must be absent: $name"
+    fi
+  done
+}
+
+recheck_jq_parser() {
+  local version
+  [[ -n "$jq_binary" && -n "$jq_binary_sha256" && -n "$jq_binary_identity" ]] ||
+    die "frozen jq parser is absent"
+  require_canonical_executable "$jq_binary" "frozen jq"
+  [[ "$(pinned_sha256_file "$jq_binary")" == "$jq_binary_sha256" ]] || die "frozen jq bytes changed"
+  [[ "$(pinned_file_identity "$jq_binary")" == "$jq_binary_identity" ]] || die "frozen jq identity changed"
+  version="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" \
+    TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC "$jq_binary" --version)" ||
+    die "could not query frozen jq version"
+  [[ "$version" == "$EXPECTED_JQ_VERSION" ]] || die "frozen jq must be ${EXPECTED_JQ_VERSION}"
+}
+
+freeze_jq_parser() {
+  local arch candidate canonical destination source_sha256 source_identity
+  ensure_git_isolation
+  if [[ -z "$jq_binary" ]]; then
+    if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+      candidate="$(type -P jq)" || die "jq is required for source-only tests"
+    else
+      arch="$(/usr/bin/uname -m)"
+      case "$arch" in
+        arm64) candidate=/opt/homebrew/opt/jq/bin/jq ;;
+        x86_64) candidate=/usr/local/opt/jq/bin/jq ;;
+        *) die "unsupported macOS architecture for jq" ;;
+      esac
+    fi
+    [[ "$candidate" == /* && -x "$candidate" ]] || die "jq did not resolve to an absolute executable"
+    canonical="$($REALPATH_BIN "$candidate")" || die "could not canonicalize jq"
+    require_canonical_executable "$canonical" "jq"
+    if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
+      case "$(/usr/bin/uname -m):$canonical" in
+        arm64:/opt/homebrew/Cellar/jq/1.8.2/bin/jq|x86_64:/usr/local/Cellar/jq/1.8.2/bin/jq) ;;
+        *) die "jq is not the reviewed 1.8.2 Cellar executable" ;;
+      esac
+    fi
+    source_sha256="$(pinned_sha256_file "$canonical")"
+    source_identity="$(pinned_file_identity "$canonical")"
+    /bin/mkdir -p "${git_isolation_root}/parser-bin"
+    /bin/chmod 700 "${git_isolation_root}/parser-bin"
+    destination="${git_isolation_root}/parser-bin/jq"
+    if [[ -e "$destination" || -L "$destination" ]]; then
+      require_canonical_executable "$destination" "existing frozen jq"
+      [[ "$($STAT_BIN -f '%Lp' "$destination")" == 500 ]] || die "existing frozen jq permissions changed"
+      [[ "$(pinned_sha256_file "$destination")" == "$source_sha256" ]] || die "existing frozen jq bytes differ from source"
+      [[ "$(pinned_file_identity "$destination")" != "$source_identity" ]] || die "existing frozen jq aliases the source inode"
+    else
+      /bin/cp "$canonical" "$destination" || die "could not freeze jq"
+      /bin/chmod 500 "$destination"
+    fi
+    require_canonical_executable "$destination" "frozen jq"
+    [[ "$(pinned_sha256_file "$canonical")" == "$source_sha256" ]] || die "jq source bytes changed while freezing"
+    [[ "$(pinned_file_identity "$canonical")" == "$source_identity" ]] || die "jq source identity changed while freezing"
+    jq_binary="$destination"
+    jq_binary_sha256="$(pinned_sha256_file "$jq_binary")"
+    jq_binary_identity="$(pinned_file_identity "$jq_binary")"
+    [[ "$jq_binary_sha256" == "$source_sha256" ]] || die "frozen jq bytes differ from source"
+    [[ "$jq_binary_identity" != "$source_identity" ]] || die "frozen jq did not receive a private inode"
+  fi
+  recheck_jq_parser
+}
+
+jq() {
+  local command_status
+  freeze_jq_parser
+  if "$jq_binary" "$@"; then
+    command_status=0
+  else
+    command_status=$?
+  fi
+  recheck_jq_parser
+  return "$command_status"
+}
+
+freeze_gh_transport() {
+  local arch candidate canonical destination
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    gh_binary="$(test_gh_transport)"
+    return 0
+  fi
+  ensure_git_isolation
+  if [[ -z "$gh_binary" ]]; then
+    arch="$(/usr/bin/uname -m)"
+    case "$arch" in
+      arm64) candidate=/opt/homebrew/opt/gh/bin/gh ;;
+      x86_64) candidate=/usr/local/opt/gh/bin/gh ;;
+      *) die "unsupported macOS architecture for GitHub CLI" ;;
+    esac
+    [[ -x "$candidate" ]] || die "pinned GitHub CLI launcher is unavailable: $candidate"
+    canonical="$($REALPATH_BIN "$candidate")" || die "could not canonicalize GitHub CLI"
+    require_canonical_executable "$canonical" "GitHub CLI"
+    case "$arch:$canonical" in
+      "arm64:/opt/homebrew/Cellar/gh/${EXPECTED_GH_VERSION}/bin/gh"|"x86_64:/usr/local/Cellar/gh/${EXPECTED_GH_VERSION}/bin/gh") ;;
+      *) die "GitHub CLI is not the reviewed Cellar binary: $canonical" ;;
+    esac
+    /bin/mkdir -p "${git_isolation_root}/transport-bin"
+    /bin/chmod 700 "${git_isolation_root}/transport-bin"
+    destination="${git_isolation_root}/transport-bin/gh"
+    /bin/cp "$canonical" "$destination" || die "could not freeze GitHub CLI"
+    /bin/chmod 500 "$destination"
+    require_canonical_executable "$destination" "frozen GitHub CLI"
+    "$destination" --version | "$SED_BIN" -n '1p' | "$GREP_BIN" -Fq "gh version ${EXPECTED_GH_VERSION} " ||
+      die "GitHub CLI version differs from the reviewed producer"
+    gh_binary="$destination"
+    gh_binary_sha256="$(pinned_sha256_file "$gh_binary")"
+    gh_binary_identity="$(pinned_file_identity "$gh_binary")"
+  fi
+  require_canonical_executable "$gh_binary" "frozen GitHub CLI"
+  [[ "$(pinned_sha256_file "$gh_binary")" == "$gh_binary_sha256" ]] || die "frozen GitHub CLI bytes changed"
+  [[ "$(pinned_file_identity "$gh_binary")" == "$gh_binary_identity" ]] || die "frozen GitHub CLI identity changed"
+}
+
+reject_test_gh_mutation() {
+  local argument method=GET expect_method=false
+  [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]] || return 0
+  for argument in "$@"; do
+    if [[ "$expect_method" == true ]]; then
+      case "$argument" in
+        [Gg][Ee][Tt]) method=GET ;;
+        *) method=MUTATION ;;
+      esac
+      expect_method=false
+      continue
+    fi
+    case "$argument" in
+      -X|--method) expect_method=true ;;
+      --method=*)
+        case "${argument#*=}" in
+          [Gg][Ee][Tt]) method=GET ;;
+          *) method=MUTATION ;;
+        esac
+        ;;
+      -X?*)
+        case "${argument#-X}" in
+          [Gg][Ee][Tt]) method=GET ;;
+          *) method=MUTATION ;;
+        esac
+        ;;
+      -f|-F|-f?*|-F?*|--field|--field=*|--raw-field|--raw-field=*|--input|--input=*)
+        die "source-only test mode cannot use a GitHub mutation transport"
+        ;;
+    esac
+  done
+  [[ "$expect_method" == false && "$method" == GET ]] || die "source-only test mode cannot use a GitHub mutation transport"
+}
+
+gh_api() {
+  local token
+  reject_test_gh_mutation "$@"
+  freeze_gh_transport
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    /usr/bin/env -u BASH_ENV -u ENV -u CDPATH -u BASHOPTS -u SHELLOPTS \
+      -u GITHUB_TOKEN -u GH_TOKEN -u GH_HOST -u GH_CONFIG_DIR -u XDG_CONFIG_HOME -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN \
+      -u HOMEBREW_GITHUB_API_TOKEN -u HOMEBREW_TAP_GITHUB_TOKEN \
+      "$gh_binary" api --hostname github.com -H "X-GitHub-Api-Version: ${API_VERSION}" "$@"
+  else
+    [[ "${HOME:-}" == /* ]] || die "HOME must be absolute for GitHub authentication"
+    /bin/mkdir -p "${git_isolation_root}/gh-config"
+    /bin/chmod 700 "${git_isolation_root}/gh-config"
+    token=$(gh_auth_token) || die "could not obtain GitHub authentication"
+    [[ "$token" =~ ^[A-Za-z0-9_]+$ ]] || die "GitHub authentication token is empty or unsafe"
+    /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" GH_CONFIG_DIR="${git_isolation_root}/gh-config" \
+      TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
+      /bin/bash -p -c 'IFS= read -r GH_TOKEN <&3; exec 3<&-; export GH_TOKEN; exec "$@"' \
+      release-local-gh "$gh_binary" api --hostname github.com -H "X-GitHub-Api-Version: ${API_VERSION}" "$@" 3<<<"$token"
+    unset token
+  fi
+}
+
+test_gh_transport() {
+  local binary="${GOPLACES_RELEASE_LOCAL_TEST_GH_BIN:-}" fixture="${MOCK_FIXTURE_ROOT:-}"
+  [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]] || die "test GitHub transport is unavailable outside source-only mode"
+  [[ "$fixture" == /* && -d "$fixture" && ! -L "$fixture" ]] || die "source-only GitHub transport requires a real fixture root"
+  [[ "$binary" == "$fixture"/* && -f "$binary" && -x "$binary" && ! -L "$binary" ]] ||
+    die "source-only GitHub transport must be an executable fixture file"
+  printf '%s\n' "$binary"
+}
+
+gh_auth_token() {
+  freeze_gh_transport
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    /usr/bin/env -u BASH_ENV -u ENV -u CDPATH -u BASHOPTS -u SHELLOPTS \
+      -u GITHUB_TOKEN -u GH_TOKEN -u GH_HOST -u GH_CONFIG_DIR -u XDG_CONFIG_HOME -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN \
+      -u HOMEBREW_GITHUB_API_TOKEN -u HOMEBREW_TAP_GITHUB_TOKEN \
+      "$gh_binary" auth token --hostname github.com
+  else
+    [[ "${HOME:-}" == /* ]] || die "HOME must be absolute for GitHub authentication"
+    /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="$HOME" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
+      "$gh_binary" auth token --hostname github.com
+  fi
+}
+
+gh_watch_run() {
+  local repository="$1" run_id="$2" token
+  assert_js_safe_positive_integer "$run_id" "workflow run ID"
+  freeze_gh_transport
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    /usr/bin/env -u BASH_ENV -u ENV -u CDPATH -u BASHOPTS -u SHELLOPTS \
+      -u GITHUB_TOKEN -u GH_TOKEN -u GH_HOST -u GH_CONFIG_DIR -u XDG_CONFIG_HOME -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN \
+      -u HOMEBREW_GITHUB_API_TOKEN -u HOMEBREW_TAP_GITHUB_TOKEN \
+      "$gh_binary" run watch "$run_id" --repo "github.com/${repository}" --exit-status
+  else
+    [[ "${HOME:-}" == /* ]] || die "HOME must be absolute for GitHub authentication"
+    /bin/mkdir -p "${git_isolation_root}/gh-config"
+    /bin/chmod 700 "${git_isolation_root}/gh-config"
+    token=$(gh_auth_token) || die "could not obtain GitHub authentication"
+    [[ "$token" =~ ^[A-Za-z0-9_]+$ ]] || die "GitHub authentication token is empty or unsafe"
+    /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" GH_CONFIG_DIR="${git_isolation_root}/gh-config" \
+      TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
+      /bin/bash -p -c 'IFS= read -r GH_TOKEN <&3; exec 3<&-; export GH_TOKEN; exec "$@"' \
+      release-local-gh "$gh_binary" run watch "$run_id" --repo "github.com/${repository}" --exit-status 3<<<"$token"
+    unset token
+  fi
+}
+
+homebrew_git() {
+  local repository="$1"
+  shift
+  isolated_git -C "$repository" \
+    -c core.bare=false -c "core.worktree=${repository}" -c core.fsmonitor=false \
+    -c core.untrackedCache=false -c status.showUntrackedFiles=true "$@"
+}
+
+homebrew_runtime_digest() {
+  local repository="$1" special digest
+  [[ -d "${repository}/Library/Homebrew" && ! -L "${repository}/Library/Homebrew" ]] || die "Homebrew runtime directory is unsafe"
+  special="$(/usr/bin/find "${repository}/Library/Homebrew" ! -type d ! -type f ! -type l -print -quit)"
+  [[ -z "$special" ]] || die "Homebrew runtime contains an unsupported special file"
+  digest="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" LC_ALL=C TZ=UTC COPYFILE_DISABLE=1 \
+    "$TAR_BIN" -cf - -C "$repository" Library/Homebrew | "$SHASUM_BIN" -a 256)" ||
+    die "could not hash the complete Homebrew runtime"
+  digest="${digest%% *}"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || die "complete Homebrew runtime digest is malformed"
+  printf '%s\n' "$digest"
+}
+
+validate_homebrew_repository() {
+  local repository="$1" expected_sha="$2" git_dir config_file graft_path alternates_path replace_refs remotes origin_urls
+  local current_branch current_sha tracking_sha status index_flags config_dump forbidden_config sparse_path
+  [[ -d "$repository" && ! -L "$repository" ]] || die "Homebrew repository is missing or a symlink"
+  [[ "$($REALPATH_BIN "$repository")" == "$repository" ]] || die "Homebrew repository path is not canonical"
+  assert_sha "$expected_sha" "protected Homebrew/brew main SHA"
+  git_dir="$(homebrew_git "$repository" rev-parse --absolute-git-dir)" || die "could not resolve Homebrew Git directory"
+  [[ "$git_dir" == "${repository}/.git" && -d "$git_dir" && ! -L "$git_dir" ]] || die "Homebrew Git directory is unsafe"
+  config_file="$(homebrew_git "$repository" rev-parse --path-format=absolute --git-path config)" || die "could not resolve Homebrew Git config"
+  graft_path="$(homebrew_git "$repository" rev-parse --path-format=absolute --git-path info/grafts)" || die "could not resolve Homebrew graft path"
+  alternates_path="$(homebrew_git "$repository" rev-parse --path-format=absolute --git-path objects/info/alternates)" || die "could not resolve Homebrew alternates path"
+  sparse_path="$(homebrew_git "$repository" rev-parse --path-format=absolute --git-path info/sparse-checkout)" || die "could not resolve Homebrew sparse-checkout path"
+  [[ "$config_file" == "$git_dir/config" && -f "$config_file" && ! -L "$config_file" ]] || die "Homebrew Git config is unsafe"
+  [[ "$graft_path" == "$git_dir"/* && "$alternates_path" == "$git_dir"/* && "$sparse_path" == "$git_dir"/* ]] || die "Homebrew Git metadata path escaped its repository"
+  [[ ! -e "$graft_path" && ! -L "$graft_path" ]] || die "Homebrew Git grafts are forbidden"
+  [[ ! -e "$alternates_path" && ! -L "$alternates_path" ]] || die "Homebrew alternate object stores are forbidden"
+  [[ ! -e "$sparse_path" && ! -L "$sparse_path" ]] || die "Homebrew sparse checkout is forbidden"
+  replace_refs="$(homebrew_git "$repository" for-each-ref --format='%(refname)' refs/replace/)" || die "could not inspect Homebrew replacement refs"
+  [[ -z "$replace_refs" ]] || die "Homebrew Git replacement refs are forbidden"
+
+  config_dump="$(homebrew_git "$repository" config --local --no-includes --list --show-origin)" || die "could not inspect Homebrew local Git config"
+  forbidden_config="$(/usr/bin/awk -F '\t' '
+    {
+      entry=tolower($2)
+      key=entry
+      sub(/=.*/, "", key)
+      allowed=0
+      if (entry == "core.repositoryformatversion=0" ||
+        entry ~ /^core.filemode=(true|false)$/ ||
+        entry == "core.bare=false" ||
+        entry == "core.logallrefupdates=true" ||
+        entry ~ /^core.ignorecase=(true|false)$/ ||
+        entry == "core.precomposeunicode=true" ||
+        entry == "core.autocrlf=false" ||
+        entry == "core.symlinks=true" ||
+        entry == "core.fsmonitor=false" ||
+        entry == "remote.origin.url=https:\/\/github.com\/homebrew\/brew" ||
+        entry == "remote.origin.fetch=+refs\/heads\/*:refs\/remotes\/origin\/*" ||
+        entry == "fetch.prune=true" ||
+        entry == "branch.main.remote=origin" ||
+        entry == "branch.main.merge=refs\/heads\/main" ||
+        entry ~ /^homebrew.(analyticsmessage|caskanalyticsmessage|influxanalyticsmessage|donationmessage|commandnotfound|devcmdrun)=true$/ ||
+        entry ~ /^homebrew.latesttag=[0-9]+\.[0-9]+\.[0-9]+$/) allowed=1
+      if (!allowed || seen[key]++) {
+        print $0
+        exit
+      }
+    }
+  ' <<<"$config_dump")"
+  [[ -z "$forbidden_config" ]] || die "Homebrew local Git config contains a forbidden trust override"
+
+  remotes="$(homebrew_git "$repository" remote)" || die "could not inspect Homebrew remotes"
+  [[ "$remotes" == origin ]] || die "Homebrew repository must have exactly the official origin remote"
+  origin_urls="$(homebrew_git "$repository" remote get-url --all origin)" || die "could not inspect Homebrew origin URL"
+  [[ "$origin_urls" == "$EXPECTED_HOMEBREW_ORIGIN_HTTPS" ]] || die "Homebrew origin is not the exact official HTTPS repository"
+  current_branch="$(homebrew_git "$repository" symbolic-ref --quiet --short HEAD)" || die "Homebrew repository must be on its main branch"
+  [[ "$current_branch" == main ]] || die "Homebrew repository is not on main"
+  current_sha="$(homebrew_git "$repository" rev-parse --verify HEAD)" || die "could not resolve Homebrew HEAD"
+  tracking_sha="$(homebrew_git "$repository" rev-parse --verify refs/remotes/origin/main)" || die "could not resolve Homebrew origin/main"
+  [[ "$current_sha" == "$expected_sha" && "$tracking_sha" == "$expected_sha" ]] || die "local Homebrew main is not the live protected commit"
+  index_flags="$(homebrew_git "$repository" ls-files -v)" || die "could not inspect Homebrew index flags"
+  if "$GREP_BIN" -Eq '^[a-zS]' <<<"$index_flags"; then
+    die "Homebrew index contains assume-unchanged or skip-worktree entries"
+  fi
+  status="$(homebrew_git "$repository" status --porcelain --untracked-files=all)" || die "could not inspect Homebrew repository status"
+  [[ -z "$status" ]] || die "Homebrew repository is not exactly clean including untracked files"
+  [[ ! -e /etc/homebrew/brew.env && ! -L /etc/homebrew/brew.env ]] || die "system Homebrew brew.env is forbidden"
+  [[ ! -e "${brew_prefix}/etc/homebrew/brew.env" && ! -L "${brew_prefix}/etc/homebrew/brew.env" ]] || die "prefix Homebrew brew.env is forbidden"
+}
+
+bind_homebrew_runtime() {
+  local repo_json branch_json live_default live_sha
+  repo_json="${git_isolation_root}/homebrew-repository.json"
+  branch_json="${git_isolation_root}/homebrew-main.json"
+  gh_api "repos/${HOMEBREW_REPOSITORY}" > "$repo_json"
+  live_default="$(jq -er '.default_branch | select(type == "string" and length > 0)' "$repo_json")" || die "could not resolve Homebrew/brew default branch"
+  [[ "$live_default" == main ]] || die "Homebrew/brew default branch is not main"
+  gh_api "repos/${HOMEBREW_REPOSITORY}/branches/main" > "$branch_json"
+  live_sha="$(jq -er 'select(.name == "main" and .protected == true) | .commit.sha | select(type == "string")' "$branch_json")" ||
+    die "Homebrew/brew live main is not protected"
+  assert_sha "$live_sha" "live protected Homebrew/brew main SHA"
+  brew_repository_sha="$live_sha"
+  validate_homebrew_repository "$brew_repository_root" "$brew_repository_sha"
+  brew_binary_sha256="$(pinned_sha256_file "$brew_binary")"
+  brew_binary_identity="$(pinned_file_identity "$brew_binary")"
+  brew_runtime_sha256="$(homebrew_runtime_digest "$brew_repository_root")"
+  recheck_homebrew_runtime
+}
+
+recheck_homebrew_runtime() {
+  [[ -n "$brew_repository_root" && -n "$brew_repository_sha" && -n "$brew_runtime_sha256" ]] || die "Homebrew runtime is not bound"
+  validate_homebrew_repository "$brew_repository_root" "$brew_repository_sha"
+  require_canonical_executable "$brew_binary" "Homebrew"
+  [[ "$(pinned_sha256_file "$brew_binary")" == "$brew_binary_sha256" ]] || die "Homebrew launcher bytes changed during release proof"
+  [[ "$(pinned_file_identity "$brew_binary")" == "$brew_binary_identity" ]] || die "Homebrew launcher identity changed during release proof"
+  [[ "$(homebrew_runtime_digest "$brew_repository_root")" == "$brew_runtime_sha256" ]] || die "complete Homebrew runtime changed during release proof"
+}
+
+freeze_homebrew_transport() {
+  local arch candidate canonical just_bound=false
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    die "source-only test mode cannot mutate or execute Homebrew packages"
+  fi
+  ensure_git_isolation
+  if [[ -z "$brew_binary" ]]; then
+    arch="$(/usr/bin/uname -m)"
+    case "$arch" in
+      arm64)
+        candidate=/opt/homebrew/bin/brew
+        brew_repository_root=/opt/homebrew
+        brew_prefix=/opt/homebrew
+        ;;
+      x86_64)
+        candidate=/usr/local/bin/brew
+        brew_repository_root=/usr/local/Homebrew
+        brew_prefix=/usr/local
+        ;;
+      *) die "unsupported macOS architecture for Homebrew" ;;
+    esac
+    [[ -x "$candidate" ]] || die "pinned Homebrew launcher is unavailable: $candidate"
+    canonical="$($REALPATH_BIN "$candidate")" || die "could not canonicalize Homebrew"
+    [[ "$canonical" == "${brew_repository_root}/bin/brew" ]] || die "Homebrew launcher is outside the official repository"
+    require_canonical_executable "$canonical" "Homebrew"
+    brew_binary="$canonical"
+    bind_homebrew_runtime
+    just_bound=true
+  fi
+  if [[ "$just_bound" != true ]]; then
+    recheck_homebrew_runtime
+  fi
+}
+
+homebrew_command() {
+  local brew_home brew_config command_status
+  freeze_homebrew_transport
+  ensure_git_isolation
+  brew_home="${git_isolation_root}/homebrew-home"
+  brew_config="${git_isolation_root}/homebrew-config"
+  /bin/mkdir -p "$brew_home" "$brew_config"
+  /bin/chmod 700 "$brew_home" "$brew_config"
+  if /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="$brew_home" HOMEBREW_USER_CONFIG_HOME="$brew_config" \
+    TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
+    GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 \
+    HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALL_FROM_API=1 \
+    "$brew_binary" "$@"; then
+    command_status=0
+  else
+    command_status=$?
+  fi
+  recheck_homebrew_runtime
+  return "$command_status"
+}
+
+sha256_file() {
+  local file="$1"
+  pinned_sha256_file "$file"
+}
+
+assert_sha() {
+  [[ "$1" =~ ^[0-9a-f]{40}$|^[0-9a-f]{64}$ ]] || die "$2 is not a full object ID"
+}
+
+assert_js_safe_positive_integer() {
+  local value="$1" label="$2" maximum=9007199254740991 index digit maximum_digit
+  [[ "$value" =~ ^[1-9][0-9]*$ ]] || die "$label is not a positive integer"
+  (( ${#value} <= 16 )) || die "$label exceeds the JavaScript-safe integer range"
+  if (( ${#value} == 16 )); then
+    for ((index = 0; index < 16; index++)); do
+      digit="${value:index:1}"
+      maximum_digit="${maximum:index:1}"
+      ((10#$digit <= 10#$maximum_digit)) || die "$label exceeds the JavaScript-safe integer range"
+      if ((10#$digit < 10#$maximum_digit)); then
+        break
+      fi
+    done
+  fi
+}
+
+preflight_repository() {
+  local origin_url repository_json branch_json branch_protected branch_sha branch current_sha tracking_sha status native_go_bin
+
+  need git
+  need go
+  need gh
+  freeze_jq_parser
+  reject_ambient_build_controls
+
+  origin_url="$(isolated_git remote get-url origin)"
+  case "$origin_url" in
+    "$EXPECTED_ORIGIN_HTTPS"|"$EXPECTED_ORIGIN_HTTPS.git"|"git@github.com:${REPOSITORY}"|"git@github.com:${REPOSITORY}.git"|"ssh://git@github.com/${REPOSITORY}"|"ssh://git@github.com/${REPOSITORY}.git") ;;
+    *) die "origin is not the official repository: $origin_url" ;;
+  esac
+
+  repository_json="$(gh_api "repos/${REPOSITORY}")"
+  default_branch="$(jq -er '.default_branch | select(type == "string" and length > 0)' <<<"$repository_json")" || die "could not resolve default branch"
+  [[ "$default_branch" == "main" ]] || die "protected default branch must be main, found $default_branch"
+
+  branch_json="$(gh_api "repos/${REPOSITORY}/branches/${default_branch}")"
+  branch_protected="$(jq -er '.protected | select(type == "boolean")' <<<"$branch_json")" || die "could not resolve branch protection"
+  [[ "$branch_protected" == "true" ]] || die "default branch is not protected"
+  branch_sha="$(jq -er '.commit.sha | select(type == "string")' <<<"$branch_json")" || die "could not resolve protected branch SHA"
+  assert_sha "$branch_sha" "protected branch SHA"
+
+  isolated_git fetch --prune --no-tags origin "+refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
+
+  branch="$(isolated_git symbolic-ref --quiet --short HEAD)" || die "detached HEAD is not releasable"
+  [[ "$branch" == "$default_branch" ]] || die "release must run on $default_branch, found $branch"
+  current_sha="$(isolated_git rev-parse --verify HEAD)"
+  tracking_sha="$(isolated_git rev-parse --verify "refs/remotes/origin/${default_branch}")"
+  assert_sha "$current_sha" "HEAD"
+  [[ "$current_sha" == "$tracking_sha" ]] || die "HEAD is not synchronized with origin/${default_branch}"
+  [[ "$current_sha" == "$branch_sha" ]] || die "HEAD does not equal protected current ${default_branch}"
+
+  status="$(isolated_git status --porcelain --untracked-files=all)"
+  [[ -z "$status" ]] || die "checkout must be clean"
+  isolated_git diff --check
+
+  default_sha="$current_sha"
+  ensure_git_isolation
+  protected_source_root="${git_isolation_root}/protected-source"
+  prepare_remote_source "$protected_source_root" pilot
+
+  local native_go
+  native_go_bin="${producer_go:-$(resolve_executable go)}"
+  native_go="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC GOENV=off GOTOOLCHAIN=local "$native_go_bin" env GOVERSION)" || die "native Go toolchain is unavailable"
+  [[ "$native_go" == "$EXPECTED_GO_VERSION" ]] || die "requires native $EXPECTED_GO_VERSION, found $native_go"
+  require_regular_file "${protected_source_root}/go.mod"
+  grep -Eq '^go 1\.26\.5$' "${protected_source_root}/go.mod" || die "protected go.mod must require Go 1.26.5"
+  require_regular_file "${protected_source_root}/.goreleaser.yml"
+  if grep -Eq 'homebrew_|HOMEBREW_|com\.apple\.quarantine|xattr' "${protected_source_root}/.goreleaser.yml"; then
+    die "GoReleaser config must not publish Homebrew metadata or strip quarantine"
+  fi
+  grep -Eq '^[[:space:]]+draft:[[:space:]]*true([[:space:]]*#.*)?$' "${protected_source_root}/.goreleaser.yml" || die "GoReleaser releases must be draft-only"
+  require_regular_file "${protected_source_root}/scripts/release-local"
+  "$CMP_BIN" -s "${repo_root}/scripts/release-local" "${protected_source_root}/scripts/release-local" || die "release-local must match protected current main"
+}
+
+recheck_source_default() {
+  local repository_json live_default branch_json remote
+  repository_json="$(gh_api "repos/${REPOSITORY}")"
+  live_default="$(jq -er '.default_branch | select(type == "string" and length > 0)' <<<"$repository_json")" || die "could not re-resolve source default branch"
+  [[ "$live_default" == main && "$live_default" == "$default_branch" ]] || die "source default branch identity moved"
+  branch_json="$(gh_api "repos/${REPOSITORY}/branches/${default_branch}")"
+  jq -e --arg branch "$default_branch" --arg sha "$default_sha" 'select(.name == $branch and .protected == true and .commit.sha == $sha)' <<<"$branch_json" >/dev/null || die "protected source default branch moved"
+  remote="$(isolated_git ls-remote --heads origin "refs/heads/${default_branch}")"
+  [[ "$(/usr/bin/awk 'NF {count++} END {print count + 0}' <<<"$remote")" == "1" ]] || die "source default branch lookup is ambiguous"
+  [[ "$(/usr/bin/awk -v ref="refs/heads/${default_branch}" '$2 == ref {print $1}' <<<"$remote")" == "$default_sha" ]] || die "source default branch moved on origin"
+}
+
+init_release_state() {
+  local tag="$1"
+  prepare_homebrew_state_root "$tag"
+  bind_release_tag_identity "$tag"
+}
+
+prepare_homebrew_state_root() {
+  local tag="$1" git_dir root state canonical
+  validate_tag "$tag"
+  git_dir="$(isolated_git rev-parse --absolute-git-dir)"
+  [[ "$git_dir" == /* && -d "$git_dir" && ! -L "$git_dir" ]] || die "Homebrew release Git directory is unsafe"
+  canonical="$($REALPATH_BIN "$git_dir")" || die "could not canonicalize Homebrew release Git directory"
+  [[ "$canonical" == "$git_dir" ]] || die "Homebrew release Git directory is not canonical"
+  root="${git_dir}/goplaces-release"
+  if [[ ! -e "$root" && ! -L "$root" ]]; then
+    /bin/mkdir "$root" || die "could not create Homebrew release state root"
+    /bin/chmod 700 "$root"
+  fi
+  [[ -d "$root" && ! -L "$root" ]] || die "Homebrew release state root is unsafe"
+  [[ "$($STAT_BIN -f '%Lp' "$root")" == 700 ]] || die "Homebrew release state root permissions changed"
+  canonical="$($REALPATH_BIN "$root")" || die "could not canonicalize Homebrew release state root"
+  [[ "$canonical" == "$root" ]] || die "Homebrew release state root traverses a symlink"
+  state="${root}/${tag}"
+  if [[ ! -e "$state" && ! -L "$state" ]]; then
+    /bin/mkdir "$state" || die "could not create Homebrew release tag state"
+    /bin/chmod 700 "$state"
+  fi
+  [[ -d "$state" && ! -L "$state" ]] || die "Homebrew release tag state is unsafe"
+  [[ "$($STAT_BIN -f '%Lp' "$state")" == 700 ]] || die "Homebrew release tag state permissions changed"
+  canonical="$($REALPATH_BIN "$state")" || die "could not canonicalize Homebrew release tag state"
+  [[ "$canonical" == "$state" ]] || die "Homebrew release tag state traverses a symlink"
+  release_state_dir="$state"
+}
+
+adopt_verified_tag_identity() {
+  local observed_object="$1" observed_commit="$2"
+  assert_sha "$observed_object" "observed tag object"
+  assert_sha "$observed_commit" "observed tag commit"
+  if [[ -n "$tag_object" || -n "$tag_commit" ]]; then
+    [[ "$tag_object" == "$observed_object" && "$tag_commit" == "$observed_commit" ]] ||
+      die "signed tag identity moved after it was frozen"
+    return 0
+  fi
+  tag_object="$observed_object"
+  tag_commit="$observed_commit"
+}
+
+bind_release_tag_identity() {
+  local tag="$1" record tmp
+  [[ -n "$release_state_dir" ]] || die "release state directory is not initialized"
+  [[ -n "$tag_object" && -n "$tag_commit" ]] || die "verified tag identity is absent"
+  record="${release_state_dir}/tag-identity.json"
+  if [[ -e "$record" || -L "$record" ]]; then
+    require_regular_file "$record"
+    jq -e \
+      --arg tag "$tag" \
+      --arg object "$tag_object" \
+      --arg commit "$tag_commit" \
+      --arg main "$default_sha" \
+      'select(.schema == "goplaces-tag-identity-v1" and .tag == $tag and .object_sha == $object and .commit_sha == $commit and .default_sha == $main)' \
+      "$record" >/dev/null || die "signed tag identity differs from frozen release state"
+    return 0
+  fi
+  if [[ -n "$(/usr/bin/find "$release_state_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+    die "frozen release state exists without its signed tag identity"
+  fi
+  tmp="$(mktemp "${release_state_dir%/*}/.tag-identity.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" \
+    --arg object "$tag_object" \
+    --arg commit "$tag_commit" \
+    --arg main "$default_sha" \
+    '{schema:"goplaces-tag-identity-v1",tag:$tag,object_sha:$object,commit_sha:$commit,default_sha:$main}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$record" && ! -L "$record" ]] || die "signed tag identity state appeared concurrently"
+  mv "$tmp" "$record"
+}
+
+verify_tag_signature() {
+  local repository="$1" object="$2" allowed_signers="$3"
+  [[ -d "$repository" && ! -L "$repository" ]] || die "tag repository is missing or a symlink"
+  assert_sha "$object" "signed tag object"
+  require_regular_file "$allowed_signers"
+  [[ -x "$SSH_KEYGEN_BIN" && ! -L "$SSH_KEYGEN_BIN" ]] || die "pinned system ssh-keygen is unavailable"
+  isolated_git -C "$repository" \
+    -c gpg.format=ssh \
+    -c "gpg.ssh.program=${SSH_KEYGEN_BIN}" \
+    -c "gpg.ssh.allowedSignersFile=${allowed_signers}" \
+    -c gpg.minTrustLevel=fully \
+    verify-tag "$object" >/dev/null
+}
+
+verify_remote_tag() {
+  local tag="$1" expected_commit="$2" ref type payload_object payload_type payload_tag allowed_signers remote_lines remote_object remote_commit observed_object observed_commit
+  ref="refs/tags/${tag}"
+  isolated_git show-ref --verify --quiet "$ref" || die "release tag is missing locally: $tag"
+  type="$(isolated_git cat-file -t "$ref")"
+  [[ "$type" == "tag" ]] || die "release tag must be annotated: $tag"
+  observed_object="$(isolated_git rev-parse --verify "$ref")"
+  observed_commit="$(isolated_git rev-parse --verify "${ref}^{}")"
+  assert_sha "$observed_object" "tag object"
+  assert_sha "$observed_commit" "tag commit"
+  [[ "$observed_commit" == "$expected_commit" ]] || die "tag commit does not equal protected current main"
+
+  payload_object="$(isolated_git cat-file -p "$observed_object" | sed -n 's/^object //p' | head -n 1)"
+  payload_type="$(isolated_git cat-file -p "$observed_object" | sed -n 's/^type //p' | head -n 1)"
+  payload_tag="$(isolated_git cat-file -p "$observed_object" | sed -n 's/^tag //p' | head -n 1)"
+  [[ "$payload_object" == "$expected_commit" && "$payload_type" == "commit" && "$payload_tag" == "$tag" ]] || die "annotated tag payload is not exact"
+
+  allowed_signers="${protected_source_root}/.github/release-allowed-signers"
+  require_regular_file "$allowed_signers"
+  [[ -s "$allowed_signers" ]] || die "allowed signer policy is empty"
+  verify_tag_signature "$repo_root" "$observed_object" "$allowed_signers"
+
+  [[ "$(isolated_git rev-parse --verify "$ref")" == "$observed_object" ]] || die "local tag object moved during signature verification"
+  [[ "$(isolated_git rev-parse --verify "${ref}^{}")" == "$observed_commit" ]] || die "local tag commit moved during signature verification"
+
+  remote_lines="$(isolated_git ls-remote --tags origin "$ref" "${ref}^{}")"
+  remote_object="$(/usr/bin/awk -v ref="$ref" '$2 == ref {print $1}' <<<"$remote_lines")"
+  remote_commit="$(/usr/bin/awk -v ref="${ref}^{}" '$2 == ref {print $1}' <<<"$remote_lines")"
+  [[ "$(/usr/bin/awk 'NF {count++} END {print count+0}' <<<"$remote_lines")" == "2" ]] || die "remote tag must have exactly annotated and peeled refs"
+  [[ "$remote_object" == "$observed_object" && "$remote_commit" == "$observed_commit" ]] || die "remote tag object or peeled commit moved"
+  adopt_verified_tag_identity "$observed_object" "$observed_commit"
+}
+
+require_tag_absent() {
+  local tag="$1" ref remote
+  ref="refs/tags/${tag}"
+  if isolated_git show-ref --verify --quiet "$ref"; then
+    die "pilot tag must not exist locally: $tag"
+  fi
+  remote="$(isolated_git ls-remote --tags origin "$ref" "${ref}^{}")"
+  [[ -z "$remote" ]] || die "pilot tag must not exist remotely: $tag"
+}
+
+extract_release_notes() {
+  local tag="$1" mode="$2" output="$3" changelog="$4" version header_count
+  version="$(version_from_tag "$tag")"
+  require_regular_file "$changelog"
+  if [[ "$mode" == "released" ]]; then
+    header_count="$(grep -Ec "^## ${version} - [0-9]{4}-[0-9]{2}-[0-9]{2}$" "$changelog" || true)"
+    [[ "$header_count" == "1" ]] || die "CHANGELOG must contain exactly one dated ${version} section"
+    /usr/bin/awk -v version="$version" '
+      $0 ~ ("^## " version " - [0-9]{4}-[0-9]{2}-[0-9]{2}$") {found=1; next}
+      found && /^## / {exit}
+      found {print}
+      END {if (!found) exit 3}
+    ' "$changelog" > "$output"
+  else
+    header_count="$(grep -Ec "^## ${version} - Unreleased$" "$changelog" || true)"
+    [[ "$header_count" == "1" ]] || die "CHANGELOG must contain exactly one ${version} - Unreleased section"
+    /usr/bin/awk -v version="$version" '
+      $0 == ("## " version " - Unreleased") {found=1; next}
+      found && /^## / {exit}
+      found {print}
+      END {if (!found) exit 3}
+    ' "$changelog" > "$output"
+  fi
+  grep -Eq '^[-*] ' "$output" || die "release notes section has no entries"
+}
+
+expected_assets_json() {
+  local version="$1"
+  jq -cn --arg version "$version" '[
+    "goplaces_\($version)_darwin_amd64.tar.gz",
+    "goplaces_\($version)_darwin_arm64.tar.gz",
+    "goplaces_\($version)_linux_amd64.tar.gz",
+    "goplaces_\($version)_linux_arm64.tar.gz",
+    "goplaces_\($version)_windows_amd64.zip",
+    "goplaces_\($version)_windows_arm64.zip",
+    "goplaces_checksums.txt"
+  ] | sort'
+}
+
+resolve_release_id() {
+  local tag="$1" pages count
+  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  count="$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")"
+  [[ "$count" == "1" ]] || die "expected exactly one release for $tag, found $count"
+  jq -ser --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)][0].id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' <<<"$pages"
+}
+
+ensure_release_absent() {
+  local tag="$1" pages count
+  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  count="$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")"
+  [[ "$count" == "0" ]] || die "a release already exists for $tag"
+}
+
+validate_draft_intent() {
+  local tag="$1" notes="$2" intent="${release_state_dir}/draft-intent.json"
+  require_regular_file "$intent"
+  jq -e \
+    --arg tag "$tag" \
+    --arg object "$tag_object" \
+    --arg commit "$tag_commit" \
+    --arg main "$default_sha" \
+    --arg notes_sha256 "$(sha256_file "$notes")" '
+      select(.schema == "goplaces-draft-intent-v1" and .tag == $tag and
+        .tag_object == $object and .tag_commit == $commit and .default_sha == $main and
+        .notes_sha256 == $notes_sha256 and
+        (.created_after | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
+        (.seen_release_ids as $seen | ($seen | type) == "array" and
+          all($seen[]; type == "number" and . > 0 and . <= 9007199254740991 and floor == .) and
+          (($seen | unique | length) == ($seen | length))))
+    ' "$intent" >/dev/null || die "draft intent differs from the frozen release identity"
+}
+
+prepare_draft_intent() {
+  local tag="$1" notes="$2" intent="${release_state_dir}/draft-intent.json" pages created_after seen tmp
+  if [[ -e "$intent" || -L "$intent" ]]; then
+    validate_draft_intent "$tag" "$notes"
+    draft_intent_created=false
+    return 0
+  fi
+  created_after="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  jq -es 'all(.[][]; (.id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .))' <<<"$pages" >/dev/null ||
+    die "release inventory contains an unsafe numeric ID"
+  [[ "$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")" == 0 ]] ||
+    die "a release already exists without a frozen draft intent for $tag"
+  seen="$(jq -sc '[.[] | .[].id] | sort | unique' <<<"$pages")"
+  tmp="$(mktemp "${release_state_dir%/*}/.draft-intent.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --arg notes_sha256 "$(sha256_file "$notes")" --arg created_after "$created_after" --argjson seen "$seen" \
+    '{schema:"goplaces-draft-intent-v1",tag:$tag,tag_object:$object,tag_commit:$commit,default_sha:$main,
+      notes_sha256:$notes_sha256,created_after:$created_after,seen_release_ids:$seen}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$intent" && ! -L "$intent" ]] || die "draft intent appeared concurrently"
+  mv "$tmp" "$intent"
+  validate_draft_intent "$tag" "$notes"
+  draft_intent_created=true
+}
+
+resolve_intended_draft_id() {
+  local tag="$1" intent="${release_state_dir}/draft-intent.json" pages matches count release_id
+  require_regular_file "$intent"
+  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  matches="$(jq -sc --slurpfile intent "$intent" --arg tag "$tag" '
+    [.[] | .[] | select(.tag_name == $tag) |
+      select(.id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .) |
+      select((.id as $id | $intent[0].seen_release_ids | index($id)) == null)]
+  ' <<<"$pages")"
+  count="$(jq 'length' <<<"$matches")"
+  [[ "$count" == 0 || "$count" == 1 ]] || die "draft intent matches multiple release identities"
+  if [[ "$count" == 1 ]]; then
+    release_id="$(jq -er '.[0].id' <<<"$matches")"
+    assert_js_safe_positive_integer "$release_id" "intended draft release ID"
+    printf '%s\n' "$release_id"
+  fi
+}
+
+resolve_intended_draft_id_with_retry() {
+  local tag="$1" poll release_id
+  for ((poll = 1; poll <= 15; poll++)); do
+    release_id="$(resolve_intended_draft_id "$tag")"
+    if [[ -n "$release_id" ]]; then
+      printf '%s\n' "$release_id"
+      return 0
+    fi
+    if ((poll < 15)); then sleep 2; fi
+  done
+}
+
+canonical_release_record() {
+  local input="$1" output="$2" tag="$3" state="$4" notes="$5" expected_assets version
+  version="$(version_from_tag "$tag")"
+  expected_assets="$(expected_assets_json "$version")"
+  jq -eS \
+    --arg repo "$REPOSITORY" \
+    --arg tag "$tag" \
+    --arg state "$state" \
+    --arg commit "$default_sha" \
+    --argjson expected_assets "$expected_assets" \
+    --rawfile notes "$notes" '
+      def positive_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
+      def wanted_state: if $state == "draft" then .draft == true else .draft == false end;
+      select(.id | positive_integer) |
+      select(.tag_name == $tag) |
+      select(.target_commitish == $commit) |
+      select(.name == $tag) |
+      select(.prerelease == false) |
+      select(wanted_state) |
+      select(.body == $notes) |
+      select((.assets | map(.name) | sort) == $expected_assets) |
+      select((.assets | map(.id) | unique | length) == 7) |
+      select(all(.assets[];
+        (.id | positive_integer) and
+        (.size | positive_integer) and
+        (.name | type == "string" and test("^[A-Za-z0-9._-]+$")) and
+        (.state == "uploaded") and
+        (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
+        (.url == ("https://api.github.com/repos/" + $repo + "/releases/assets/" + (.id | tostring))) and
+        (.browser_download_url == ("https://github.com/" + $repo + "/releases/download/" + $tag + "/" + .name))
+      )) |
+      {
+        schema:"goplaces-release-record-v1", repository:$repo, state:$state,
+        id, tag_name, target_commitish, name, draft, prerelease, body, created_at, published_at, updated_at,
+        assets: [.assets[] | {id, name, size, digest, url, browser_download_url, content_type, state, created_at, updated_at}] | sort_by(.name)
+      }
+    ' "$input" > "$output" || die "release record failed exact validation"
+  run_protected_script scripts/validate-release-record.sh "$output" "$tag" "$default_sha" "$state" >/dev/null
+}
+
+release_identity() {
+  jq -S 'del(.state, .draft, .published_at, .updated_at)' "$1"
+}
+
+fetch_release_record() {
+  local release_id="$1" tag="$2" state="$3" notes="$4" output="$5" raw
+  assert_js_safe_positive_integer "$release_id" "release ID"
+  raw="$(mktemp "${TMPDIR:-/tmp}/goplaces-release-record.XXXXXX")"
+  gh_api "repos/${REPOSITORY}/releases/${release_id}" > "$raw"
+  canonical_release_record "$raw" "$output" "$tag" "$state" "$notes"
+  rm -f "$raw"
+}
+
+freeze_initial_draft() {
+  local tag="$1" notes="$2" release_id record_tmp intent
+  intent="${release_state_dir}/draft-intent.json"
+  validate_draft_intent "$tag" "$notes"
+  release_id="$(resolve_intended_draft_id_with_retry "$tag")"
+  [[ -n "$release_id" ]] || die "draft producer did not create an exact intended release"
+  record_tmp="$(mktemp "${release_state_dir%/*}/.draft-release.XXXXXX")"
+  fetch_release_record "$release_id" "$tag" draft "$notes" "$record_tmp"
+  [[ ! -e "${release_state_dir}/draft-release.json" && ! -L "${release_state_dir}/draft-release.json" ]] || die "frozen draft state already exists"
+  chmod 400 "$record_tmp"
+  mv "$record_tmp" "${release_state_dir}/draft-release.json"
+}
+
+load_frozen_release_id() {
+  local record="${release_state_dir}/draft-release.json"
+  require_regular_file "$record"
+  jq -er '.id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$record"
+}
+
+verify_frozen_release() {
+  local tag="$1" state="$2" notes="$3" output="$4" release_id live_identity frozen_identity frozen_record
+  release_id="$(load_frozen_release_id)"
+  fetch_release_record "$release_id" "$tag" "$state" "$notes" "$output"
+  live_identity="$(release_identity "$output")"
+  frozen_record="${release_state_dir}/draft-release.json"
+  require_regular_file "$frozen_record"
+  frozen_identity="$(release_identity "$frozen_record")"
+  [[ "$live_identity" == "$frozen_identity" ]] || die "numeric release or asset identity changed"
+}
+
+verify_frozen_release_current_state() {
+  local tag="$1" notes="$2" output="$3" release_id raw draft state live_identity frozen_identity frozen_record
+  release_id="$(load_frozen_release_id)"
+  raw="$(mktemp "${TMPDIR:-/tmp}/goplaces-release-current.XXXXXX")"
+  gh_api "repos/${REPOSITORY}/releases/${release_id}" > "$raw"
+  draft="$(jq -er '.draft | select(type == "boolean")' "$raw")" || die "release draft state is malformed"
+  if [[ "$draft" == true ]]; then state=draft; else state=published; fi
+  canonical_release_record "$raw" "$output" "$tag" "$state" "$notes"
+  rm -f "$raw"
+  live_identity="$(release_identity "$output")"
+  frozen_record="${release_state_dir}/draft-release.json"
+  require_regular_file "$frozen_record"
+  frozen_identity="$(release_identity "$frozen_record")"
+  [[ "$live_identity" == "$frozen_identity" ]] || die "numeric release or asset identity changed"
+  printf '%s\n' "$state"
+}
+
+validate_publish_intent() {
+  local tag="$1" release_id="$2" draft_record="$3" intent="${release_state_dir}/publish-intent.json"
+  require_regular_file "$intent"
+  jq -e \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg draft_sha256 "$(sha256_file "$draft_record")" '
+      select(.schema == "goplaces-publish-intent-v1" and .tag == $tag and .tag_object == $object and
+        .tag_commit == $commit and .default_sha == $main and .release_id == $release_id and
+        .draft_record_sha256 == $draft_sha256)
+    ' "$intent" >/dev/null || die "publish intent differs from the exact verified draft"
+}
+
+prepare_publish_intent() {
+  local tag="$1" release_id="$2" draft_record="$3" intent="${release_state_dir}/publish-intent.json" tmp
+  if [[ -e "$intent" || -L "$intent" ]]; then
+    validate_publish_intent "$tag" "$release_id" "$draft_record"
+    return 0
+  fi
+  tmp="$(mktemp "${release_state_dir%/*}/.publish-intent.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg draft_sha256 "$(sha256_file "$draft_record")" \
+    '{schema:"goplaces-publish-intent-v1",tag:$tag,tag_object:$object,tag_commit:$commit,default_sha:$main,
+      release_id:$release_id,draft_record_sha256:$draft_sha256}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$intent" && ! -L "$intent" ]] || die "publish intent appeared concurrently"
+  mv "$tmp" "$intent"
+  validate_publish_intent "$tag" "$release_id" "$draft_record"
+}
+
+workflow_record() {
+  local repository="$1" workflow="$2" output="$3" workflow_file
+  workflow_file="${workflow##*/}"
+  [[ "$workflow" == ".github/workflows/${workflow_file}" && "$workflow_file" =~ ^[A-Za-z0-9._-]+\.(yml|yaml)$ ]] ||
+    die "workflow path is not a canonical top-level Actions workflow"
+  gh_api "repos/${repository}/actions/workflows/${workflow_file}" > "$output"
+  jq -e --arg path "$workflow" '
+    select(.id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .) |
+    select(.path == $path) |
+    select(.state == "active")
+  ' "$output" >/dev/null || die "workflow record is not the exact active canonical workflow"
+}
+
+fetch_workflow_runs() {
+  local repository="$1" workflow_id="$2" branch="$3" output="$4" pages
+  assert_js_safe_positive_integer "$workflow_id" "workflow ID"
+  pages="$(gh_api --paginate "repos/${repository}/actions/workflows/${workflow_id}/runs?event=workflow_dispatch&branch=${branch}&per_page=100")"
+  jq -es '
+    def safe_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
+    [.[] | .workflow_runs[]] as $runs |
+    if all($runs[]; (.id | safe_integer) and (.workflow_id | safe_integer)) then
+      $runs | sort_by(.id) | group_by(.id) |
+      {workflow_runs: map(if (unique | length) == 1 then .[0] else error("conflicting duplicate workflow run ID") end)}
+    else error("unsafe workflow or run ID") end
+  ' <<<"$pages" > "$output" || die "workflow run pagination is malformed or conflicting"
+}
+
+list_workflow_run_ids() {
+  local repository="$1" workflow_id="$2" branch="$3" output="$4"
+  fetch_workflow_runs "$repository" "$workflow_id" "$branch" "$output"
+  jq -e '[.workflow_runs[].id] | all(.[]; type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$output" >/dev/null || die "workflow run inventory is malformed"
+  jq '[.workflow_runs[].id] | unique | sort' "$output"
+}
+
+get_run_with_retry() {
+  local repository="$1" run_id="$2" output="$3"
+  assert_js_safe_positive_integer "$run_id" "workflow run ID"
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if gh_api "repos/${repository}/actions/runs/${run_id}" > "$output" 2>/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  die "dispatched workflow run did not become readable: $run_id"
+}
+
+assert_exact_run() {
+  local file="$1" run_id="$2" workflow_id="$3" path="$4" title="$5" branch="$6" sha="$7" require_success="$8"
+  assert_js_safe_positive_integer "$run_id" "workflow run ID"
+  assert_js_safe_positive_integer "$workflow_id" "workflow ID"
+  jq -e \
+    --argjson run_id "$run_id" \
+    --argjson workflow_id "$workflow_id" \
+    --arg path "$path" \
+    --arg title "$title" \
+    --arg branch "$branch" \
+    --arg sha "$sha" \
+    --arg success "$require_success" '
+      select(.id == $run_id and (.id <= 9007199254740991)) |
+      select(.workflow_id == $workflow_id and (.workflow_id <= 9007199254740991)) |
+      select(.path == $path) |
+      select(.display_title == $title) |
+      select(.event == "workflow_dispatch") |
+      select(.head_branch == $branch) |
+      select(.head_sha == $sha) |
+      if $success == "true" then select(.status == "completed" and .conclusion == "success") else . end
+    ' "$file" >/dev/null || die "workflow run is not bound to the exact dispatch"
+}
+
+newest_matching_run_id() {
+  local file="$1" workflow_id="$2" path="$3" title="$4" branch="$5" sha="$6"
+  assert_js_safe_positive_integer "$workflow_id" "workflow ID"
+  jq -er \
+    --argjson workflow_id "$workflow_id" \
+    --arg path "$path" \
+    --arg title "$title" \
+    --arg branch "$branch" \
+    --arg sha "$sha" '
+      def safe_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
+      if all(.workflow_runs[]; (.id | safe_integer) and (.workflow_id | safe_integer)) then . else error("unsafe workflow or run ID") end |
+      [.workflow_runs[] | select(
+        .workflow_id == $workflow_id and .display_title == $title and
+        .event == "workflow_dispatch" and .status == "completed" and .conclusion == "success"
+      )] | sort_by([.created_at, .id]) | last |
+      select(.path == $path and .head_branch == $branch and .head_sha == $sha) | .id |
+      select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)
+    ' "$file" || die "no exact successful verifier proof run exists"
+}
+
+parse_new_dispatch_id() {
+  local response="$1" seen="$2" label="$3" repository="$4" run_id
+  jq -e 'type == "array" and all(.[]; type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$seen" >/dev/null || die "$label pre-dispatch run inventory is malformed"
+  run_id="$(jq -er --arg repo "$repository" '
+    select((keys | sort) == ["html_url","run_url","workflow_run_id"]) |
+    select(.workflow_run_id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .) |
+    select(.run_url == ("https://api.github.com/repos/" + $repo + "/actions/runs/" + (.workflow_run_id | tostring))) |
+    select(.html_url == ("https://github.com/" + $repo + "/actions/runs/" + (.workflow_run_id | tostring))) |
+    .workflow_run_id
+  ' "$response")" || die "$label dispatch response lacks exact numeric run identity and URLs"
+  if jq -e --argjson id "$run_id" 'index($id) != null' "$seen" >/dev/null; then
+    die "$label dispatch returned a pre-existing workflow run ID"
+  fi
+  printf '%s\n' "$run_id"
+}
+
+verifier_dispatch_nonce() {
+  local tag="$1" state="$2" release_id="$3" record_sha256="$4" attempt="$5"
+  validate_tag "$tag"
+  [[ "$state" == draft || "$state" == published ]] || die "invalid verifier state"
+  assert_js_safe_positive_integer "$release_id" "release ID"
+  [[ "$record_sha256" =~ ^[0-9a-f]{64}$ ]] || die "invalid verifier release-record digest"
+  [[ "$attempt" =~ ^[1-9][0-9]*$ && "$attempt" -le 1000 ]] || die "invalid verifier attempt"
+  printf '%s\n' \
+    goplaces-verifier-intent-v1 "$tag" "$state" "$tag_object" "$tag_commit" "$default_sha" \
+    "$release_id" "$record_sha256" "$attempt" |
+    "$SHASUM_BIN" -a 256 | /usr/bin/awk '{print $1}'
+}
+
+dispatch_verifier() {
+  local tag="$1" state="$2" release_id="$3" record="$4"
+  local workflow_json workflow_id before_json seen_ids response_json run_id created_after expected_title run_json final_json runs_after newest_id state_tmp
+  local intent intent_tmp final_state recovery_runs candidates candidate_count recovered record_sha256
+  local attempt dispatch_nonce expected_nonce intent_created=false allow_new_dispatch=false bound_run_checked=false
+  local poll poll_limit terminal_status next_attempt
+  workflow_json="$(mktemp "${TMPDIR:-/tmp}/goplaces-workflow.XXXXXX")"
+  before_json="$(mktemp "${TMPDIR:-/tmp}/goplaces-runs-before.XXXXXX")"
+  seen_ids="$(mktemp "${TMPDIR:-/tmp}/goplaces-seen-ids.XXXXXX")"
+  response_json="$(mktemp "${TMPDIR:-/tmp}/goplaces-dispatch.XXXXXX")"
+  run_json="$(mktemp "${TMPDIR:-/tmp}/goplaces-run.XXXXXX")"
+  final_json="$(mktemp "${TMPDIR:-/tmp}/goplaces-run-final.XXXXXX")"
+  runs_after="$(mktemp "${TMPDIR:-/tmp}/goplaces-runs-after.XXXXXX")"
+  recovery_runs="$(mktemp "${TMPDIR:-/tmp}/goplaces-runs-recovery.XXXXXX")"
+  candidates="$(mktemp "${TMPDIR:-/tmp}/goplaces-run-candidates.XXXXXX")"
+  intent="${release_state_dir}/verifier-${state}-intent.json"
+  final_state="${release_state_dir}/verifier-${state}.json"
+  record_sha256="$(sha256_file "$record")"
+
+  workflow_record "$REPOSITORY" "$VERIFIER_WORKFLOW" "$workflow_json"
+  workflow_id="$(jq -er '.id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$workflow_json")"
+  [[ "$workflow_id" == "$VERIFIER_WORKFLOW_ID" ]] || die "verifier workflow numeric identity moved"
+
+  if [[ -e "$final_state" || -L "$final_state" ]]; then
+    require_verifier_state "$tag" "$state" "$release_id" "$record"
+    run_release_verifier_check "$tag" "$state" "$release_id" "$(jq -r '.workflow_run_id' "$final_state")"
+    return 0
+  fi
+
+  if [[ -e "$intent" || -L "$intent" ]]; then
+    require_regular_file "$intent"
+    attempt="$(jq -er '.attempt | select(type == "number" and . >= 1 and . <= 1000 and floor == .)' "$intent")" ||
+      die "verifier dispatch intent attempt is malformed"
+    expected_nonce="$(verifier_dispatch_nonce "$tag" "$state" "$release_id" "$record_sha256" "$attempt")"
+    expected_title="Verify ${tag} ${state} release ${release_id} nonce ${expected_nonce}"
+    jq -e \
+      --arg tag "$tag" --arg state "$state" --arg object "$tag_object" --arg commit "$tag_commit" \
+      --arg main "$default_sha" --argjson release_id "$release_id" --argjson workflow_id "$workflow_id" \
+      --arg record_sha256 "$record_sha256" --arg title "$expected_title" --arg nonce "$expected_nonce" --argjson attempt "$attempt" '
+        select(.schema == "goplaces-verifier-intent-v1" and .tag == $tag and .state == $state and
+          .tag_object == $object and .tag_commit == $commit and .default_sha == $main and
+          .release_id == $release_id and .workflow_id == $workflow_id and
+          .release_record_sha256 == $record_sha256 and .attempt == $attempt and
+          .dispatch_nonce == $nonce and .expected_title == $title and
+          (.created_after | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
+          (.seen_run_ids as $seen | .failed_run_ids as $failed |
+            ($seen | type) == "array" and
+            all($seen[]; type == "number" and . > 0 and . <= 9007199254740991 and floor == .) and
+            (($seen | unique | length) == ($seen | length)) and
+            ($failed | type) == "array" and
+            all($failed[]; type == "number" and . > 0 and . <= 9007199254740991 and floor == .) and
+            (($failed | unique | length) == ($failed | length)) and
+            all($failed[]; . as $id | $seen | index($id) != null)))
+      ' "$intent" >/dev/null || die "verifier dispatch intent differs from the frozen release"
+    jq '.seen_run_ids' "$intent" > "$seen_ids"
+    created_after="$(jq -er '.created_after' "$intent")"
+  else
+    list_workflow_run_ids "$REPOSITORY" "$workflow_id" "$default_branch" "$before_json" > "$seen_ids"
+    created_after="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    attempt=1
+    dispatch_nonce="$(verifier_dispatch_nonce "$tag" "$state" "$release_id" "$record_sha256" "$attempt")"
+    expected_title="Verify ${tag} ${state} release ${release_id} nonce ${dispatch_nonce}"
+    intent_tmp="$(mktemp "${release_state_dir%/*}/.verifier-intent.XXXXXX")"
+    jq -n \
+      --arg tag "$tag" --arg state "$state" --arg object "$tag_object" --arg commit "$tag_commit" \
+      --arg main "$default_sha" --argjson release_id "$release_id" --argjson workflow_id "$workflow_id" \
+      --arg record_sha256 "$record_sha256" --arg title "$expected_title" --arg created_after "$created_after" \
+      --arg nonce "$dispatch_nonce" --argjson attempt "$attempt" \
+      --slurpfile seen "$seen_ids" \
+      '{schema:"goplaces-verifier-intent-v1",tag:$tag,state:$state,tag_object:$object,tag_commit:$commit,
+        default_sha:$main,release_id:$release_id,workflow_id:$workflow_id,release_record_sha256:$record_sha256,
+        attempt:$attempt,dispatch_nonce:$nonce,expected_title:$title,created_after:$created_after,
+        seen_run_ids:$seen[0],failed_run_ids:[]}' > "$intent_tmp"
+    chmod 400 "$intent_tmp"
+    [[ ! -e "$intent" && ! -L "$intent" ]] || die "verifier dispatch intent appeared concurrently"
+    mv "$intent_tmp" "$intent"
+    intent_created=true
+  fi
+
+  attempt="$(jq -er '.attempt' "$intent")"
+  dispatch_nonce="$(jq -er '.dispatch_nonce' "$intent")"
+  expected_title="Verify ${tag} ${state} release ${release_id} nonce ${dispatch_nonce}"
+  run_id="$(jq -r '.workflow_run_id // empty' "$intent")"
+  recovered="$(jq -r 'if has("recovered") then .recovered else empty end' "$intent")"
+  if [[ -n "$run_id" ]]; then
+    assert_js_safe_positive_integer "$run_id" "stored verifier run ID"
+    [[ "$recovered" == true || "$recovered" == false ]] || die "stored verifier recovery state is malformed"
+    if [[ "$recovered" == false ]]; then
+      jq '{workflow_run_id,run_url,html_url}' "$intent" > "$response_json"
+      parse_new_dispatch_id "$response_json" "$seen_ids" verifier "$REPOSITORY" >/dev/null
+    fi
+    get_run_with_retry "$REPOSITORY" "$run_id" "$run_json"
+    assert_exact_run "$run_json" "$run_id" "$workflow_id" "$VERIFIER_WORKFLOW" "$expected_title" "$default_branch" "$default_sha" false
+    if [[ "$recovered" == true ]]; then
+      EXPECTED_RELEASE_STATE="$state" EXPECTED_TAG_COMMIT="$tag_commit" EXPECTED_TAG_OBJECT="$tag_object" \
+        EXPECTED_RUN_ID="$run_id" EXPECTED_DISPATCH_NONCE="$dispatch_nonce" RECOVERED_DISPATCH=1 \
+        run_protected_script scripts/validate-verifier-dispatch.sh "$run_json" "$workflow_json" "$default_branch" "$default_sha" "$tag" "$release_id" "$seen_ids" >/dev/null
+    else
+      EXPECTED_RELEASE_STATE="$state" EXPECTED_TAG_COMMIT="$tag_commit" EXPECTED_TAG_OBJECT="$tag_object" \
+        EXPECTED_RUN_ID="$run_id" EXPECTED_DISPATCH_NONCE="$dispatch_nonce" DISPATCH_RESPONSE_JSON="$response_json" \
+        run_protected_script scripts/validate-verifier-dispatch.sh "$run_json" "$workflow_json" "$default_branch" "$default_sha" "$tag" "$release_id" "$seen_ids" >/dev/null
+    fi
+    terminal_status="$(jq -r 'if .status == "completed" and .conclusion != "success" then "failed" else "active" end' "$run_json")"
+    if [[ "$terminal_status" == failed ]]; then
+      next_attempt=$((attempt + 1))
+      [[ "$next_attempt" -le 1000 ]] || die "verifier attempt limit reached"
+      dispatch_nonce="$(verifier_dispatch_nonce "$tag" "$state" "$release_id" "$record_sha256" "$next_attempt")"
+      expected_title="Verify ${tag} ${state} release ${release_id} nonce ${dispatch_nonce}"
+      created_after="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      intent_tmp="$(mktemp "${release_state_dir%/*}/.verifier-intent-rollover.XXXXXX")"
+      jq --argjson old_run_id "$run_id" --argjson attempt "$next_attempt" --arg nonce "$dispatch_nonce" \
+        --arg title "$expected_title" --arg created_after "$created_after" '
+          del(.workflow_run_id,.run_url,.html_url,.recovered) |
+          .attempt=$attempt | .dispatch_nonce=$nonce | .expected_title=$title | .created_after=$created_after |
+          .seen_run_ids=((.seen_run_ids + [$old_run_id]) | unique | sort) |
+          .failed_run_ids=((.failed_run_ids + [$old_run_id]) | unique | sort)
+        ' "$intent" > "$intent_tmp"
+      chmod 400 "$intent_tmp"
+      mv "$intent_tmp" "$intent"
+      jq '.seen_run_ids' "$intent" > "$seen_ids"
+      attempt="$next_attempt"
+      run_id=""
+      recovered=""
+      allow_new_dispatch=true
+    else
+      bound_run_checked=true
+    fi
+  fi
+
+  if [[ -z "$run_id" ]]; then
+    poll_limit=1
+    if [[ "$intent_created" != true && "$allow_new_dispatch" != true ]]; then
+      poll_limit=15
+    fi
+    for ((poll = 1; poll <= poll_limit; poll++)); do
+      fetch_workflow_runs "$REPOSITORY" "$workflow_id" "$default_branch" "$recovery_runs"
+      jq \
+        --slurpfile seen "$seen_ids" --argjson workflow_id "$workflow_id" --arg path "$VERIFIER_WORKFLOW" \
+        --arg title "$expected_title" --arg branch "$default_branch" --arg sha "$default_sha" '
+          [.workflow_runs[] | select(
+            (.id as $id | $seen[0] | index($id)) == null and
+            .workflow_id == $workflow_id and .path == $path and .display_title == $title and
+            .event == "workflow_dispatch" and .head_branch == $branch and .head_sha == $sha
+          )] | sort_by(.created_at, .id)
+        ' "$recovery_runs" > "$candidates"
+      candidate_count="$(jq 'length' "$candidates")"
+      [[ "$candidate_count" == 0 || "$candidate_count" == 1 ]] || die "verifier intent matches multiple unseen workflow runs"
+      if [[ "$candidate_count" == 1 ]]; then
+        run_id="$(jq -er '.[0].id' "$candidates")"
+        recovered=true
+        break
+      fi
+      if ((poll < poll_limit)); then sleep 2; fi
+    done
+    if [[ -z "$run_id" ]]; then
+      if [[ "$intent_created" != true && "$allow_new_dispatch" != true ]]; then
+        die "existing unbound verifier intent has no visible exact run; refusing a duplicate dispatch"
+      fi
+      verify_remote_tag "$tag" "$default_sha"
+      recheck_source_default
+      gh_api --method POST "repos/${REPOSITORY}/actions/workflows/${workflow_id}/dispatches" \
+        -f "ref=${default_branch}" \
+        -f "inputs[tag]=${tag}" \
+        -f "inputs[state]=${state}" \
+        -f "inputs[expected_default_sha]=${default_sha}" \
+        -f "inputs[expected_tag_commit]=${tag_commit}" \
+        -f "inputs[expected_tag_object]=${tag_object}" \
+        -f "inputs[release_id]=${release_id}" \
+        -f "inputs[dispatch_nonce]=${dispatch_nonce}" > "$response_json"
+      run_id="$(parse_new_dispatch_id "$response_json" "$seen_ids" verifier "$REPOSITORY")"
+      recovered=false
+    fi
+    intent_tmp="$(mktemp "${release_state_dir%/*}/.verifier-intent-bound.XXXXXX")"
+    if [[ "$recovered" == true ]]; then
+      jq --argjson run_id "$run_id" '. + {workflow_run_id:$run_id,recovered:true}' "$intent" > "$intent_tmp"
+    else
+      jq --slurpfile response "$response_json" '
+        . + {workflow_run_id:$response[0].workflow_run_id,run_url:$response[0].run_url,
+          html_url:$response[0].html_url,recovered:false}
+      ' "$intent" > "$intent_tmp"
+    fi
+    chmod 400 "$intent_tmp"
+    mv "$intent_tmp" "$intent"
+  fi
+
+  if [[ "$bound_run_checked" != true ]]; then
+    get_run_with_retry "$REPOSITORY" "$run_id" "$run_json"
+    assert_exact_run "$run_json" "$run_id" "$workflow_id" "$VERIFIER_WORKFLOW" "$expected_title" "$default_branch" "$default_sha" false
+    if [[ "$recovered" == true ]]; then
+      EXPECTED_RELEASE_STATE="$state" EXPECTED_TAG_COMMIT="$tag_commit" EXPECTED_TAG_OBJECT="$tag_object" \
+        EXPECTED_RUN_ID="$run_id" EXPECTED_DISPATCH_NONCE="$dispatch_nonce" RECOVERED_DISPATCH=1 \
+        run_protected_script scripts/validate-verifier-dispatch.sh "$run_json" "$workflow_json" "$default_branch" "$default_sha" "$tag" "$release_id" "$seen_ids" >/dev/null
+    else
+      EXPECTED_RELEASE_STATE="$state" EXPECTED_TAG_COMMIT="$tag_commit" EXPECTED_TAG_OBJECT="$tag_object" \
+        EXPECTED_RUN_ID="$run_id" EXPECTED_DISPATCH_NONCE="$dispatch_nonce" DISPATCH_RESPONSE_JSON="$response_json" \
+        run_protected_script scripts/validate-verifier-dispatch.sh "$run_json" "$workflow_json" "$default_branch" "$default_sha" "$tag" "$release_id" "$seen_ids" >/dev/null
+    fi
+  fi
+
+  gh_watch_run "$REPOSITORY" "$run_id"
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+
+  gh_api "repos/${REPOSITORY}/actions/runs/${run_id}" > "$final_json"
+  assert_exact_run "$final_json" "$run_id" "$workflow_id" "$VERIFIER_WORKFLOW" "$expected_title" "$default_branch" "$default_sha" true
+  if [[ "$recovered" == true ]]; then
+    EXPECTED_RELEASE_STATE="$state" EXPECTED_TAG_COMMIT="$tag_commit" EXPECTED_TAG_OBJECT="$tag_object" \
+      EXPECTED_RUN_ID="$run_id" EXPECTED_DISPATCH_NONCE="$dispatch_nonce" RECOVERED_DISPATCH=1 REQUIRE_SUCCESS=1 \
+      run_protected_script scripts/validate-verifier-dispatch.sh "$final_json" "$workflow_json" "$default_branch" "$default_sha" "$tag" "$release_id" "$seen_ids" >/dev/null
+  else
+    EXPECTED_RELEASE_STATE="$state" EXPECTED_TAG_COMMIT="$tag_commit" EXPECTED_TAG_OBJECT="$tag_object" \
+      EXPECTED_RUN_ID="$run_id" EXPECTED_DISPATCH_NONCE="$dispatch_nonce" DISPATCH_RESPONSE_JSON="$response_json" REQUIRE_SUCCESS=1 \
+      run_protected_script scripts/validate-verifier-dispatch.sh "$final_json" "$workflow_json" "$default_branch" "$default_sha" "$tag" "$release_id" "$seen_ids" >/dev/null
+  fi
+
+  fetch_workflow_runs "$REPOSITORY" "$workflow_id" "$default_branch" "$runs_after"
+  newest_id="$(newest_matching_run_id "$runs_after" "$workflow_id" "$VERIFIER_WORKFLOW" "$expected_title" "$default_branch" "$default_sha")"
+  [[ "$newest_id" == "$run_id" ]] || die "newest exact proof is not the returned dispatch run"
+
+  run_release_verifier_check "$tag" "$state" "$release_id" "$run_id"
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+
+  state_tmp="$(mktemp "${release_state_dir%/*}/.verifier-${state}.XXXXXX")"
+  jq -n \
+    --argjson workflow_id "$workflow_id" \
+    --argjson workflow_run_id "$run_id" \
+    --arg state "$state" \
+    --arg tag "$tag" \
+    --arg tag_object "$tag_object" \
+    --arg tag_commit "$tag_commit" \
+    --arg default_sha "$default_sha" \
+    --argjson release_id "$release_id" \
+    --arg release_record_sha256 "$record_sha256" \
+    --argjson verifier_attempt "$attempt" \
+    --arg dispatch_nonce "$dispatch_nonce" \
+    --slurpfile release_record "$record" \
+    '{workflow_id:$workflow_id, workflow_run_id:$workflow_run_id, state:$state, tag:$tag, tag_object:$tag_object, tag_commit:$tag_commit,
+      default_sha:$default_sha, release_id:$release_id, release_record_sha256:$release_record_sha256,
+      verifier_attempt:$verifier_attempt, dispatch_nonce:$dispatch_nonce, release_record:$release_record[0]}' > "$state_tmp"
+  chmod 400 "$state_tmp"
+  mv "$state_tmp" "$final_state"
+}
+
+run_release_verifier_check() {
+  local tag="$1" state="$2" release_id="$3" expected_run_id="$4" token intent final_state dispatch_nonce
+  intent="${release_state_dir}/verifier-${state}-intent.json"
+  final_state="${release_state_dir}/verifier-${state}.json"
+  if [[ -e "$final_state" || -L "$final_state" ]]; then
+    require_regular_file "$final_state"
+    dispatch_nonce="$(jq -er --argjson run_id "$expected_run_id" '
+      select(.workflow_run_id == $run_id) | .dispatch_nonce | select(type == "string" and test("^[0-9a-f]{64}$"))
+    ' "$final_state")" || die "verifier proof is not bound to the expected run"
+  else
+    require_regular_file "$intent"
+    dispatch_nonce="$(jq -er --argjson run_id "$expected_run_id" '
+      select(.workflow_run_id == $run_id) | .dispatch_nonce | select(type == "string" and test("^[0-9a-f]{64}$"))
+    ' "$intent")" || die "verifier intent is not bound to the expected run"
+  fi
+  token=$(gh_auth_token) || die "could not obtain GitHub authentication for verifier proof"
+  [[ -n "$token" ]] || die "GitHub authentication token is empty"
+  GH_TOKEN="$token" EXPECTED_RELEASE_STATE="$state" EXPECTED_DISPATCH_NONCE="$dispatch_nonce" \
+    run_protected_script scripts/check-release-verifier.sh "$tag" "$tag_object" "$tag_commit" "$release_id" "$default_sha" "$expected_run_id" >/dev/null
+  unset token
+}
+
+require_verifier_state() {
+  local tag="$1" state="$2" release_id="$3" record="$4" file dispatch_nonce expected_nonce attempt run_id digest
+  file="${release_state_dir}/verifier-${state}.json"
+  require_regular_file "$file"
+  run_id="$(jq -er '.workflow_run_id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$file")"
+  dispatch_nonce="$(jq -er '.dispatch_nonce | select(type == "string" and test("^[0-9a-f]{64}$"))' "$file")"
+  attempt="$(jq -er '.verifier_attempt | select(type == "number" and . >= 1 and . <= 1000 and floor == .)' "$file")"
+  digest="$(sha256_file "$record")"
+  expected_nonce="$(verifier_dispatch_nonce "$tag" "$state" "$release_id" "$digest" "$attempt")"
+  [[ "$dispatch_nonce" == "$expected_nonce" ]] || die "stored verifier nonce does not match its exact attempt"
+  jq -e \
+    --arg tag "$tag" --arg state "$state" --arg tag_object "$tag_object" --arg tag_commit "$tag_commit" \
+    --arg default_sha "$default_sha" --argjson release_id "$release_id" --arg digest "$digest" \
+    --argjson workflow_id "$VERIFIER_WORKFLOW_ID" --argjson run_id "$run_id" --arg nonce "$dispatch_nonce" --argjson attempt "$attempt" \
+    --slurpfile record "$record" '
+      select(.tag == $tag and .state == $state and .tag_object == $tag_object and .tag_commit == $tag_commit and
+        .default_sha == $default_sha and .release_id == $release_id and .release_record_sha256 == $digest and
+        .release_record == $record[0] and .workflow_id == $workflow_id and .workflow_run_id == $run_id and
+        .dispatch_nonce == $nonce and .verifier_attempt == $attempt)
+    ' "$file" >/dev/null || die "stored verifier proof is not bound to the frozen release"
+}
+
+extract_verified_release_record() {
+  local state="$1" output="$2" file
+  file="${release_state_dir}/verifier-${state}.json"
+  require_regular_file "$file"
+  jq -eS '.release_record | select(type == "object")' "$file" > "$output" || die "stored verifier release record is malformed"
+}
+
+validate_govulncheck_build_info() {
+  local build_info="$1" executable="$2"
+  "$GREP_BIN" -Fqx "${executable}: ${EXPECTED_GO_VERSION}" <<< "$build_info" || die "govulncheck was not built with ${EXPECTED_GO_VERSION}"
+  "$GREP_BIN" -Fqx $'\tpath\tgolang.org/x/vuln/cmd/govulncheck' <<< "$build_info" || die "govulncheck command path is not exact"
+  "$GREP_BIN" -Fqx $'\tmod\tgolang.org/x/vuln\tv1.5.0\t'"$EXPECTED_GOVULNCHECK_MODULE_SUM" <<< "$build_info" ||
+    die "govulncheck module identity is not the reviewed v1.5.0 sum"
+}
+
+run_check_suite() {
+  local scratch source go_bin go_mod_cache actionlint_bin shellcheck_bin govulncheck_bin goreleaser_bin producer_path audit_bin
+  local actionlint_source shellcheck_source actionlint_sha shellcheck_sha govulncheck_sha actionlint_identity shellcheck_identity govulncheck_identity
+  local govulncheck_build_info
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == "1" && "${GOPLACES_RELEASE_LOCAL_SKIP_PROOFS:-0}" == "1" ]]; then
+    return 0
+  fi
+
+  need actionlint
+  need shellcheck
+  actionlint_source="$(resolve_executable actionlint)"
+  shellcheck_source="$(resolve_executable shellcheck)"
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
+    [[ "$actionlint_source" == /opt/homebrew/Cellar/actionlint/1.7.12/bin/actionlint || "$actionlint_source" == /usr/local/Cellar/actionlint/1.7.12/bin/actionlint ]] ||
+      die "actionlint must resolve to the reviewed 1.7.12 Cellar binary"
+    [[ "$shellcheck_source" == /opt/homebrew/Cellar/shellcheck/0.11.0/bin/shellcheck || "$shellcheck_source" == /usr/local/Cellar/shellcheck/0.11.0/bin/shellcheck ]] ||
+      die "shellcheck must resolve to the reviewed 0.11.0 Cellar binary"
+  fi
+  resolve_producer_tools
+  goreleaser_bin="$producer_goreleaser"
+  go_bin="$producer_go"
+  producer_path="${go_bin%/*}:${SECRET_SCOPE_SYSTEM_PATH}"
+  audit_bin="$($MKTEMP_BIN -d "${git_isolation_root}/audit-bin.XXXXXX")"
+  /bin/chmod 700 "$audit_bin"
+  /bin/cp "$actionlint_source" "${audit_bin}/actionlint"
+  /bin/cp "$shellcheck_source" "${audit_bin}/shellcheck"
+  /bin/chmod 500 "${audit_bin}/actionlint" "${audit_bin}/shellcheck"
+  actionlint_bin="${audit_bin}/actionlint"
+  shellcheck_bin="${audit_bin}/shellcheck"
+  govulncheck_bin="${audit_bin}/govulncheck"
+  require_canonical_executable "$actionlint_bin" "frozen actionlint"
+  require_canonical_executable "$shellcheck_bin" "frozen shellcheck"
+  "$actionlint_bin" -version 2>&1 | "$GREP_BIN" -Eq '(^|[^0-9])1\.7\.12([^0-9]|$)' || die "actionlint must be v1.7.12"
+  "$shellcheck_bin" --version 2>&1 | "$GREP_BIN" -Eq '^version: 0\.11\.0$' || die "shellcheck must be v0.11.0"
+
+  scratch="$($MKTEMP_BIN -d "${git_isolation_root}/release-check.XXXXXX")"
+  source="$protected_source_root"
+  [[ -d "$source" && ! -L "$source" ]] || die "protected test source is missing"
+  go_mod_cache="${scratch}/gomodcache"
+  mkdir -p "${scratch}/home" "${scratch}/tmp" "${scratch}/gocache" "$go_mod_cache"
+
+  local -a download_env=(
+    /usr/bin/env -i PATH="$producer_path" HOME="${scratch}/home" TMPDIR="${scratch}/tmp" LC_ALL=C TZ=UTC
+    GOENV=off GOWORK=off GOFLAGS=-mod=readonly GOCACHE="${scratch}/gocache" GOMODCACHE="$go_mod_cache"
+    GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOTOOLCHAIN=local GOVCS='*:off' GOTELEMETRY=off
+  )
+  (
+    cd "$source"
+    "${download_env[@]}" "$go_bin" mod download all
+  )
+  "${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+  /bin/chmod 500 "$govulncheck_bin"
+  require_canonical_executable "$govulncheck_bin" "frozen govulncheck"
+  govulncheck_build_info="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${scratch}/home" TMPDIR="${scratch}/tmp" LC_ALL=C TZ=UTC "$go_bin" version -m "$govulncheck_bin")" ||
+    die "could not inspect frozen govulncheck build information"
+  validate_govulncheck_build_info "$govulncheck_build_info" "$govulncheck_bin"
+  actionlint_sha="$(pinned_sha256_file "$actionlint_bin")"
+  shellcheck_sha="$(pinned_sha256_file "$shellcheck_bin")"
+  govulncheck_sha="$(pinned_sha256_file "$govulncheck_bin")"
+  actionlint_identity="$(pinned_file_identity "$actionlint_bin")"
+  shellcheck_identity="$(pinned_file_identity "$shellcheck_bin")"
+  govulncheck_identity="$(pinned_file_identity "$govulncheck_bin")"
+
+  local -a clean_env=(
+    /usr/bin/env -i PATH="$producer_path" HOME="${scratch}/home" TMPDIR="${scratch}/tmp" LC_ALL=C TZ=UTC
+    GOENV=off GOWORK=off GOFLAGS=-mod=readonly GOCACHE="${scratch}/gocache" GOMODCACHE="$go_mod_cache"
+    GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOVCS='*:off' GOTELEMETRY=off
+  )
+  [[ "$(pinned_sha256_file "$actionlint_bin")" == "$actionlint_sha" && "$(pinned_file_identity "$actionlint_bin")" == "$actionlint_identity" ]] || die "frozen actionlint changed before proof"
+  [[ "$(pinned_sha256_file "$shellcheck_bin")" == "$shellcheck_sha" && "$(pinned_file_identity "$shellcheck_bin")" == "$shellcheck_identity" ]] || die "frozen shellcheck changed before proof"
+  [[ "$(pinned_sha256_file "$govulncheck_bin")" == "$govulncheck_sha" && "$(pinned_file_identity "$govulncheck_bin")" == "$govulncheck_identity" ]] || die "frozen govulncheck changed before proof"
+  (
+    cd "$source"
+    "${clean_env[@]}" "$go_bin" test ./...
+    "${clean_env[@]}" CGO_ENABLED=1 "$go_bin" test -race ./...
+    "${clean_env[@]}" "$go_bin" vet ./...
+    "${clean_env[@]}" ./scripts/check-coverage.sh
+    "${clean_env[@]}" "$govulncheck_bin" -db=https://vuln.go.dev -test ./...
+    "${clean_env[@]}" "$actionlint_bin"
+    "${clean_env[@]}" "$shellcheck_bin" scripts/*.sh
+    "${clean_env[@]}" "$goreleaser_bin" check --config .goreleaser.yml
+    "${clean_env[@]}" "$goreleaser_bin" release --snapshot --clean --skip=publish --config .goreleaser.yml
+    "${clean_env[@]}" GO_BIN="$go_bin" GOVULNCHECK_BIN="$govulncheck_bin" \
+      SNAPSHOT_EXPECTED_COMMIT="$default_sha" SNAPSHOT_REQUIRE_CLEAN=1 \
+      ./scripts/verify-snapshot-security.sh dist
+    "${clean_env[@]}" GO_BIN="$go_bin" ./scripts/test-reproducible-builds.sh dist
+    "${clean_env[@]}" ./scripts/test-security-ci.sh
+    [[ ! -x scripts/test-codesign-macos.sh ]] || "${clean_env[@]}" ./scripts/test-codesign-macos.sh
+    [[ ! -x scripts/test-release-assets.sh ]] || "${clean_env[@]}" ./scripts/test-release-assets.sh
+  )
+  /bin/chmod -R u+w "$scratch"
+  /bin/rm -rf "$scratch"
+}
+
+cleanup_git_isolation() {
+  if [[ -n "$git_isolation_root" && -d "$git_isolation_root" ]]; then
+    /bin/chmod -R u+w "$git_isolation_root" 2>/dev/null || true
+    /bin/rm -rf "$git_isolation_root"
+  fi
+}
+
+ensure_git_isolation() {
+  if [[ -n "$git_isolation_root" && -d "$git_isolation_root" ]]; then
+    return 0
+  fi
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 && -n "${GOPLACES_RELEASE_LOCAL_TEST_GIT_BIN:-}" ]]; then
+    git_binary="$GOPLACES_RELEASE_LOCAL_TEST_GIT_BIN"
+  else
+    git_binary="$SYSTEM_GIT_BIN"
+  fi
+  [[ "$git_binary" == /* && -x "$git_binary" && ! -L "$git_binary" ]] || die "pinned Git executable is unavailable"
+  git_isolation_root="$($MKTEMP_BIN -d "${TMPDIR:-/tmp}/goplaces-git-isolation.XXXXXX")"
+  git_isolation_root="$(cd "$git_isolation_root" && pwd -P)"
+  /bin/mkdir -p "${git_isolation_root}/home" "${git_isolation_root}/tmp"
+  trap cleanup_git_isolation EXIT HUP INT TERM
+}
+
+isolated_git() {
+  local name isolated_path="$SECRET_SCOPE_SYSTEM_PATH"
+  # Keep environment argv nonempty for macOS Bash 3.2 under nounset.
+  local -a test_environment=(LC_ALL=C)
+  ensure_git_isolation
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 && "$git_binary" != "$SYSTEM_GIT_BIN" ]]; then
+    die "production Git executable is not pinned"
+  fi
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    isolated_path="$PATH"
+    for name in MOCK_LOG MOCK_SHA MOCK_ORIGIN MOCK_BRANCH MOCK_GIT_STATUS MOCK_FRESH_STATUS MOCK_FIXTURE_ROOT; do
+      if [[ -n "${!name+x}" ]]; then
+        test_environment+=("${name}=${!name}")
+      fi
+    done
+  fi
+  /usr/bin/env -i \
+    "${test_environment[@]}" \
+    PATH="$isolated_path" \
+    HOME="${git_isolation_root}/home" \
+    TMPDIR="${git_isolation_root}/tmp" \
+    LC_ALL=C \
+    TZ=UTC \
+    GIT_CONFIG_NOSYSTEM=1 \
+    GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_NO_REPLACE_OBJECTS=1 \
+    GIT_TERMINAL_PROMPT=0 \
+    "$git_binary" -c core.hooksPath=/dev/null "$@"
+}
+
+trusted_is_ancestor() {
+  local repository="$1" ancestor="$2" descendant="$3" git_dir graft_path alternates_path replace_refs
+  [[ -d "$repository" && ! -L "$repository" ]] || die "ancestry repository is missing or a symlink"
+  assert_sha "$ancestor" "ancestry base"
+  assert_sha "$descendant" "ancestry head"
+  git_dir="$(isolated_git -C "$repository" rev-parse --absolute-git-dir)" || die "could not resolve ancestry Git directory"
+  [[ "$git_dir" == /* && -d "$git_dir" && ! -L "$git_dir" ]] || die "ancestry Git directory is unsafe"
+  graft_path="$(isolated_git -C "$repository" rev-parse --path-format=absolute --git-path info/grafts)" || die "could not resolve legacy graft path"
+  alternates_path="$(isolated_git -C "$repository" rev-parse --path-format=absolute --git-path objects/info/alternates)" || die "could not resolve alternate-object path"
+  [[ "$graft_path" == /* ]] || die "legacy graft path is not absolute"
+  [[ "$alternates_path" == /* ]] || die "alternate-object path is not absolute"
+  [[ "$graft_path" == "$git_dir"/* && "$alternates_path" == "$git_dir"/* ]] || die "ancestry metadata path escaped its Git directory"
+  [[ ! -e "$graft_path" && ! -L "$graft_path" ]] || die "legacy Git grafts are forbidden for ancestry decisions"
+  [[ ! -e "$alternates_path" && ! -L "$alternates_path" ]] || die "alternate Git object stores are forbidden for ancestry decisions"
+  replace_refs="$(isolated_git -C "$repository" for-each-ref --format='%(refname)' refs/replace/)" || die "could not inspect Git replacement refs"
+  [[ -z "$replace_refs" ]] || die "Git replacement refs are forbidden for ancestry decisions"
+  isolated_git -C "$repository" merge-base --is-ancestor "$ancestor" "$descendant" || die "expected protected commit ancestry is absent"
+}
+
+materialize_protected_file() {
+  local path="$1" output="$2" parent
+  [[ "$path" =~ ^[A-Za-z0-9._/-]+$ && "$path" != /* && "$path" != *..* ]] || die "unsafe protected file path"
+  parent="$(/usr/bin/dirname "$output")"
+  [[ -d "$parent" && ! -L "$parent" && ! -L "$output" ]] || die "protected file output path is unsafe"
+  isolated_git -C "$repo_root" show "${default_sha}:${path}" > "$output"
+  [[ -f "$output" && ! -L "$output" && -s "$output" ]] || die "protected file is missing from exact default commit: $path"
+}
+
+prepare_remote_source() {
+  local destination="$1" mode="$2" tag="${3:-}" status checkout_sha fetched_main tag_record
+  [[ ! -e "$destination" && ! -L "$destination" ]] || die "fresh release source destination already exists"
+  isolated_git init -q "$destination"
+  isolated_git -C "$destination" remote add origin "$EXPECTED_ORIGIN_HTTPS.git"
+  isolated_git -C "$destination" fetch --quiet --no-tags origin "+refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
+  fetched_main="$(isolated_git -C "$destination" rev-parse --verify "refs/remotes/origin/${default_branch}")"
+  [[ "$fetched_main" == "$default_sha" ]] || die "fresh remote source is not protected current main"
+  trusted_is_ancestor "$destination" "$default_sha" "$fetched_main"
+
+  case "$mode" in
+    pilot)
+      checkout_sha="$default_sha"
+      ;;
+    tagged)
+      validate_tag "$tag"
+      isolated_git -C "$destination" fetch --quiet --no-tags origin "+refs/tags/${tag}:refs/tags/${tag}"
+      [[ "$(isolated_git -C "$destination" rev-parse --verify "refs/tags/${tag}^{tag}")" == "$tag_object" ]] || die "fresh source tag object differs from frozen remote tag"
+      [[ "$(isolated_git -C "$destination" rev-parse --verify "refs/tags/${tag}^{commit}")" == "$tag_commit" ]] || die "fresh source tag commit differs from frozen remote tag"
+      trusted_is_ancestor "$destination" "$default_sha" "$tag_commit"
+      checkout_sha="$tag_commit"
+      ;;
+    *) die "invalid fresh source mode" ;;
+  esac
+
+  isolated_git -C "$destination" checkout --quiet --detach "$checkout_sha"
+  [[ "$(isolated_git -C "$destination" rev-parse --verify HEAD)" == "$checkout_sha" ]] || die "fresh source checkout is not the exact release commit"
+  status="$(isolated_git -C "$destination" status --porcelain --untracked-files=all)"
+  [[ -z "$status" ]] || die "fresh remote source checkout is dirty"
+
+  if [[ "$mode" == tagged ]]; then
+    local tag_jq_bin
+    freeze_jq_parser
+    tag_jq_bin="$jq_binary"
+    [[ "$tag_jq_bin" == /* && -x "$tag_jq_bin" ]] || die "frozen jq must be an absolute executable"
+    [[ -x "$SSH_KEYGEN_BIN" && ! -L "$SSH_KEYGEN_BIN" ]] || die "pinned system ssh-keygen is unavailable"
+    tag_record="$(
+      cd "$destination"
+      /usr/bin/env -i PATH="$PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
+        GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 \
+        GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.ssh.program GIT_CONFIG_VALUE_0="$SSH_KEYGEN_BIN" \
+        GIT_BIN="$git_binary" JQ_BIN="$tag_jq_bin" SSH_KEYGEN_BIN="$SSH_KEYGEN_BIN" \
+        ./scripts/verify-release-tag.sh "$tag" "$default_sha"
+    )" || die "fresh source tag verifier failed"
+    jq -e \
+      --arg tag "$tag" \
+      --arg object "$tag_object" \
+      --arg commit "$tag_commit" \
+      'select(.tag == $tag and .object_sha == $object and .commit_sha == $commit)' \
+      <<<"$tag_record" >/dev/null || die "fresh source tag verification record differs from frozen identity"
+  fi
+}
+
+run_codesigned_goreleaser() {
+  local source="$1" mode="$2" tag="$3" producer_path draft_auth expected_test_helper actual_test_helper
+  shift 3
+  [[ -d "$source" && ! -L "$source" ]] || die "fresh release source is missing"
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    [[ -n "${MOCK_FIXTURE_ROOT:-}" && "$MOCK_FIXTURE_ROOT" == /* && -d "$MOCK_FIXTURE_ROOT" && ! -L "$MOCK_FIXTURE_ROOT" ]] ||
+      die "source-only producer tests require a real fixture root"
+    expected_test_helper="$(cd "$MOCK_FIXTURE_ROOT" && pwd -P)/mock-bin/release-mac-app"
+    actual_test_helper="${test_release_mac_app_source:-$release_mac_app}"
+    [[ "$actual_test_helper" == "$expected_test_helper" ]] ||
+      die "source-only producer tests cannot execute the real release helper"
+  fi
+  if [[ -z "$release_mac_app_sha256" || -z "$producer_go_sha256" || -z "$producer_goreleaser_sha256" || -z "$producer_node_sha256" || -z "$producer_expect_sha256" || -z "$producer_python_sha256" ]]; then
+    prepare_producer_gate
+  fi
+  recheck_producer_gate
+  require_regular_file "${source}/scripts/recheck-release-source.sh"
+  [[ -x "${source}/scripts/recheck-release-source.sh" ]] || die "protected release source recheck is not executable"
+  producer_path="${producer_go%/*}:${SECRET_SCOPE_SYSTEM_PATH}"
+  # Keep optional environment argv nonempty for macOS Bash 3.2 under nounset.
+  local -a release_command pilot_environment=(LC_ALL=C) helper_environment=(LC_ALL=C) test_helper_environment=(LC_ALL=C)
+  case "$mode" in
+    pilot)
+      pilot_environment=("GOPLACES_PILOT_VERSION=$(version_from_tag "$tag")")
+      release_command=(./scripts/recheck-release-source.sh pilot "$default_sha" "$tag" "$producer_goreleaser" "$producer_goreleaser_sha256" "$producer_goreleaser_identity" "$producer_go" "$producer_go_sha256" "$producer_go_identity" -- "$@")
+      ;;
+    draft)
+      release_command=(./scripts/recheck-release-source.sh draft "$default_sha" "$tag" "$tag_object" "$tag_commit" "$producer_goreleaser" "$producer_goreleaser_sha256" "$producer_goreleaser_identity" "$producer_go" "$producer_go_sha256" "$producer_go_identity" -- "$@")
+      ;;
+    *) die "invalid codesigned GoReleaser mode" ;;
+  esac
+  if [[ -n "$release_manifest" ]]; then
+    helper_environment=("MAC_RELEASE_MANIFEST=${release_manifest}")
+  fi
+  local -a sanitized_arguments=(
+      -u BASH_ENV -u ENV -u CDPATH
+      -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES
+      -u GIT_COMMON_DIR -u GIT_CONFIG -u GIT_CONFIG_COUNT -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_SYSTEM
+      -u GIT_CEILING_DIRECTORIES -u GIT_NAMESPACE -u GIT_REPLACE_REF_BASE -u GIT_SHALLOW_FILE
+      -u GIT_SSH -u GIT_SSH_COMMAND -u GIT_ASKPASS
+      -u GH_TOKEN -u HOMEBREW_GITHUB_API_TOKEN -u HOMEBREW_TAP_GITHUB_TOKEN
+      -u GO111MODULE -u GOAMD64 -u GOARCH -u GOARM64 -u GOCACHE -u CGO_ENABLED -u CC -u CFLAGS -u CPPFLAGS -u CXX -u CXXFLAGS
+      -u GOENV -u GOEXPERIMENT -u GOFLAGS -u GOMODCACHE -u GONOPROXY -u GONOSUMDB -u GOOS -u GOPATH -u GOPRIVATE -u GOPROXY
+      -u GOSUMDB -u GOTELEMETRY -u GOTOOLCHAIN -u GOVCS -u GOWORK -u LDFLAGS -u PKG_CONFIG -u SOURCE_DATE_EPOCH
+      -u GORELEASER_CURRENT_TAG -u GORELEASER_PREVIOUS_TAG -u GORELEASER_EXPERIMENTAL -u GORELEASER_FORCE_TOKEN
+      -u GOPLACES_PILOT_VERSION
+      -u GOPLACES_RELEASE_TEST_MODE -u GOPLACES_RELEASE_TEST_TOOL_DIR
+      -u NODE_OPTIONS -u NODE_PATH -u NODE_REPL_HISTORY -u NODE_EXTRA_CA_CERTS
+      -u PYTHONHOME -u PYTHONPATH -u PYTHONSTARTUP -u PYTHONINSPECT -u PYTHONUSERBASE
+      -u PYTHONBREAKPOINT -u PYTHONWARNINGS -u PYTHONPLATLIBDIR -u PYTHONSAFEPATH
+      -u MAC_RELEASE_OP_ITEM -u MAC_RELEASE_OP_ACCOUNT -u MAC_RELEASE_OP_VAULT -u MAC_RELEASE_OP_FIELDS
+      -u MAC_RELEASE_OP_USE_SERVICE_ACCOUNT -u MAC_RELEASE_OP_READ_PRIMARY -u MAC_RELEASE_OP_ENV_FILE -u MAC_RELEASE_OP_LOG_FILE
+      -u MAC_RELEASE_OP_TMUX_SOCKET -u MAC_RELEASE_OP_TMUX_SESSION -u MAC_RELEASE_OP_WAIT_SECONDS
+      -u MAC_RELEASE_CODESIGN_OP_ITEM -u MAC_RELEASE_CODESIGN_OP_ACCOUNT -u MAC_RELEASE_CODESIGN_OP_VAULT
+      -u MAC_RELEASE_CODESIGN_OP_PATH_FIELD -u MAC_RELEASE_CODESIGN_OP_PASSWORD_FIELD -u MAC_RELEASE_CODESIGN_OP_USE_SERVICE_ACCOUNT -u MAC_RELEASE_CODESIGN_OP_READ
+      -C "$source"
+      PATH="$producer_path"
+      HOME="${git_isolation_root}/home"
+      TMPDIR="${git_isolation_root}/tmp"
+      LC_ALL=C
+      TZ=UTC
+      GIT_CONFIG_NOSYSTEM=1
+      GIT_CONFIG_GLOBAL=/dev/null
+      GIT_NO_REPLACE_OBJECTS=1
+      GIT_TERMINAL_PROMPT=0
+      GOENV=off
+      GOTOOLCHAIN=local
+      GOWORK=off
+      PYTHONNOUSERSITE=1
+      PYTHONDONTWRITEBYTECODE=1
+      GOPLACES_OFFICIAL_RELEASE=1
+      "${pilot_environment[@]}"
+      "${release_command[@]}"
+  )
+  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+    test_helper_environment=(
+      "MOCK_LOG=${MOCK_LOG:-}"
+      "MOCK_FIXTURE_ROOT=${MOCK_FIXTURE_ROOT:-}"
+      "PYTHON_SENTINEL=${PYTHON_SENTINEL:-}"
+    )
+  fi
+  local -a clean_outer_environment=(
+    /usr/bin/env -i
+    PATH="$producer_path"
+    HOME="${git_isolation_root}/home"
+    TMPDIR="${git_isolation_root}/tmp"
+    LC_ALL=C
+    TZ=UTC
+    PYTHONNOUSERSITE=1
+    PYTHONDONTWRITEBYTECODE=1
+    "${helper_environment[@]}"
+    "${test_helper_environment[@]}"
+  )
+  if [[ -n "$release_manifest" ]]; then
+    recheck_release_manifest
+  elif [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
+    die "official producer requires a frozen direct release manifest"
+  fi
+  validate_release_mac_app
+  case "$mode" in
+    pilot)
+      if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+        "${clean_outer_environment[@]}" \
+          /bin/bash -p "$release_mac_app" fixture-run -- /usr/bin/env -u GITHUB_TOKEN "${sanitized_arguments[@]}"
+      else
+        "${clean_outer_environment[@]}" \
+          /bin/bash -p "$release_mac_app" codesign-run -- /usr/bin/env -u GITHUB_TOKEN "${sanitized_arguments[@]}"
+      fi
+      ;;
+    draft)
+      [[ "$draft_github_token" =~ ^[A-Za-z0-9_]+$ ]] || die "draft GitHub authentication token is empty or unsafe"
+      draft_auth="$draft_github_token"
+      if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
+        "${clean_outer_environment[@]}" \
+          /bin/bash -p "$release_mac_app" fixture-run -- \
+          /bin/bash -p -c 'IFS= read -r GITHUB_TOKEN <&3; exec 3<&-; export GITHUB_TOKEN; exec "$@"' \
+          release-local-draft /usr/bin/env "${sanitized_arguments[@]}" \
+          3<<<"$draft_auth"
+      else
+        "${clean_outer_environment[@]}" \
+          /bin/bash -p "$release_mac_app" codesign-run -- \
+          /bin/bash -p -c 'IFS= read -r GITHUB_TOKEN <&3; exec 3<&-; export GITHUB_TOKEN; exec "$@"' \
+          release-local-draft /usr/bin/env "${sanitized_arguments[@]}" \
+          3<<<"$draft_auth"
+      fi
+      ;;
+  esac
+}
+
+run_pilot() {
+  local tag="$1" notes scratch source
+  validate_tag "$tag"
+  prepare_official_producer_gate
+  preflight_repository
+  require_tag_absent "$tag"
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-pilot.XXXXXX")"
+  notes="${scratch}/notes.md"
+  source="$protected_source_root"
+  extract_release_notes "$tag" unreleased "$notes" "$source/CHANGELOG.md"
+  run_codesigned_goreleaser "$source" pilot "$tag" \
+    release --snapshot --clean --skip=publish --config .goreleaser.yml
+  require_tag_absent "$tag"
+  recheck_source_default
+  rm -rf "$scratch"
+}
+
+run_draft() {
+  local tag="$1" scratch notes source existing_release_id live
+  validate_tag "$tag"
+  prepare_official_producer_gate
+  preflight_repository
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  init_release_state "$tag"
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-draft.XXXXXX")"
+  scratch="$(cd "$scratch" && pwd -P)"
+  notes="${scratch}/notes.md"
+  source="${scratch}/source"
+  prepare_remote_source "$source" tagged "$tag"
+  extract_release_notes "$tag" released "$notes" "$source/CHANGELOG.md"
+  prepare_draft_intent "$tag" "$notes"
+  if [[ -e "${release_state_dir}/draft-release.json" || -L "${release_state_dir}/draft-release.json" ]]; then
+    live="${scratch}/existing-draft.json"
+    verify_frozen_release "$tag" draft "$notes" "$live"
+    verify_remote_tag "$tag" "$default_sha"
+    recheck_source_default
+    rm -rf "$scratch"
+    return 0
+  fi
+  if [[ "$draft_intent_created" == true ]]; then
+    existing_release_id="$(resolve_intended_draft_id "$tag")"
+  else
+    existing_release_id="$(resolve_intended_draft_id_with_retry "$tag")"
+  fi
+  if [[ -z "$existing_release_id" ]]; then
+    [[ "$draft_intent_created" == true ]] ||
+      die "existing unbound draft intent has no visible exact release; refusing to run the producer again"
+    verify_remote_tag "$tag" "$default_sha"
+    recheck_source_default
+    draft_github_token=$(gh_auth_token) || die "could not obtain GitHub authentication for draft creation"
+    [[ "$draft_github_token" =~ ^[A-Za-z0-9_]+$ ]] || die "draft GitHub authentication token is empty or unsafe"
+    verify_remote_tag "$tag" "$default_sha"
+    recheck_source_default
+    run_codesigned_goreleaser "$source" draft "$tag" \
+      release --clean --config .goreleaser.yml --release-notes "$notes"
+    unset draft_github_token
+  fi
+  verify_remote_tag "$tag" "$default_sha"
+  freeze_initial_draft "$tag" "$notes"
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  rm -rf "$scratch"
+}
+
+run_verify_draft() {
+  local tag="$1" scratch notes live release_id
+  validate_tag "$tag"
+  preflight_repository
+  verify_remote_tag "$tag" "$default_sha"
+  init_release_state "$tag"
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-verify-draft.XXXXXX")"
+  notes="${scratch}/notes.md"
+  live="${scratch}/draft-release.json"
+  extract_release_notes "$tag" released "$notes" "${protected_source_root}/CHANGELOG.md"
+  verify_frozen_release "$tag" draft "$notes" "$live"
+  release_id="$(load_frozen_release_id)"
+  dispatch_verifier "$tag" draft "$release_id" "$live"
+  verify_frozen_release "$tag" draft "$notes" "$live"
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  rm -rf "$scratch"
+}
+
+run_publish() {
+  local tag="$1" scratch notes before patch after release_id patch_body current_state draft_record published_record published_state
+  validate_tag "$tag"
+  preflight_repository
+  verify_remote_tag "$tag" "$default_sha"
+  init_release_state "$tag"
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-publish.XXXXXX")"
+  notes="${scratch}/notes.md"
+  before="${scratch}/before.json"
+  patch="${scratch}/patch.json"
+  after="${scratch}/after.json"
+  extract_release_notes "$tag" released "$notes" "${protected_source_root}/CHANGELOG.md"
+  current_state="$(verify_frozen_release_current_state "$tag" "$notes" "$before")"
+  release_id="$(load_frozen_release_id)"
+  draft_record="${scratch}/verified-draft-release.json"
+  extract_verified_release_record draft "$draft_record"
+  require_verifier_state "$tag" draft "$release_id" "$draft_record"
+
+  if [[ "$current_state" == draft ]]; then
+    "$CMP_BIN" -s "$before" "$draft_record" || die "live draft differs from the exact verified draft record"
+    run_release_verifier_check "$tag" draft "$release_id" "$(jq -r '.workflow_run_id' "${release_state_dir}/verifier-draft.json")"
+    verify_remote_tag "$tag" "$default_sha"
+    recheck_source_default
+    verify_frozen_release "$tag" draft "$notes" "$before"
+    "$CMP_BIN" -s "$before" "$draft_record" || die "live draft moved after its verifier proof recheck"
+    prepare_publish_intent "$tag" "$release_id" "$draft_record"
+
+    patch_body="$(mktemp "${TMPDIR:-/tmp}/goplaces-publish-body.XXXXXX")"
+    printf '{"draft":false}\n' > "$patch_body"
+    gh_api --method PATCH "repos/${REPOSITORY}/releases/${release_id}" --input "$patch_body" > "$patch"
+    canonical_release_record "$patch" "${scratch}/patch-canonical.json" "$tag" published "$notes"
+    [[ "$(release_identity "${scratch}/patch-canonical.json")" == "$(release_identity "${release_state_dir}/draft-release.json")" ]] || die "PATCH response changed frozen release identity"
+  else
+    validate_publish_intent "$tag" "$release_id" "$draft_record"
+  fi
+
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  verify_frozen_release "$tag" published "$notes" "$after"
+  verify_remote_tag "$tag" "$default_sha"
+  published_state="${release_state_dir}/verifier-published.json"
+  published_record="${scratch}/verified-published-release.json"
+  if [[ -e "$published_state" || -L "$published_state" ]]; then
+    extract_verified_release_record published "$published_record"
+    require_verifier_state "$tag" published "$release_id" "$after"
+    "$CMP_BIN" -s "$after" "$published_record" || die "live published release differs from its exact verified record"
+    run_release_verifier_check "$tag" published "$release_id" "$(jq -r '.workflow_run_id' "$published_state")"
+    verify_frozen_release "$tag" published "$notes" "$after"
+    "$CMP_BIN" -s "$after" "$published_record" || die "live published release moved after its verifier proof recheck"
+  else
+    dispatch_verifier "$tag" published "$release_id" "$after"
+    extract_verified_release_record published "$published_record"
+    require_verifier_state "$tag" published "$release_id" "$published_record"
+    verify_frozen_release "$tag" published "$notes" "$after"
+    "$CMP_BIN" -s "$after" "$published_record" || die "live published release moved after verifier dispatch"
+  fi
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  rm -rf "$scratch"
+}
+
+decode_api_content() {
+  local json="$1" output="$2" encoded
+  jq -e 'select(.type == "file" and (.sha | type == "string") and (.encoding == "base64") and (.content | type == "string"))' "$json" >/dev/null || die "GitHub content record is malformed"
+  encoded="$(mktemp "${TMPDIR:-/tmp}/goplaces-content.XXXXXX")"
+  jq -r '.content' "$json" | tr -d '\n' > "$encoded"
+  if ! base64 --decode < "$encoded" > "$output" 2>/dev/null; then
+    base64 -D < "$encoded" > "$output" 2>/dev/null || die "could not decode GitHub content record"
+  fi
+  rm -f "$encoded"
+}
+
+fetch_content_record() {
+  local repository="$1" path="$2" ref="$3" output="$4"
+  gh_api "repos/${repository}/contents/${path}?ref=${ref}" > "$output"
+  jq -e --arg path "$path" 'select(.path == $path and .type == "file" and (.sha | type == "string" and length == 40))' "$output" >/dev/null || die "missing exact repository file at ${ref}: ${path}"
+}
+
+verify_tap_cask_quarantine() {
+  local ref="$1" output_prefix="$2" tree_json cask_json cask_file count
+  tree_json="${output_prefix}-tree.json"
+  cask_json="${output_prefix}-cask.json"
+  cask_file="${output_prefix}-cask.rb"
+  gh_api "repos/${TAP_REPOSITORY}/git/trees/${ref}?recursive=1" > "$tree_json"
+  jq -e 'select(.truncated == false and (.tree | type == "array"))' "$tree_json" >/dev/null || die "tap tree inventory is incomplete"
+  count="$(jq '[.tree[] | select(.path == "Casks/goplaces.rb" and .type == "blob")] | length' "$tree_json")"
+  [[ "$count" == 0 || "$count" == 1 ]] || die "tap Cask path is ambiguous"
+  if [[ "$count" == 1 ]]; then
+    fetch_content_record "$TAP_REPOSITORY" Casks/goplaces.rb "$ref" "$cask_json"
+    decode_api_content "$cask_json" "$cask_file"
+    ! grep -Eqi 'xattr|com\.apple\.quarantine' "$cask_file" || die "tap Cask strips quarantine"
+  fi
+}
+
+tap_trust_preflight() {
+  local output_dir="$1"
+  local repo_json branch_json compare_json base_workflow current_workflow base_updater current_updater current_formula
+  local base_workflow_sha current_workflow_sha base_updater_sha current_updater_sha updater_bytes
+
+  repo_json="${output_dir}/tap-repository.json"
+  branch_json="${output_dir}/tap-branch.json"
+  compare_json="${output_dir}/tap-base-compare.json"
+  base_workflow="${output_dir}/tap-workflow-base.json"
+  current_workflow="${output_dir}/tap-workflow-current.json"
+  base_updater="${output_dir}/tap-updater-base.json"
+  current_updater="${output_dir}/tap-updater-current.json"
+  current_formula="${output_dir}/tap-formula-current.json"
+
+  gh_api "repos/${TAP_REPOSITORY}" > "$repo_json"
+  tap_default_branch="$(jq -er '.default_branch | select(type == "string" and length > 0)' "$repo_json")" || die "could not resolve tap default branch"
+  [[ "$tap_default_branch" == main ]] || die "tap protected default branch must be main"
+  gh_api "repos/${TAP_REPOSITORY}/branches/${tap_default_branch}" > "$branch_json"
+  jq -e --arg branch "$tap_default_branch" 'select(.name == $branch and .protected == true)' "$branch_json" >/dev/null || die "tap default branch is not protected"
+  tap_head="$(jq -er '.commit.sha | select(type == "string")' "$branch_json")"
+  assert_sha "$tap_head" "tap default SHA"
+  [[ "$tap_head" == "$TAP_BASE" ]] || die "tap protected current head differs from the pinned trust anchor; review and re-pin the contract"
+
+  gh_api "repos/${TAP_REPOSITORY}/compare/${TAP_BASE}...${tap_head}" > "$compare_json"
+  jq -e --arg base "$TAP_BASE" --arg head "$tap_head" '
+    select(.base_commit.sha == $base and .merge_base_commit.sha == $base) |
+    select(.status == "identical") |
+    select(.head_commit.sha == $head)
+  ' "$compare_json" >/dev/null || die "tap protected current head is not the exact frozen contract base"
+
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$TAP_BASE" "$base_workflow"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$tap_head" "$current_workflow"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_UPDATER" "$TAP_BASE" "$base_updater"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_UPDATER" "$tap_head" "$current_updater"
+  base_workflow_sha="$(jq -er '.sha' "$base_workflow")"
+  current_workflow_sha="$(jq -er '.sha' "$current_workflow")"
+  base_updater_sha="$(jq -er '.sha' "$base_updater")"
+  current_updater_sha="$(jq -er '.sha' "$current_updater")"
+  [[ "$current_workflow_sha" == "$base_workflow_sha" ]] || die "tap workflow bytes differ from the frozen contract base"
+  [[ "$current_updater_sha" == "$base_updater_sha" ]] || die "tap updater bytes differ from the frozen contract base"
+
+  updater_bytes="${output_dir}/update_formula.py"
+  decode_api_content "$current_updater" "$updater_bytes"
+  grep -Fqx '# verified-hashes-v1' "$updater_bytes" || die "tap updater lacks the exact verified-hashes-v1 marker"
+
+  # Current contract is expected to stop here until the gated Formula seed lands.
+  fetch_content_record "$TAP_REPOSITORY" Formula/goplaces.rb "$tap_head" "$current_formula" || die "Homebrew blocked: Formula/goplaces.rb is absent at protected current tap"
+  formula_file="${output_dir}/goplaces.rb"
+  decode_api_content "$current_formula" "$formula_file"
+  if grep -Eqi 'xattr|com\.apple\.quarantine' "$formula_file"; then
+    die "Homebrew Formula must preserve quarantine"
+  fi
+
+  verify_tap_cask_quarantine "$tap_head" "${output_dir}/tap-current"
+
+  tap_workflow_json="${output_dir}/tap-workflow-record.json"
+  workflow_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$tap_workflow_json"
+  tap_workflow_id="$(jq -er '.id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$tap_workflow_json")"
+  [[ "$tap_workflow_id" == "$TAP_WORKFLOW_ID" ]] || die "tap workflow numeric identity moved"
+}
+
+recheck_tap_contract_before() {
+  local output_dir="$1" expected_head="$2" expected_workflow_id="$3"
+  assert_sha "$expected_head" "pre-dispatch tap head"
+  assert_js_safe_positive_integer "$expected_workflow_id" "pre-dispatch tap workflow ID"
+  mkdir -p "$output_dir"
+  tap_trust_preflight "$output_dir"
+  [[ "$tap_head" == "$expected_head" && "$tap_workflow_id" == "$expected_workflow_id" ]] ||
+    die "tap trust identity moved before dispatch"
+}
+
+download_release_copy() {
+  local tag="$1" state="$2" release_id="$3" notes="$4" destination="$5" token output_record
+  token=$(gh_auth_token) || die "could not obtain GitHub authentication for exact asset download"
+  [[ -n "$token" ]] || die "GitHub authentication token is empty"
+  output_record="$(GH_TOKEN="$token" RELEASE_STATE="$state" run_protected_script scripts/download-release-assets.sh "$tag" "$destination" "$release_id")"
+  unset token
+  [[ "$output_record" == "${destination}/release-record.json" ]] || die "asset downloader returned an unexpected record path"
+  run_protected_script scripts/validate-release-record.sh "$output_record" "$tag" "$default_sha" "$state" >/dev/null
+  jq -e --rawfile notes "$notes" '.body == $notes' "$output_record" >/dev/null || die "downloaded release notes differ from tagged changelog bytes"
+}
+
+compare_release_copies() {
+  local first="$1" second="$2" record="$3" name
+  while IFS= read -r name; do
+    "$CMP_BIN" -s "${first}/${name}" "${second}/${name}" || die "independent release downloads differ: $name"
+  done < <(jq -r '.assets[].name' "$record")
+}
+
+assert_tap_run() {
+  local file="$1" run_id="$2" title="$3" require_success="$4"
+  assert_exact_run "$file" "$run_id" "$tap_workflow_id" "$TAP_WORKFLOW" "$title" "$tap_default_branch" "$tap_head" "$require_success"
+  jq -e --argjson id "$run_id" --arg repo "$TAP_REPOSITORY" '
+    select(.run_attempt == 1 and .repository.full_name == $repo) |
+    select(.url == ("https://api.github.com/repos/" + $repo + "/actions/runs/" + ($id | tostring))) |
+    select(.html_url == ("https://github.com/" + $repo + "/actions/runs/" + ($id | tostring)))
+  ' "$file" >/dev/null || die "tap workflow run lacks exact repository identity"
+}
+
+homebrew_request_digest() {
+  local tag="$1" release_id="$2" release_record_sha256="$3" darwin_amd64="$4" darwin_arm64="$5" linux_amd64="$6" linux_arm64="$7"
+  assert_js_safe_positive_integer "$release_id" "Homebrew release ID"
+  [[ "$release_record_sha256" =~ ^[0-9a-f]{64}$ ]] || die "Homebrew release-record digest is malformed"
+  [[ "$darwin_amd64" =~ ^[0-9a-f]{64}$ && "$darwin_arm64" =~ ^[0-9a-f]{64}$ &&
+     "$linux_amd64" =~ ^[0-9a-f]{64}$ && "$linux_arm64" =~ ^[0-9a-f]{64}$ ]] ||
+    die "Homebrew verified asset digest is malformed"
+  printf '%s\n' \
+    goplaces-homebrew-intent-v1 "$tag" "$tag_object" "$tag_commit" "$default_sha" "$release_id" \
+    "$release_record_sha256" "$TAP_REPOSITORY" "$TAP_BASE" main "$TAP_WORKFLOW" "$TAP_WORKFLOW_ID" \
+    "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64" |
+    "$SHASUM_BIN" -a 256 | /usr/bin/awk '{print $1}'
+}
+
+homebrew_request_id() {
+  local digest
+  digest="$(homebrew_request_digest "$@")"
+  printf 'goplaces-%s-%s\n' "$1" "${digest:0:24}"
+}
+
+homebrew_expected_title() {
+  local tag="$1" request_id="$2"
+  printf 'Update goplaces for %s (request-id=%s; source-tag-object=%s; source-tag-commit=%s)\n' \
+    "$tag" "$request_id" "$tag_object" "$tag_commit"
+}
+
+validate_homebrew_intent() {
+  local intent="$1" tag="$2" release_id="$3" release_record_sha256="$4" darwin_amd64="$5" darwin_arm64="$6" linux_amd64="$7" linux_arm64="$8"
+  local request_id expected_title
+  require_regular_file "$intent"
+  [[ "$($STAT_BIN -f '%Lp' "$intent")" == 400 ]] || die "Homebrew intent permissions changed"
+  request_id="$(homebrew_request_id "$tag" "$release_id" "$release_record_sha256" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64")"
+  expected_title="$(homebrew_expected_title "$tag" "$request_id")"
+  jq -e \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg tap_repo "$TAP_REPOSITORY" --arg tap_base "$TAP_BASE" --arg tap_branch main \
+    --arg tap_workflow "$TAP_WORKFLOW" --argjson tap_workflow_id "$TAP_WORKFLOW_ID" \
+    --arg darwin_amd64 "$darwin_amd64" --arg darwin_arm64 "$darwin_arm64" \
+    --arg linux_amd64 "$linux_amd64" --arg linux_arm64 "$linux_arm64" \
+    --arg request_id "$request_id" --arg expected_title "$expected_title" '
+      def safe_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
+      select(.schema == "goplaces-homebrew-intent-v1" and .tag == $tag and
+        .tag_object == $object and .tag_commit == $commit and .default_sha == $main and
+        .release_id == $release_id and .release_record_sha256 == $release_sha and
+        .tap_repository == $tap_repo and .tap_base == $tap_base and .tap_branch == $tap_branch and
+        .tap_workflow == $tap_workflow and .tap_workflow_id == $tap_workflow_id and
+        .darwin_amd64_sha256 == $darwin_amd64 and .darwin_arm64_sha256 == $darwin_arm64 and
+        .linux_amd64_sha256 == $linux_amd64 and .linux_arm64_sha256 == $linux_arm64 and
+        .request_id == $request_id and .expected_title == $expected_title and
+        (.seen_run_ids | type == "array") and
+        all(.seen_run_ids[]; safe_integer) and
+        ((.seen_run_ids | unique | length) == (.seen_run_ids | length))) |
+      if has("workflow_run_id") then
+        select(.workflow_run_id | safe_integer) |
+        select(.recovered == true or .recovered == false) |
+        if .recovered == true then
+          select((has("run_url") or has("html_url")) | not)
+        else
+          select(.run_url == ("https://api.github.com/repos/" + $tap_repo + "/actions/runs/" + (.workflow_run_id | tostring))) |
+          select(.html_url == ("https://github.com/" + $tap_repo + "/actions/runs/" + (.workflow_run_id | tostring)))
+        end
+      else
+        select((has("recovered") or has("run_url") or has("html_url")) | not)
+      end
+    ' "$intent" >/dev/null || die "Homebrew intent differs from the exact release and tap contract"
+}
+
+prepare_homebrew_intent() {
+  local intent="$1" tag="$2" release_id="$3" release_record_sha256="$4" darwin_amd64="$5" darwin_arm64="$6" linux_amd64="$7" linux_arm64="$8" seen_ids="$9"
+  local request_id expected_title tmp
+  if [[ -e "$intent" || -L "$intent" ]]; then
+    validate_homebrew_intent "$intent" "$tag" "$release_id" "$release_record_sha256" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64"
+    homebrew_intent_created=false
+    return 0
+  fi
+  jq -e 'type == "array" and all(.[]; type == "number" and . > 0 and . <= 9007199254740991 and floor == .) and ((unique | length) == length)' "$seen_ids" >/dev/null ||
+    die "Homebrew pre-dispatch run inventory is malformed"
+  request_id="$(homebrew_request_id "$tag" "$release_id" "$release_record_sha256" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64")"
+  expected_title="$(homebrew_expected_title "$tag" "$request_id")"
+  tmp="$(mktemp "${release_state_dir%/*}/.homebrew-intent.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg tap_repo "$TAP_REPOSITORY" --arg tap_base "$TAP_BASE" --arg tap_branch main \
+    --arg tap_workflow "$TAP_WORKFLOW" --argjson tap_workflow_id "$TAP_WORKFLOW_ID" \
+    --arg darwin_amd64 "$darwin_amd64" --arg darwin_arm64 "$darwin_arm64" \
+    --arg linux_amd64 "$linux_amd64" --arg linux_arm64 "$linux_arm64" \
+    --arg request_id "$request_id" --arg expected_title "$expected_title" --slurpfile seen "$seen_ids" \
+    '{schema:"goplaces-homebrew-intent-v1",tag:$tag,tag_object:$object,tag_commit:$commit,default_sha:$main,
+      release_id:$release_id,release_record_sha256:$release_sha,tap_repository:$tap_repo,tap_base:$tap_base,
+      tap_branch:$tap_branch,tap_workflow:$tap_workflow,tap_workflow_id:$tap_workflow_id,
+      darwin_amd64_sha256:$darwin_amd64,darwin_arm64_sha256:$darwin_arm64,
+      linux_amd64_sha256:$linux_amd64,linux_arm64_sha256:$linux_arm64,
+      request_id:$request_id,expected_title:$expected_title,seen_run_ids:$seen[0]}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$intent" && ! -L "$intent" ]] || die "Homebrew intent appeared concurrently"
+  mv "$tmp" "$intent"
+  validate_homebrew_intent "$intent" "$tag" "$release_id" "$release_record_sha256" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64"
+  homebrew_intent_created=true
+}
+
+validate_homebrew_phase_order() {
+  local intent="$1" result="$2" install_intent install_started complete
+  install_intent="${release_state_dir}/homebrew-install-intent.json"
+  install_started="${release_state_dir}/homebrew-install-started.json"
+  complete="${release_state_dir}/homebrew-complete.json"
+  if [[ ! -e "$intent" && ! -L "$intent" ]]; then
+    if [[ -e "$result" || -L "$result" || -e "$install_intent" || -L "$install_intent" ||
+          -e "$install_started" || -L "$install_started" || -e "$complete" || -L "$complete" ]]; then
+      die "orphaned Homebrew state exists without its dispatch intent"
+    fi
+    return 0
+  fi
+  require_regular_file "$intent"
+  if [[ -e "$result" || -L "$result" ]]; then
+    require_regular_file "$result"
+    jq -e '.workflow_run_id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .' "$intent" >/dev/null ||
+      die "Homebrew result exists before its dispatch intent is bound"
+  elif [[ -e "$install_intent" || -L "$install_intent" || -e "$install_started" || -L "$install_started" || -e "$complete" || -L "$complete" ]]; then
+    die "orphaned Homebrew install state exists without a workflow result"
+  fi
+  if [[ -e "$install_intent" || -L "$install_intent" ]]; then
+    require_regular_file "$install_intent"
+  elif [[ -e "$install_started" || -L "$install_started" || -e "$complete" || -L "$complete" ]]; then
+    die "orphaned Homebrew install state exists without its install intent"
+  fi
+  if [[ -e "$install_started" || -L "$install_started" ]]; then
+    require_regular_file "$install_started"
+  elif [[ -e "$complete" || -L "$complete" ]]; then
+    die "Homebrew complete state exists without install-started state"
+  fi
+  if [[ -e "$complete" || -L "$complete" ]]; then
+    require_regular_file "$complete"
+  fi
+}
+
+bind_homebrew_intent_run() {
+  local intent="$1" run_id="$2" recovered="$3" response="$4" tmp
+  assert_js_safe_positive_integer "$run_id" "Homebrew workflow run ID"
+  [[ "$recovered" == true || "$recovered" == false ]] || die "Homebrew recovery binding is malformed"
+  tmp="$(mktemp "${release_state_dir%/*}/.homebrew-intent-bound.XXXXXX")"
+  if [[ "$recovered" == true ]]; then
+    jq --argjson run_id "$run_id" '. + {workflow_run_id:$run_id,recovered:true}' "$intent" > "$tmp"
+  else
+    jq --slurpfile response "$response" '
+      . + {workflow_run_id:$response[0].workflow_run_id,run_url:$response[0].run_url,
+        html_url:$response[0].html_url,recovered:false}
+    ' "$intent" > "$tmp"
+  fi
+  chmod 400 "$tmp"
+  mv "$tmp" "$intent"
+}
+
+recover_homebrew_run() {
+  local intent="$1" output="$2" candidates="$3" poll candidate_count
+  local expected_title
+  expected_title="$(jq -er '.expected_title' "$intent")"
+  for ((poll = 1; poll <= 15; poll++)); do
+    fetch_workflow_runs "$TAP_REPOSITORY" "$TAP_WORKFLOW_ID" main "$output"
+    jq \
+      --slurpfile intent "$intent" --argjson workflow_id "$TAP_WORKFLOW_ID" --arg path "$TAP_WORKFLOW" \
+      --arg title "$expected_title" --arg branch main --arg sha "$TAP_BASE" --arg repo "$TAP_REPOSITORY" '
+        [.workflow_runs[] | select(
+          (.id as $id | $intent[0].seen_run_ids | index($id)) == null and
+          .workflow_id == $workflow_id and .path == $path and .display_title == $title and
+          .event == "workflow_dispatch" and .head_branch == $branch and .head_sha == $sha and
+          .run_attempt == 1 and .repository.full_name == $repo and
+          .url == ("https://api.github.com/repos/" + $repo + "/actions/runs/" + (.id | tostring)) and
+          .html_url == ("https://github.com/" + $repo + "/actions/runs/" + (.id | tostring))
+        )] | sort_by([.created_at, .id])
+      ' "$output" > "$candidates"
+    candidate_count="$(jq 'length' "$candidates")"
+    [[ "$candidate_count" == 0 || "$candidate_count" == 1 ]] || die "Homebrew intent matches multiple unseen workflow runs"
+    if [[ "$candidate_count" == 1 ]]; then
+      jq -er '.[0].id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$candidates"
+      return 0
+    fi
+    if ((poll < 15)); then sleep 2; fi
+  done
+}
+
+recheck_tap_contract_for_homebrew_state() {
+  local output_dir="$1"
+  local repo_json branch_json compare_json base_workflow current_workflow base_updater current_updater current_formula
+  local base_workflow_sha current_workflow_sha base_updater_sha current_updater_sha updater_bytes live_default
+  mkdir -p "$output_dir"
+  repo_json="${output_dir}/tap-repository.json"
+  branch_json="${output_dir}/tap-branch.json"
+  compare_json="${output_dir}/tap-base-compare.json"
+  base_workflow="${output_dir}/tap-workflow-base.json"
+  current_workflow="${output_dir}/tap-workflow-current.json"
+  base_updater="${output_dir}/tap-updater-base.json"
+  current_updater="${output_dir}/tap-updater-current.json"
+  current_formula="${output_dir}/tap-formula-current.json"
+  gh_api "repos/${TAP_REPOSITORY}" > "$repo_json"
+  live_default="$(jq -er '.default_branch | select(type == "string" and length > 0)' "$repo_json")" || die "could not resolve tap default branch during recovery"
+  [[ "$live_default" == main ]] || die "tap protected default branch moved during recovery"
+  tap_default_branch=main
+  gh_api "repos/${TAP_REPOSITORY}/branches/${tap_default_branch}" > "$branch_json"
+  jq -e --arg branch "$tap_default_branch" 'select(.name == $branch and .protected == true)' "$branch_json" >/dev/null || die "tap default branch lost protection during recovery"
+  tap_head="$(jq -er '.commit.sha | select(type == "string")' "$branch_json")"
+  assert_sha "$tap_head" "tap recovery head"
+  gh_api "repos/${TAP_REPOSITORY}/compare/${TAP_BASE}...${tap_head}" > "$compare_json"
+  jq -e --arg base "$TAP_BASE" --arg head "$tap_head" '
+    select(.base_commit.sha == $base and .merge_base_commit.sha == $base and .head_commit.sha == $head) |
+    select(
+      (.status == "identical" and .ahead_by == 0 and .behind_by == 0 and .total_commits == 0) or
+      (.status == "ahead" and .ahead_by == 1 and .behind_by == 0 and .total_commits == 1 and
+        (.commits | length) == 1 and .commits[0].sha == $head and
+        (.files | length) == 1 and .files[0].filename == "Formula/goplaces.rb" and
+        (.files[0].status == "added" or .files[0].status == "modified"))
+    )
+  ' "$compare_json" >/dev/null || die "tap recovery head is neither the frozen base nor one exact Formula child"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$TAP_BASE" "$base_workflow"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$tap_head" "$current_workflow"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_UPDATER" "$TAP_BASE" "$base_updater"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_UPDATER" "$tap_head" "$current_updater"
+  base_workflow_sha="$(jq -er '.sha' "$base_workflow")"
+  current_workflow_sha="$(jq -er '.sha' "$current_workflow")"
+  base_updater_sha="$(jq -er '.sha' "$base_updater")"
+  current_updater_sha="$(jq -er '.sha' "$current_updater")"
+  [[ "$current_workflow_sha" == "$base_workflow_sha" ]] || die "tap workflow moved during Homebrew recovery"
+  [[ "$current_updater_sha" == "$base_updater_sha" ]] || die "tap updater moved during Homebrew recovery"
+  updater_bytes="${output_dir}/update_formula.py"
+  decode_api_content "$current_updater" "$updater_bytes"
+  grep -Fqx '# verified-hashes-v1' "$updater_bytes" || die "tap updater lacks the exact verified-hashes-v1 marker during recovery"
+  fetch_content_record "$TAP_REPOSITORY" Formula/goplaces.rb "$tap_head" "$current_formula" || die "Homebrew Formula is absent during recovery"
+  formula_file="${output_dir}/goplaces.rb"
+  decode_api_content "$current_formula" "$formula_file"
+  ! grep -Eqi 'xattr|com\.apple\.quarantine' "$formula_file" || die "Homebrew Formula strips quarantine during recovery"
+  verify_tap_cask_quarantine "$tap_head" "${output_dir}/tap-current"
+  tap_workflow_json="${output_dir}/tap-workflow-record.json"
+  workflow_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$tap_workflow_json"
+  tap_workflow_id="$(jq -er '.id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$tap_workflow_json")"
+  [[ "$tap_workflow_id" == "$TAP_WORKFLOW_ID" ]] || die "tap workflow numeric identity moved during recovery"
+}
+
+formula_pair_count() {
+  local file="$1" url="$2" digest="$3"
+  /usr/bin/awk -v expected_url="$url" -v expected_digest="$digest" '
+    function normalized(value) {
+      sub(/[[:space:]]*#.*/, "", value)
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
+    }
+    {
+      line = normalized($0)
+      if (line == "url \"" expected_url "\"") {
+        waiting = 1
+        next
+      }
+      if (waiting && line == "sha256 \"" expected_digest "\"") {
+        count++
+        waiting = 0
+        next
+      }
+      if (waiting && line != "") {
+        waiting = 0
+      }
+    }
+    END { print count + 0 }
+  ' "$file"
+}
+
+validate_formula_content() {
+  local file="$1" tag="$2" darwin_amd64="$3" darwin_arm64="$4" linux_amd64="$5" linux_arm64="$6" version url_count digest_count version_count
+  local darwin_amd64_url darwin_arm64_url linux_amd64_url linux_arm64_url
+  version="$(version_from_tag "$tag")"
+  darwin_amd64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_darwin_amd64.tar.gz"
+  darwin_arm64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_darwin_arm64.tar.gz"
+  linux_amd64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_linux_amd64.tar.gz"
+  linux_arm64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_linux_arm64.tar.gz"
+  version_count="$(/usr/bin/awk -v expected="version \"${version}\"" '{line=$0; sub(/[[:space:]]*#.*/, "", line); sub(/^[[:space:]]+/, "", line); sub(/[[:space:]]+$/, "", line); if (line == expected) count++} END {print count+0}' "$file")"
+  [[ "$version_count" == 1 ]] || die "tap Formula lacks one exact active version declaration"
+  url_count="$(/usr/bin/awk '{line=$0; sub(/[[:space:]]*#.*/, "", line); sub(/^[[:space:]]+/, "", line); if (line ~ /^url "/) count++} END {print count+0}' "$file")"
+  digest_count="$(/usr/bin/awk '{line=$0; sub(/[[:space:]]*#.*/, "", line); sub(/^[[:space:]]+/, "", line); if (line ~ /^sha256 "/) count++} END {print count+0}' "$file")"
+  [[ "$url_count" == 4 && "$digest_count" == 4 ]] || die "tap Formula must contain exactly four active URL/SHA stanzas"
+  [[ "$(formula_pair_count "$file" "$darwin_amd64_url" "$darwin_amd64")" == 1 ]] || die "tap Formula does not bind Darwin amd64 URL to its verified hash"
+  [[ "$(formula_pair_count "$file" "$darwin_arm64_url" "$darwin_arm64")" == 1 ]] || die "tap Formula does not bind Darwin arm64 URL to its verified hash"
+  [[ "$(formula_pair_count "$file" "$linux_amd64_url" "$linux_amd64")" == 1 ]] || die "tap Formula does not bind Linux amd64 URL to its verified hash"
+  [[ "$(formula_pair_count "$file" "$linux_arm64_url" "$linux_arm64")" == 1 ]] || die "tap Formula does not bind Linux arm64 URL to its verified hash"
+  if grep -Eqi 'xattr|com\.apple\.quarantine' "$file"; then
+    die "tap Formula strips quarantine"
+  fi
+}
+
+validate_tap_commit_record() {
+  local file="$1" new_head="$2" old_head="$3" expected_message="$4" message
+  jq -e --arg new "$new_head" --arg old "$old_head" '
+    select(.sha == $new) |
+    select((.parents | type == "array" and length == 1) and .parents[0].sha == $old)
+  ' "$file" >/dev/null || die "tap commit REST record is not the exact direct child"
+  message="$(jq -er '.commit.message | select(type == "string")' "$file")"
+  [[ "$message" == "$expected_message" ]] || die "tap commit message differs from the pinned updater contract"
+}
+
+verify_tap_commit() {
+  local work="$1" tag="$2" request_id="$3" old_head="$4" darwin_amd64="$5" darwin_arm64="$6" linux_amd64="$7" linux_arm64="$8"
+  local branch_json new_head compare_json commit_json expected_message formula_json result_formula
+  branch_json="${work}/tap-branch-after.json"
+  compare_json="${work}/tap-result-compare.json"
+  commit_json="${work}/tap-result-commit.json"
+  formula_json="${work}/tap-result-formula.json"
+  result_formula="${work}/goplaces-result.rb"
+
+  gh_api "repos/${TAP_REPOSITORY}/branches/${tap_default_branch}" > "$branch_json"
+  jq -e 'select(.protected == true)' "$branch_json" >/dev/null || die "tap default branch lost protection"
+  new_head="$(jq -er '.commit.sha | select(type == "string")' "$branch_json")"
+  assert_sha "$new_head" "tap result SHA"
+  [[ "$new_head" != "$old_head" ]] || die "tap workflow did not create a commit"
+
+  gh_api "repos/${TAP_REPOSITORY}/compare/${old_head}...${new_head}" > "$compare_json"
+  jq -e --arg old "$old_head" --arg new "$new_head" '
+    select(.status == "ahead" and .ahead_by == 1 and .behind_by == 0 and .total_commits == 1) |
+    select(.base_commit.sha == $old and .merge_base_commit.sha == $old and .head_commit.sha == $new) |
+    select((.commits | length) == 1 and .commits[0].sha == $new) |
+    select((.files | length) == 1 and .files[0].filename == "Formula/goplaces.rb" and (.files[0].status == "added" or .files[0].status == "modified"))
+  ' "$compare_json" >/dev/null || die "tap result is not one exact direct-child Formula commit"
+
+  gh_api "repos/${TAP_REPOSITORY}/commits/${new_head}" > "$commit_json"
+  expected_message="goplaces: update formula for ${tag}
+
+Source-Repository: ${REPOSITORY}
+Source-Tag-Object: ${tag_object}
+Source-Tag-Commit: ${tag_commit}
+Request-ID: ${request_id}"
+  validate_tap_commit_record "$commit_json" "$new_head" "$old_head" "$expected_message"
+
+  fetch_content_record "$TAP_REPOSITORY" Formula/goplaces.rb "$new_head" "$formula_json"
+  decode_api_content "$formula_json" "$result_formula"
+  validate_formula_content "$result_formula" "$tag" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64"
+  printf '%s\n' "$new_head"
+}
+
+verify_tap_commit_with_retry() {
+  local work="$1" tag="$2" request_id="$3" old_head="$4" darwin_amd64="$5" darwin_arm64="$6" linux_amd64="$7" linux_arm64="$8"
+  local poll result error_file
+  error_file="${work}/tap-result-error.log"
+  for ((poll = 1; poll <= 15; poll++)); do
+    if result="$(verify_tap_commit "$work" "$tag" "$request_id" "$old_head" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64" 2> "$error_file")"; then
+      rm -f "$error_file"
+      printf '%s\n' "$result"
+      return 0
+    fi
+    if ((poll < 15)); then sleep 2; fi
+  done
+  [[ ! -s "$error_file" ]] || /bin/cat "$error_file" >&2
+  die "successful tap workflow result did not become an exact visible Formula child"
+}
+
+validate_homebrew_result() {
+  local result="$1" intent="$2" tag="$3" release_id="$4" release_record_sha256="$5" darwin_amd64="$6" darwin_arm64="$7" linux_amd64="$8" linux_arm64="$9"
+  local intent_sha256 run_id request_id expected_title
+  require_regular_file "$result"
+  [[ "$($STAT_BIN -f '%Lp' "$result")" == 400 ]] || die "Homebrew result permissions changed"
+  intent_sha256="$(sha256_file "$intent")"
+  run_id="$(jq -er '.workflow_run_id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$intent")"
+  request_id="$(jq -er '.request_id' "$intent")"
+  expected_title="$(jq -er '.expected_title' "$intent")"
+  jq -e \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg intent_sha "$intent_sha256" --argjson run_id "$run_id" --arg request_id "$request_id" \
+    --arg expected_title "$expected_title" --arg tap_repo "$TAP_REPOSITORY" --arg tap_base "$TAP_BASE" \
+    --arg tap_workflow "$TAP_WORKFLOW" --argjson tap_workflow_id "$TAP_WORKFLOW_ID" \
+    --arg darwin_amd64 "$darwin_amd64" --arg darwin_arm64 "$darwin_arm64" \
+    --arg linux_amd64 "$linux_amd64" --arg linux_arm64 "$linux_arm64" '
+      select(.schema == "goplaces-homebrew-result-v1" and .tag == $tag and
+        .tag_object == $object and .tag_commit == $commit and .default_sha == $main and
+        .release_id == $release_id and .release_record_sha256 == $release_sha and
+        .intent_sha256 == $intent_sha and .workflow_run_id == $run_id and
+        .request_id == $request_id and .expected_title == $expected_title and
+        .tap_repository == $tap_repo and .tap_base == $tap_base and .tap_branch == "main" and
+        .tap_workflow == $tap_workflow and .tap_workflow_id == $tap_workflow_id and
+        .darwin_amd64_sha256 == $darwin_amd64 and .darwin_arm64_sha256 == $darwin_arm64 and
+        .linux_amd64_sha256 == $linux_amd64 and .linux_arm64_sha256 == $linux_arm64 and
+        (.tap_result_head | type == "string" and test("^[0-9a-f]{40}$")) and
+        (.formula_sha256 | type == "string" and test("^[0-9a-f]{64}$")))
+    ' "$result" >/dev/null || die "Homebrew result differs from the exact workflow and Formula proof"
+}
+
+freeze_homebrew_result() {
+  local result="$1" intent="$2" tag="$3" release_id="$4" release_record_sha256="$5" darwin_amd64="$6" darwin_arm64="$7" linux_amd64="$8" linux_arm64="$9" tap_result_head="${10}" formula="${11}"
+  local tmp run_id request_id expected_title intent_sha256 formula_sha256
+  assert_sha "$tap_result_head" "Homebrew result tap head"
+  require_regular_file "$formula"
+  run_id="$(jq -er '.workflow_run_id' "$intent")"
+  request_id="$(jq -er '.request_id' "$intent")"
+  expected_title="$(jq -er '.expected_title' "$intent")"
+  intent_sha256="$(sha256_file "$intent")"
+  formula_sha256="$(sha256_file "$formula")"
+  if [[ -e "$result" || -L "$result" ]]; then
+    validate_homebrew_result "$result" "$intent" "$tag" "$release_id" "$release_record_sha256" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64"
+    [[ "$(jq -r '.tap_result_head' "$result")" == "$tap_result_head" ]] || die "stored Homebrew tap result head moved"
+    [[ "$(jq -r '.formula_sha256' "$result")" == "$formula_sha256" ]] || die "stored Homebrew Formula bytes moved"
+    return 0
+  fi
+  tmp="$(mktemp "${release_state_dir%/*}/.homebrew-result.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg intent_sha "$intent_sha256" --argjson run_id "$run_id" --arg request_id "$request_id" \
+    --arg expected_title "$expected_title" --arg tap_repo "$TAP_REPOSITORY" --arg tap_base "$TAP_BASE" \
+    --arg tap_workflow "$TAP_WORKFLOW" --argjson tap_workflow_id "$TAP_WORKFLOW_ID" \
+    --arg darwin_amd64 "$darwin_amd64" --arg darwin_arm64 "$darwin_arm64" \
+    --arg linux_amd64 "$linux_amd64" --arg linux_arm64 "$linux_arm64" \
+    --arg tap_result_head "$tap_result_head" --arg formula_sha "$formula_sha256" \
+    '{schema:"goplaces-homebrew-result-v1",tag:$tag,tag_object:$object,tag_commit:$commit,default_sha:$main,
+      release_id:$release_id,release_record_sha256:$release_sha,intent_sha256:$intent_sha,
+      workflow_run_id:$run_id,request_id:$request_id,expected_title:$expected_title,
+      tap_repository:$tap_repo,tap_base:$tap_base,tap_branch:"main",tap_workflow:$tap_workflow,
+      tap_workflow_id:$tap_workflow_id,darwin_amd64_sha256:$darwin_amd64,darwin_arm64_sha256:$darwin_arm64,
+      linux_amd64_sha256:$linux_amd64,linux_arm64_sha256:$linux_arm64,
+      tap_result_head:$tap_result_head,formula_sha256:$formula_sha}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$result" && ! -L "$result" ]] || die "Homebrew result appeared concurrently"
+  mv "$tmp" "$result"
+  validate_homebrew_result "$result" "$intent" "$tag" "$release_id" "$release_record_sha256" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64"
+}
+
+prepare_tap_install_source() {
+  local destination="$1" expected_head="$2" expected_formula="$3" fetched_head checkout_formula
+  assert_sha "$expected_head" "tap install commit"
+  require_regular_file "$expected_formula"
+  [[ ! -e "$destination" && ! -L "$destination" ]] || die "fresh tap install source destination already exists"
+  isolated_git init -q "$destination"
+  isolated_git -C "$destination" remote add origin "$EXPECTED_TAP_ORIGIN_HTTPS.git"
+  isolated_git -C "$destination" fetch --quiet --no-tags origin "+refs/heads/${tap_default_branch}:refs/remotes/origin/${tap_default_branch}"
+  fetched_head="$(isolated_git -C "$destination" rev-parse --verify "refs/remotes/origin/${tap_default_branch}")"
+  [[ "$fetched_head" == "$expected_head" ]] || die "fresh tap install source is not the exact verified commit"
+  trusted_is_ancestor "$destination" "$TAP_BASE" "$fetched_head"
+  isolated_git -C "$destination" checkout --quiet --detach "$fetched_head"
+  [[ "$(isolated_git -C "$destination" rev-parse --verify HEAD)" == "$fetched_head" ]] || die "fresh tap install checkout moved"
+  recheck_tap_install_source "$destination" "fresh tap install checkout is dirty"
+  checkout_formula="${destination}/Formula/goplaces.rb"
+  require_regular_file "$checkout_formula"
+  "$CMP_BIN" -s "$expected_formula" "$checkout_formula" || die "fresh tap Formula bytes differ from the verified REST record"
+  printf '%s\n' "$checkout_formula"
+}
+
+recheck_tap_install_source() {
+  local source="$1" failure="$2" status
+  status="$(isolated_git -C "$source" status --porcelain --untracked-files=all)"
+  [[ -z "$status" ]] || die "$failure"
+}
+
+homebrew_goplaces_package_state() {
+  local kind="$1" kind_flag output error status invalid match_count
+  case "$kind" in
+    formula) kind_flag=--formula ;;
+    cask) kind_flag=--cask ;;
+    *) die "invalid Homebrew package kind" ;;
+  esac
+  output="$($MKTEMP_BIN "${TMPDIR:-/tmp}/goplaces-brew-list.XXXXXX")"
+  error="$($MKTEMP_BIN "${TMPDIR:-/tmp}/goplaces-brew-list-error.XXXXXX")"
+  if homebrew_command list "$kind_flag" --full-name > "$output" 2> "$error"; then
+    status=0
+  else
+    status=$?
+  fi
+  [[ "$status" == 0 ]] || {
+    /bin/rm -f "$output" "$error"
+    die "Homebrew ${kind} inventory failed with status ${status}"
+  }
+  [[ ! -s "$error" ]] || die "Homebrew ${kind} inventory produced unexpected diagnostics"
+  invalid="$(/usr/bin/awk '
+    !/^[A-Za-z0-9@+._-]+(\/[A-Za-z0-9@+._-]+){0,2}$/ {print "invalid"; exit}
+  ' "$output")"
+  [[ -z "$invalid" ]] || die "Homebrew ${kind} inventory contains an unsafe package identity"
+  match_count="$(/usr/bin/awk '$0 == "goplaces" || $0 ~ /\/goplaces$/ {count++} END {print count + 0}' "$output")"
+  [[ "$match_count" == 0 || "$match_count" == 1 ]] || die "Homebrew ${kind} inventory contains ambiguous goplaces identities"
+  /bin/rm -f "$output" "$error"
+  if [[ "$match_count" == 1 ]]; then
+    printf 'present\n'
+  else
+    printf 'absent\n'
+  fi
+}
+
+homebrew_goplaces_install_state() {
+  homebrew_goplaces_package_state formula
+}
+
+homebrew_goplaces_cask_state() {
+  homebrew_goplaces_package_state cask
+}
+
+homebrew_install_eligibility_preflight() {
+  local host_arch install_state cask_state
+  need brew
+  [[ -x "$TAR_BIN" && ! -L "$TAR_BIN" ]] || die "pinned system tar is unavailable"
+  [[ -x "$UNAME_BIN" && ! -L "$UNAME_BIN" ]] || die "pinned system uname is unavailable"
+  [[ "$($UNAME_BIN -s)" == Darwin ]] || die "Homebrew proof requires native macOS"
+  host_arch="$($UNAME_BIN -m)"
+  [[ "$host_arch" == arm64 || "$host_arch" == x86_64 ]] || die "Homebrew proof requires native Apple silicon or Intel macOS"
+  install_state="$(homebrew_goplaces_install_state)"
+  if [[ "$install_state" == present ]]; then
+    die "goplaces is already installed; fresh Homebrew dispatch requires an absent formula"
+  fi
+  [[ "$install_state" == absent ]] || die "Homebrew installed-state check is invalid"
+  cask_state="$(homebrew_goplaces_cask_state)"
+  [[ "$cask_state" == absent ]] || die "legacy goplaces Cask must be absent before Homebrew dispatch"
+}
+
+validate_homebrew_install_intent() {
+  local intent="$1" result="$2" tag="$3" release_id="$4" release_record_sha256="$5" tap_result_head="$6" formula="$7" host_arch="$8" asset="$9" expected_binary="${10}"
+  local result_sha256 formula_sha256 expected_binary_sha256
+  require_regular_file "$intent"
+  [[ "$($STAT_BIN -f '%Lp' "$intent")" == 400 ]] || die "Homebrew install intent permissions changed"
+  result_sha256="$(sha256_file "$result")"
+  formula_sha256="$(sha256_file "$formula")"
+  expected_binary_sha256="$(sha256_file "$expected_binary")"
+  jq -e \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg result_sha "$result_sha256" --arg tap_head "$tap_result_head" --arg formula_sha "$formula_sha256" \
+    --arg host_arch "$host_arch" --arg asset "$asset" --arg binary_sha "$expected_binary_sha256" '
+      select(.schema == "goplaces-homebrew-install-intent-v1" and .tag == $tag and
+        .tag_object == $object and .tag_commit == $commit and .default_sha == $main and
+        .release_id == $release_id and .release_record_sha256 == $release_sha and
+        .homebrew_result_sha256 == $result_sha and .tap_result_head == $tap_head and
+        .formula_sha256 == $formula_sha and .host_arch == $host_arch and .asset_name == $asset and
+        .expected_binary_sha256 == $binary_sha)
+    ' "$intent" >/dev/null || die "Homebrew install intent differs from the exact release result"
+}
+
+prepare_homebrew_install_intent() {
+  local intent="$1" result="$2" tag="$3" release_id="$4" release_record_sha256="$5" tap_result_head="$6" formula="$7" host_arch="$8" asset="$9" expected_binary="${10}"
+  local tmp
+  if [[ -e "$intent" || -L "$intent" ]]; then
+    validate_homebrew_install_intent "$intent" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula" "$host_arch" "$asset" "$expected_binary"
+    return 0
+  fi
+  tmp="$(mktemp "${release_state_dir%/*}/.homebrew-install-intent.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg result_sha "$(sha256_file "$result")" --arg tap_head "$tap_result_head" \
+    --arg formula_sha "$(sha256_file "$formula")" --arg host_arch "$host_arch" --arg asset "$asset" \
+    --arg binary_sha "$(sha256_file "$expected_binary")" \
+    '{schema:"goplaces-homebrew-install-intent-v1",tag:$tag,tag_object:$object,tag_commit:$commit,default_sha:$main,
+      release_id:$release_id,release_record_sha256:$release_sha,homebrew_result_sha256:$result_sha,
+      tap_result_head:$tap_head,formula_sha256:$formula_sha,host_arch:$host_arch,asset_name:$asset,
+      expected_binary_sha256:$binary_sha}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$intent" && ! -L "$intent" ]] || die "Homebrew install intent appeared concurrently"
+  mv "$tmp" "$intent"
+  validate_homebrew_install_intent "$intent" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula" "$host_arch" "$asset" "$expected_binary"
+}
+
+validate_homebrew_install_started() {
+  local started="$1" intent="$2" result="$3" tag="$4" release_id="$5" release_record_sha256="$6" tap_result_head="$7" formula="$8" host_arch="$9" asset="${10}" expected_binary="${11}"
+  require_regular_file "$started"
+  [[ "$($STAT_BIN -f '%Lp' "$started")" == 400 ]] || die "Homebrew install-started permissions changed"
+  jq -e \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg intent_sha "$(sha256_file "$intent")" --arg result_sha "$(sha256_file "$result")" \
+    --arg tap_head "$tap_result_head" --arg formula_sha "$(sha256_file "$formula")" \
+    --arg host_arch "$host_arch" --arg asset "$asset" --arg binary_sha "$(sha256_file "$expected_binary")" '
+      select(.schema == "goplaces-homebrew-install-started-v1" and .tag == $tag and
+        .tag_object == $object and .tag_commit == $commit and .default_sha == $main and
+        .release_id == $release_id and .release_record_sha256 == $release_sha and
+        .install_intent_sha256 == $intent_sha and .homebrew_result_sha256 == $result_sha and
+        .tap_result_head == $tap_head and .formula_sha256 == $formula_sha and
+        .host_arch == $host_arch and .asset_name == $asset and .expected_binary_sha256 == $binary_sha)
+    ' "$started" >/dev/null || die "Homebrew install-started state differs from the exact release result"
+}
+
+freeze_homebrew_install_started() {
+  local started="$1" intent="$2" result="$3" tag="$4" release_id="$5" release_record_sha256="$6" tap_result_head="$7" formula="$8" host_arch="$9" asset="${10}" expected_binary="${11}"
+  local tmp
+  if [[ -e "$started" || -L "$started" ]]; then
+    validate_homebrew_install_started "$started" "$intent" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula" "$host_arch" "$asset" "$expected_binary"
+    return 0
+  fi
+  tmp="$(mktemp "${release_state_dir%/*}/.homebrew-install-started.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg intent_sha "$(sha256_file "$intent")" --arg result_sha "$(sha256_file "$result")" \
+    --arg tap_head "$tap_result_head" --arg formula_sha "$(sha256_file "$formula")" \
+    --arg host_arch "$host_arch" --arg asset "$asset" --arg binary_sha "$(sha256_file "$expected_binary")" \
+    '{schema:"goplaces-homebrew-install-started-v1",tag:$tag,tag_object:$object,tag_commit:$commit,default_sha:$main,
+      release_id:$release_id,release_record_sha256:$release_sha,install_intent_sha256:$intent_sha,
+      homebrew_result_sha256:$result_sha,tap_result_head:$tap_head,formula_sha256:$formula_sha,
+      host_arch:$host_arch,asset_name:$asset,expected_binary_sha256:$binary_sha}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$started" && ! -L "$started" ]] || die "Homebrew install-started state appeared concurrently"
+  mv "$tmp" "$started"
+  validate_homebrew_install_started "$started" "$intent" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula" "$host_arch" "$asset" "$expected_binary"
+}
+
+validate_homebrew_complete() {
+  local complete="$1" started="$2" result="$3" tag="$4" release_id="$5" release_record_sha256="$6" tap_result_head="$7" formula="$8"
+  require_regular_file "$complete"
+  [[ "$($STAT_BIN -f '%Lp' "$complete")" == 400 ]] || die "Homebrew complete-state permissions changed"
+  jq -e \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg started_sha "$(sha256_file "$started")" --arg result_sha "$(sha256_file "$result")" \
+    --arg tap_head "$tap_result_head" --arg formula_sha "$(sha256_file "$formula")" '
+      select(.schema == "goplaces-homebrew-complete-v1" and .tag == $tag and
+        .tag_object == $object and .tag_commit == $commit and .default_sha == $main and
+        .release_id == $release_id and .release_record_sha256 == $release_sha and
+        .install_started_sha256 == $started_sha and .homebrew_result_sha256 == $result_sha and
+        .tap_result_head == $tap_head and .formula_sha256 == $formula_sha)
+    ' "$complete" >/dev/null || die "Homebrew complete state differs from the exact release result"
+}
+
+freeze_homebrew_complete() {
+  local complete="$1" started="$2" result="$3" tag="$4" release_id="$5" release_record_sha256="$6" tap_result_head="$7" formula="$8" tmp
+  if [[ -e "$complete" || -L "$complete" ]]; then
+    validate_homebrew_complete "$complete" "$started" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula"
+    return 0
+  fi
+  tmp="$(mktemp "${release_state_dir%/*}/.homebrew-complete.XXXXXX")"
+  jq -n \
+    --arg tag "$tag" --arg object "$tag_object" --arg commit "$tag_commit" --arg main "$default_sha" \
+    --argjson release_id "$release_id" --arg release_sha "$release_record_sha256" \
+    --arg started_sha "$(sha256_file "$started")" --arg result_sha "$(sha256_file "$result")" \
+    --arg tap_head "$tap_result_head" --arg formula_sha "$(sha256_file "$formula")" \
+    '{schema:"goplaces-homebrew-complete-v1",tag:$tag,tag_object:$object,tag_commit:$commit,default_sha:$main,
+      release_id:$release_id,release_record_sha256:$release_sha,install_started_sha256:$started_sha,
+      homebrew_result_sha256:$result_sha,tap_result_head:$tap_head,formula_sha256:$formula_sha}' > "$tmp"
+  chmod 400 "$tmp"
+  [[ ! -e "$complete" && ! -L "$complete" ]] || die "Homebrew complete state appeared concurrently"
+  mv "$tmp" "$complete"
+  validate_homebrew_complete "$complete" "$started" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula"
+}
+
+verify_homebrew_install() {
+  local work="$1" tag="$2" verified_formula="$3" second_copy="$4" tap_result_head="$5"
+  local release_id="${6:-}" release_record_sha256="${7:-}" result="${8:-}" notes="${9:-}" published="${10:-}" completed="${11:-false}"
+  local version host_arch asset expected_dir expected_binary prefix installed formula tap_source
+  local install_intent install_started install_intent_existed=false installed_present=false
+  need brew
+  [[ -x "$TAR_BIN" && ! -L "$TAR_BIN" ]] || die "pinned system tar is unavailable"
+  [[ -x "$UNAME_BIN" && ! -L "$UNAME_BIN" ]] || die "pinned system uname is unavailable"
+  tap_source="${work}/tap-install-source"
+  formula="$(prepare_tap_install_source "$tap_source" "$tap_result_head" "$verified_formula")"
+  version="$(version_from_tag "$tag")"
+  host_arch="$($UNAME_BIN -m)"
+  case "$host_arch" in
+    arm64) asset="goplaces_${version}_darwin_arm64.tar.gz" ;;
+    x86_64) asset="goplaces_${version}_darwin_amd64.tar.gz" ;;
+    *) die "Homebrew proof requires native Apple silicon or Intel macOS" ;;
+  esac
+  [[ "$($UNAME_BIN -s)" == "Darwin" ]] || die "Homebrew proof requires native macOS"
+  [[ "$($TAR_BIN -tzf "${second_copy}/${asset}")" == "goplaces" ]] || die "Darwin archive must contain only goplaces"
+  expected_dir="${work}/expected-installed"
+  mkdir -p "$expected_dir"
+  "$TAR_BIN" -xzf "${second_copy}/${asset}" -C "$expected_dir" -- goplaces
+  expected_binary="${expected_dir}/goplaces"
+  [[ -f "$expected_binary" && ! -L "$expected_binary" ]] || die "expected release member is not a regular file"
+
+  if [[ -n "$release_id" ]]; then
+    assert_js_safe_positive_integer "$release_id" "Homebrew install release ID"
+    [[ "$release_record_sha256" =~ ^[0-9a-f]{64}$ ]] || die "Homebrew install release-record digest is malformed"
+    require_regular_file "$result"
+    install_intent="${release_state_dir}/homebrew-install-intent.json"
+    install_started="${release_state_dir}/homebrew-install-started.json"
+    if [[ -e "$install_intent" || -L "$install_intent" ]]; then
+      install_intent_existed=true
+    fi
+    case "$(homebrew_goplaces_install_state)" in
+      present) installed_present=true ;;
+      absent) installed_present=false ;;
+      *) die "Homebrew installed-state check is invalid" ;;
+    esac
+    [[ "$(homebrew_goplaces_cask_state)" == absent ]] || die "legacy goplaces Cask appeared during Formula proof"
+    if [[ "$install_intent_existed" != true && "$installed_present" == true ]]; then
+      die "goplaces is already installed without an exact Homebrew install intent"
+    fi
+    prepare_homebrew_install_intent "$install_intent" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula" "$host_arch" "$asset" "$expected_binary"
+    if [[ -e "$install_started" || -L "$install_started" ]]; then
+      validate_homebrew_install_started "$install_started" "$install_intent" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula" "$host_arch" "$asset" "$expected_binary"
+      if [[ "$installed_present" != true ]]; then
+        [[ "$completed" != true ]] || die "completed Homebrew proof no longer has an installed goplaces; refusing closeout mutation"
+        final_homebrew_recheck "$work" "$tap_result_head" "$tag" "$notes" "$published"
+        [[ "$(sha256_file "$published")" == "$release_record_sha256" ]] || die "published release record moved before resumed Homebrew install"
+        homebrew_command install --formula "$formula"
+      fi
+    else
+      [[ "$installed_present" != true ]] || die "goplaces appeared before the exact Homebrew install-started state"
+      final_homebrew_recheck "$work" "$tap_result_head" "$tag" "$notes" "$published"
+      [[ "$(sha256_file "$published")" == "$release_record_sha256" ]] || die "published release record moved before Homebrew install"
+      freeze_homebrew_install_started "$install_started" "$install_intent" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula" "$host_arch" "$asset" "$expected_binary"
+      homebrew_command install --formula "$formula"
+    fi
+  else
+    if [[ "$(homebrew_goplaces_install_state)" == present ]]; then
+      die "goplaces is already installed; exact clean Homebrew proof requires an absent formula"
+    fi
+    homebrew_command install --formula "$formula"
+  fi
+  prefix="$(homebrew_command --prefix --formula goplaces)"
+  installed="${prefix}/bin/goplaces"
+  [[ -f "$installed" && ! -L "$installed" ]] || die "Homebrew did not install a regular goplaces binary"
+  "$CMP_BIN" -s "$expected_binary" "$installed" || die "installed binary bytes differ from the verified release archive"
+  run_protected_script scripts/verify-macos-binary.sh "$installed" "$host_arch" "$version" execute
+  if [[ "$completed" != true ]]; then
+    homebrew_command test "$formula"
+    recheck_tap_install_source "$tap_source" "tap install checkout changed during Homebrew proof"
+    "$CMP_BIN" -s "$verified_formula" "$formula" || die "tap Formula bytes changed during Homebrew proof"
+    [[ -f "$installed" && ! -L "$installed" ]] || die "Homebrew test replaced the installed binary"
+    "$CMP_BIN" -s "$expected_binary" "$installed" || die "Homebrew test changed the installed binary bytes"
+    run_protected_script scripts/verify-macos-binary.sh "$installed" "$host_arch" "$version" execute
+  fi
+}
+
+recheck_tap_contract_after() {
+  local work="$1" expected_head="$2" repo_json live_default branch_json compare_json workflow_base workflow_now updater_base updater_now final_workflow
+  repo_json="${work}/tap-final-repository.json"
+  branch_json="${work}/tap-final-branch.json"
+  compare_json="${work}/tap-final-base-compare.json"
+  workflow_base="${work}/tap-final-workflow-base.json"
+  workflow_now="${work}/tap-final-workflow-now.json"
+  updater_base="${work}/tap-final-updater-base.json"
+  updater_now="${work}/tap-final-updater-now.json"
+  final_workflow="${work}/tap-final-workflow-record.json"
+  gh_api "repos/${TAP_REPOSITORY}" > "$repo_json"
+  live_default="$(jq -er '.default_branch | select(type == "string" and length > 0)' "$repo_json")" || die "could not re-resolve tap default branch"
+  [[ "$live_default" == main && "$live_default" == "$tap_default_branch" ]] || die "tap default branch identity moved after proof"
+  gh_api "repos/${TAP_REPOSITORY}/compare/${TAP_BASE}...${expected_head}" > "$compare_json"
+  jq -e --arg base "$TAP_BASE" --arg head "$expected_head" '
+    select(.status == "ahead" and .ahead_by == 1 and .behind_by == 0 and .total_commits == 1) |
+    select(.base_commit.sha == $base and .merge_base_commit.sha == $base and .head_commit.sha == $head)
+  ' "$compare_json" >/dev/null || die "tap final head is not the exact direct child of the frozen base"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$TAP_BASE" "$workflow_base"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$expected_head" "$workflow_now"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_UPDATER" "$TAP_BASE" "$updater_base"
+  fetch_content_record "$TAP_REPOSITORY" "$TAP_UPDATER" "$expected_head" "$updater_now"
+  [[ "$(jq -r .sha "$workflow_base")" == "$(jq -r .sha "$workflow_now")" ]] || die "tap workflow moved after proof"
+  [[ "$(jq -r .sha "$updater_base")" == "$(jq -r .sha "$updater_now")" ]] || die "tap updater moved after proof"
+  workflow_record "$TAP_REPOSITORY" "$TAP_WORKFLOW" "$final_workflow"
+  [[ "$(jq -r .id "$final_workflow")" == "$tap_workflow_id" ]] || die "tap workflow numeric identity moved after proof"
+  verify_tap_cask_quarantine "$expected_head" "${work}/tap-final"
+  gh_api "repos/${TAP_REPOSITORY}/branches/${tap_default_branch}" > "$branch_json"
+  jq -e --arg branch "$tap_default_branch" --arg sha "$expected_head" 'select(.name == $branch and .protected == true and .commit.sha == $sha)' "$branch_json" >/dev/null || die "tap protected current head moved after proof"
+}
+
+final_homebrew_recheck() {
+  local work="$1" tap_result_head="$2" tag="$3" notes="$4" published="$5"
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  verify_frozen_release "$tag" published "$notes" "$published"
+  recheck_tap_contract_after "$work" "$tap_result_head"
+}
+
+complete_homebrew_closeout() {
+  local work="$1" tag="$2" formula="$3" second_copy="$4" tap_result_head="$5" notes="$6" published="$7"
+  local release_id="${8:-}" release_record_sha256="${9:-}" result="${10:-}" complete completed=false started
+  if [[ -n "$release_id" ]]; then
+    complete="${release_state_dir}/homebrew-complete.json"
+    started="${release_state_dir}/homebrew-install-started.json"
+    if [[ -e "$complete" || -L "$complete" ]]; then
+      validate_homebrew_complete "$complete" "$started" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula"
+      completed=true
+    fi
+  fi
+  verify_homebrew_install "$work" "$tag" "$formula" "$second_copy" "$tap_result_head" \
+    "$release_id" "$release_record_sha256" "$result" "$notes" "$published" "$completed"
+  final_homebrew_recheck "$work" "$tap_result_head" "$tag" "$notes" "$published"
+  if [[ -n "$release_id" ]]; then
+    [[ "$(sha256_file "$published")" == "$release_record_sha256" ]] || die "published release record moved before Homebrew closeout"
+    freeze_homebrew_complete "$complete" "$started" "$result" "$tag" "$release_id" "$release_record_sha256" "$tap_result_head" "$formula"
+  fi
+}
+
+run_homebrew() {
+  local tag="$1" scratch notes published release_id first second version
+  local darwin_amd64 darwin_arm64 linux_amd64 linux_arm64 release_record_sha256 request_id
+  local before_json seen_ids response_json run_json final_json runs_after recovery_runs candidates
+  local run_id expected_title newest_id recovered status conclusion intent result tap_result_head formula_result
+  validate_tag "$tag"
+  preflight_repository
+  verify_remote_tag "$tag" "$default_sha"
+  init_release_state "$tag"
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-homebrew.XXXXXX")"
+  mkdir -p "${scratch}/home" "${scratch}/tmp"
+  notes="${scratch}/notes.md"
+  published="${scratch}/published.json"
+  extract_release_notes "$tag" released "$notes" "${protected_source_root}/CHANGELOG.md"
+  verify_frozen_release "$tag" published "$notes" "$published"
+  release_id="$(load_frozen_release_id)"
+  require_verifier_state "$tag" published "$release_id" "$published"
+  run_release_verifier_check "$tag" published "$release_id" "$(jq -r '.workflow_run_id' "${release_state_dir}/verifier-published.json")"
+  verify_remote_tag "$tag" "$default_sha"
+
+  first="${scratch}/download-one"
+  second="${scratch}/download-two"
+  download_release_copy "$tag" published "$release_id" "$notes" "$first"
+  download_release_copy "$tag" published "$release_id" "$notes" "$second"
+  run_protected_script scripts/validate-release-record.sh "${second}/release-record.json" "$tag" "$default_sha" published "${first}/release-record.json" >/dev/null
+  compare_release_copies "$first" "$second" "$published"
+  version="$(version_from_tag "$tag")"
+  darwin_amd64="$(sha256_file "${second}/goplaces_${version}_darwin_amd64.tar.gz")"
+  darwin_arm64="$(sha256_file "${second}/goplaces_${version}_darwin_arm64.tar.gz")"
+  linux_amd64="$(sha256_file "${second}/goplaces_${version}_linux_amd64.tar.gz")"
+  linux_arm64="$(sha256_file "${second}/goplaces_${version}_linux_arm64.tar.gz")"
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  verify_frozen_release "$tag" published "$notes" "$published"
+  require_verifier_state "$tag" published "$release_id" "$published"
+  release_record_sha256="$(sha256_file "$published")"
+
+  intent="${release_state_dir}/homebrew-intent.json"
+  result="${release_state_dir}/homebrew-result.json"
+  validate_homebrew_phase_order "$intent" "$result"
+  before_json="${scratch}/tap-runs-before.json"
+  seen_ids="${scratch}/tap-seen-ids.json"
+  response_json="${scratch}/tap-dispatch.json"
+  run_json="${scratch}/tap-run.json"
+  final_json="${scratch}/tap-run-final.json"
+  runs_after="${scratch}/tap-runs-after.json"
+  recovery_runs="${scratch}/tap-runs-recovery.json"
+  candidates="${scratch}/tap-run-candidates.json"
+
+  if [[ -e "$intent" || -L "$intent" ]]; then
+    recheck_tap_contract_for_homebrew_state "${scratch}/tap-recovery-contract"
+    prepare_homebrew_intent "$intent" "$tag" "$release_id" "$release_record_sha256" \
+      "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64" "$seen_ids"
+  else
+    tap_trust_preflight "$scratch"
+    list_workflow_run_ids "$TAP_REPOSITORY" "$tap_workflow_id" "$tap_default_branch" "$before_json" > "$seen_ids"
+    homebrew_install_eligibility_preflight
+    prepare_homebrew_intent "$intent" "$tag" "$release_id" "$release_record_sha256" \
+      "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64" "$seen_ids"
+  fi
+  jq '.seen_run_ids' "$intent" > "$seen_ids"
+  request_id="$(jq -er '.request_id' "$intent")"
+  expected_title="$(jq -er '.expected_title' "$intent")"
+  run_id="$(jq -r '.workflow_run_id // empty' "$intent")"
+  recovered="$(jq -r 'if has("recovered") then (.recovered | tostring) else empty end' "$intent")"
+
+  if [[ -z "$run_id" ]]; then
+    if [[ "$homebrew_intent_created" == true ]]; then
+      run_release_verifier_check "$tag" published "$release_id" "$(jq -r '.workflow_run_id' "${release_state_dir}/verifier-published.json")"
+      verify_remote_tag "$tag" "$default_sha"
+      recheck_source_default
+      verify_frozen_release "$tag" published "$notes" "$published"
+      [[ "$(sha256_file "$published")" == "$release_record_sha256" ]] || die "published release record moved before Homebrew dispatch"
+      homebrew_install_eligibility_preflight
+      recheck_tap_contract_before "${scratch}/tap-before-dispatch" "$tap_head" "$tap_workflow_id"
+      gh_api --method POST "repos/${TAP_REPOSITORY}/actions/workflows/${tap_workflow_id}/dispatches" \
+        -f "ref=${tap_default_branch}" \
+        -f 'inputs[formula]=goplaces' \
+        -f "inputs[tag]=${tag}" \
+        -f "inputs[repository]=${REPOSITORY}" \
+        -f 'inputs[description]=Modern Go client + CLI for the Google Places API (New).' \
+        -f 'inputs[artifact_template]={formula}_{version}_{target}.tar.gz' \
+        -f "inputs[darwin_amd64_sha256]=${darwin_amd64}" \
+        -f "inputs[darwin_arm64_sha256]=${darwin_arm64}" \
+        -f "inputs[linux_amd64_sha256]=${linux_amd64}" \
+        -f "inputs[linux_arm64_sha256]=${linux_arm64}" \
+        -f "inputs[source_tag_commit]=${tag_commit}" \
+        -f "inputs[source_tag_object]=${tag_object}" \
+        -f "inputs[request_id]=${request_id}" > "$response_json"
+      run_id="$(parse_new_dispatch_id "$response_json" "$seen_ids" tap "$TAP_REPOSITORY")"
+      recovered=false
+    else
+      run_id="$(recover_homebrew_run "$intent" "$recovery_runs" "$candidates")"
+      [[ -n "$run_id" ]] || die "existing unbound Homebrew intent has no visible exact run; refusing a duplicate dispatch"
+      recovered=true
+    fi
+    bind_homebrew_intent_run "$intent" "$run_id" "$recovered" "$response_json"
+    validate_homebrew_intent "$intent" "$tag" "$release_id" "$release_record_sha256" \
+      "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64"
+  else
+    assert_js_safe_positive_integer "$run_id" "stored Homebrew workflow run ID"
+    [[ "$recovered" == true || "$recovered" == false ]] || die "stored Homebrew recovery binding is malformed"
+    if [[ "$recovered" == false ]]; then
+      jq '{workflow_run_id,run_url,html_url}' "$intent" > "$response_json"
+      parse_new_dispatch_id "$response_json" "$seen_ids" tap "$TAP_REPOSITORY" >/dev/null
+    fi
+  fi
+
+  tap_default_branch=main
+  tap_workflow_id="$TAP_WORKFLOW_ID"
+  tap_head="$TAP_BASE"
+  get_run_with_retry "$TAP_REPOSITORY" "$run_id" "$run_json"
+  assert_tap_run "$run_json" "$run_id" "$expected_title" false
+  status="$(jq -er '.status | select(type == "string")' "$run_json")"
+  conclusion="$(jq -r '.conclusion // empty' "$run_json")"
+  if [[ "$status" == completed && "$conclusion" != success ]]; then
+    die "bound Homebrew workflow run completed without success; refusing a duplicate dispatch"
+  fi
+  if [[ "$status" != completed ]]; then
+    gh_watch_run "$TAP_REPOSITORY" "$run_id"
+  fi
+  verify_remote_tag "$tag" "$default_sha"
+  recheck_source_default
+  verify_frozen_release "$tag" published "$notes" "$published"
+  [[ "$(sha256_file "$published")" == "$release_record_sha256" ]] || die "published release record moved during Homebrew workflow proof"
+  gh_api "repos/${TAP_REPOSITORY}/actions/runs/${run_id}" > "$final_json"
+  assert_tap_run "$final_json" "$run_id" "$expected_title" true
+  fetch_workflow_runs "$TAP_REPOSITORY" "$tap_workflow_id" "$tap_default_branch" "$runs_after"
+  newest_id="$(newest_matching_run_id "$runs_after" "$tap_workflow_id" "$TAP_WORKFLOW" "$expected_title" "$tap_default_branch" "$tap_head")"
+  [[ "$newest_id" == "$run_id" ]] || die "newest exact tap proof is not the returned dispatch run"
+
+  tap_result_head="$(verify_tap_commit_with_retry "$scratch" "$tag" "$request_id" "$TAP_BASE" "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64")"
+  formula_result="${scratch}/goplaces-result.rb"
+  recheck_tap_contract_for_homebrew_state "${scratch}/tap-result-contract"
+  [[ "$tap_head" == "$tap_result_head" ]] || die "tap head moved after exact result recovery"
+  freeze_homebrew_result "$result" "$intent" "$tag" "$release_id" "$release_record_sha256" \
+    "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64" "$tap_result_head" "$formula_result"
+  complete_homebrew_closeout "$scratch" "$tag" "$formula_result" "$second" "$tap_result_head" "$notes" "$published" \
+    "$release_id" "$release_record_sha256" "$result"
+  rm -rf "$scratch"
+}
+
+main() {
+  [[ $# -ge 1 ]] || usage
+  freeze_jq_parser
+  case "$1" in
+    --check)
+      [[ $# == 1 ]] || usage
+      preflight_repository
+      run_check_suite
+      echo "release-local: protected-current credential-free preflight passed at $default_sha"
+      ;;
+    pilot|draft|verify-draft|publish|homebrew)
+      [[ $# == 2 ]] || usage
+      case "$1" in
+        pilot) run_pilot "$2" ;;
+        draft) run_draft "$2" ;;
+        verify-draft) run_verify_draft "$2" ;;
+        publish) run_publish "$2" ;;
+        homebrew) run_homebrew "$2" ;;
+      esac
+      ;;
+    *) usage ;;
+  esac
+}
+
+if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != "1" ]]; then
+  main "$@"
+fi
