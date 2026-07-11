@@ -1179,7 +1179,7 @@ func TestRunVersion(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("expected exit code 0, got %d", exitCode)
 	}
-	if strings.TrimSpace(stdout.String()) != Version {
+	if strings.TrimSpace(stdout.String()) != devVersion {
 		t.Fatalf("unexpected version: %s", stdout.String())
 	}
 }

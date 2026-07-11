@@ -47,7 +47,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			exitCode = code
 			panic(exitSignal{code: code})
 		}),
-		kong.Vars{"version": Version},
+		kong.Vars{"version": currentVersion()},
 	)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)

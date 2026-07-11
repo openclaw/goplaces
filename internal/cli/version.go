@@ -2,12 +2,46 @@ package cli
 
 import (
 	"fmt"
+	"runtime/debug"
+	"strings"
 
 	"github.com/alecthomas/kong"
 )
 
-// Version is the CLI version string (set by GoReleaser).
-var Version = "dev"
+const (
+	modulePath    = "github.com/steipete/goplaces"
+	devVersion    = "dev"
+	vcsSettingKey = "vcs"
+)
+
+// Version is the CLI version string set by GoReleaser for official archives.
+var Version = devVersion
+
+func currentVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		info = nil
+	}
+	return resolveVersion(Version, info)
+}
+
+func resolveVersion(linkedVersion string, info *debug.BuildInfo) string {
+	if linkedVersion != "" && linkedVersion != devVersion {
+		return linkedVersion
+	}
+	if info == nil || info.Main.Path != modulePath ||
+		!strings.HasPrefix(info.Main.Version, "v") {
+		return devVersion
+	}
+	// Module installs have no repository VCS settings. Go 1.26 can assign a
+	// pseudo-version to local VCS builds, which must continue to report dev.
+	for _, setting := range info.Settings {
+		if setting.Key == vcsSettingKey || strings.HasPrefix(setting.Key, vcsSettingKey+".") {
+			return devVersion
+		}
+	}
+	return strings.TrimPrefix(info.Main.Version, "v")
+}
 
 // VersionFlag prints the version and exits.
 type VersionFlag string

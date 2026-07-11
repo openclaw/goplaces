@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/steipete/goplaces/internal/cli"
 )
 
 func TestRunVersion(t *testing.T) {
@@ -17,7 +15,7 @@ func TestRunVersion(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
-	if strings.TrimSpace(stdout.String()) != cli.Version {
+	if strings.TrimSpace(stdout.String()) != "dev" {
 		t.Fatalf("unexpected version output: %s", stdout.String())
 	}
 	if stderr.Len() != 0 {
