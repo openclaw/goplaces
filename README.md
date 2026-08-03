@@ -1,327 +1,114 @@
-# goplaces
+# goplaces 📍 — Find the place. Skip the payload archaeology.
 
 ![goplaces banner](docs/assets/readme-banner.jpg)
 
-Modern Go client and CLI for the Google Places API (New), plus selected Routes API workflows.
+[![CI](https://img.shields.io/github/actions/workflow/status/openclaw/goplaces/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/openclaw/goplaces/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/openclaw/goplaces?style=flat-square)](https://github.com/openclaw/goplaces/releases/latest)
+[![Go](https://img.shields.io/badge/Go-1.26.5-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/dl/)
+[![License](https://img.shields.io/github/license/openclaw/goplaces?style=flat-square)](LICENSE)
+[![Homebrew](https://img.shields.io/badge/Homebrew-openclaw%2Ftap-FBB040?style=flat-square&logo=homebrew&logoColor=black)](https://github.com/openclaw/homebrew-tap/blob/main/Casks/goplaces.rb)
+[![Docs](https://img.shields.io/badge/docs-goplaces.sh-3b82f6?style=flat-square)](https://goplaces.sh)
 
-Docs site: https://goplaces.sh
+`goplaces` is a Go client and CLI for Google Places API (New) and selected Routes API workflows. It is for terminal use, shell automation, agents, and Go programs that need typed requests and JSON output without hand-building field masks or request payloads.
 
-Project direction and compatibility policy: [VISION.md](VISION.md)
+## Install
 
-Use it when you want Google place data from a terminal, shell script, agent, or Go program without hand-writing Places field masks and request payloads. `goplaces` keeps the human CLI pleasant, but the same commands also emit stable JSON for automation.
+Homebrew installs the published binary on macOS or Linux:
 
-Typical jobs:
+```sh
+brew install --cask openclaw/tap/goplaces
+```
 
-- Find places by text, type, rating, price, current open state, and location bias.
-- Inspect a place: address, coordinates, phone, website, hours, photos, reviews, current open state, and business status.
-- Autocomplete partial place/query input.
-- Search nearby a lat/lng radius.
-- Resolve free-form locations to place candidates.
-- Search for places along a route.
-- Get directions, travel time, distance, steps, units, and drive route modifiers.
+With Go 1.26.5 or newer:
 
-## Project Shape
+```sh
+go install github.com/steipete/goplaces/cmd/goplaces@latest
+```
 
-- `cmd/goplaces`: CLI entrypoint built around the library.
-- Root package `github.com/steipete/goplaces`: stable public Go API.
-- `internal/places`: Places + Routes implementation and focused client tests.
-- `internal/cli`: command parsing, output rendering, and CLI tests.
-- Places API (New): search, nearby, details, autocomplete, photo media, resolve.
-- Routes API: route polyline sampling and directions.
-- Output: compact color text by default, JSON with `--json`.
-- Runtime config: environment variables or flags.
+Prebuilt archives and checksums are available from [GitHub Releases](https://github.com/openclaw/goplaces/releases/latest).
 
-## Install / Run
+## Quick start
 
-Latest release: v0.4.4 (2026-07-04).
+Enable **Places API (New)** in a Google Cloud project, create an API key, then run:
 
-- Homebrew: `brew install --cask openclaw/tap/goplaces`
-- Go: `go install github.com/steipete/goplaces/cmd/goplaces@latest`
-- Source: `make goplaces`
-
-Starting with v0.4.5, official macOS release archives use the hardened runtime, a secure timestamp, and notarization under `Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)`. A Go toolchain install reports its tagged module version; local source builds continue to report `dev`.
-
-## API Setup
-
-`goplaces` needs a Google API key with the right APIs enabled:
-
-- Places API (New) for `search`, `nearby`, `autocomplete`, `details`, `photo`, and `resolve`.
-- Routes API for `route` and `directions`.
-
-```bash
+```sh
 export GOOGLE_PLACES_API_KEY="..."
+goplaces search "coffee near Central Park" --limit 5
+goplaces search "coffee near Central Park" --limit 5 --json
 ```
 
-Optional overrides:
+The default output is compact text for people; `--json` emits the response shape for scripts and agents. See [API key setup](docs/api-key-setup.md) for API enablement, key restrictions, billing, and quota guidance.
 
-- `GOOGLE_PLACES_BASE_URL` (testing, proxying, or mock servers)
-- `GOOGLE_ROUTES_BASE_URL` (testing Routes API or proxying)
-- `GOOGLE_DIRECTIONS_BASE_URL` (testing Routes API directions calls or proxying)
+## Commands
 
-### Create a Key
+| Command | What it does |
+| --- | --- |
+| [`search`](https://goplaces.sh/commands/search.html) | Finds places by text, filters, and optional location bias. |
+| [`nearby`](https://goplaces.sh/commands/nearby.html) | Finds places inside a latitude, longitude, and radius. |
+| [`autocomplete`](https://goplaces.sh/commands/autocomplete.html) | Returns place and query suggestions for partial input. |
+| [`details`](https://goplaces.sh/commands/details.html) | Fetches place details, with optional reviews and photos. |
+| [`photo`](https://goplaces.sh/commands/photo.html) | Resolves a Places photo resource to a media URL. |
+| [`resolve`](https://goplaces.sh/commands/resolve.html) | Resolves free-form location text to place candidates. |
+| [`route`](https://goplaces.sh/commands/route.html) | Samples a route and searches for places near its waypoints. |
+| [`directions`](https://goplaces.sh/commands/directions.html) | Returns distance, duration, warnings, and optional steps. |
 
-1. **Create a Google Cloud Project**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Click "Select a project" → "New Project"
-   - Name it (e.g., "goplaces") and click "Create"
+Run `goplaces <command> --help` for the current flags. Long flags accept both `--flag value` and `--flag=value`.
 
-2. **Enable the Places API (New)**
-   - Go to [APIs & Services → Library](https://console.cloud.google.com/apis/library)
-   - Search for "Places API (New)" — make sure it says **(New)**!
-   - Click "Enable"
+The `route` and `directions` commands also require **Routes API**. Directions default to walking with metric units and support driving comparisons, route modifiers, and departure or transit arrival times.
 
-3. **Enable the Routes API (for `route` and `directions`)**
-   - Search for "Routes API"
-   - Click "Enable"
+## Configuration
 
-4. **Create an API Key**
-   - Go to [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
-   - Click "Create Credentials" → "API Key"
-   - Copy the key
+`GOOGLE_PLACES_API_KEY` supplies the API key to the CLI and Go client. The same key can access both APIs when they are enabled in one Google Cloud project.
 
-5. **Set the Environment Variable**
-   ```bash
-   export GOOGLE_PLACES_API_KEY="your-api-key-here"
-   ```
-   Add to your `~/.zshrc` or `~/.bashrc` to persist.
+These endpoint overrides are intended for tests, proxies, and mock servers:
 
-6. **(Recommended) Restrict the Key**
-   - Click on the key in Credentials
-   - Under "API restrictions", select "Restrict key" → add "Places API (New)" and "Routes API"
-   - Set quota limits in [Quotas](https://console.cloud.google.com/apis/api/places.googleapis.com/quotas)
+| Environment variable | Default |
+| --- | --- |
+| `GOOGLE_PLACES_BASE_URL` | `https://places.googleapis.com/v1` |
+| `GOOGLE_ROUTES_BASE_URL` | `https://routes.googleapis.com` |
+| `GOOGLE_DIRECTIONS_BASE_URL` | `https://routes.googleapis.com` |
 
-> **Note**: The Places API has usage costs. Check [pricing](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing) and set budget alerts!
+Global flags include `--api-key`, `--timeout`, `--json`, and `--no-color`. Command-specific examples and response details live at [goplaces.sh](https://goplaces.sh).
 
-## CLI Overview
+## Go client
 
-Long flags accept `--flag value` or `--flag=value` (examples use space).
+The root module exposes the same search, nearby, autocomplete, details, photo, resolve, route, and directions workflows as typed Go methods.
 
-```text
-goplaces [--api-key=KEY] [--base-url=URL] [--routes-base-url=URL] [--directions-base-url=URL] [--timeout=10s] [--json] [--no-color]
-         <command>
+```go
+package main
 
-Commands:
-  autocomplete  Autocomplete places and queries.
-  nearby        Search nearby places by location.
-  search   Search places by text query.
-  route    Search places along a route.
-  directions  Get directions between two points.
-  details  Fetch place details by place ID.
-  photo    Fetch a photo URL by photo name.
-  resolve  Resolve a location string to candidate places.
-```
+import (
+	"context"
+	"fmt"
+	"os"
 
-Command map:
+	"github.com/steipete/goplaces"
+)
 
-| Command | API | Use |
-| --- | --- | --- |
-| `search` | Places Text Search | Find places by query and filters. |
-| `nearby` | Places Nearby Search | Find places around a lat/lng radius. |
-| `autocomplete` | Places Autocomplete | Get place/query suggestions for partial input. |
-| `details` | Place Details | Fetch rich place data by place ID. |
-| `photo` | Place Photo Media | Turn a photo resource name into a media URL. |
-| `resolve` | Places Text Search | Resolve a free-form location string. |
-| `route` | Routes + Places | Sample a route and search near waypoints. |
-| `directions` | Routes | Get distance, duration, warnings, and steps. |
-
-## Examples
-
-Search with filters + location bias:
-
-```bash
-goplaces search "coffee" --min-rating 4 --open-now --limit 5 \
-  --lat 40.8065 --lng -73.9719 --radius-m 3000 --language en --region US
-```
-
-Pagination:
-
-```bash
-goplaces search "pizza" --page-token "NEXT_PAGE_TOKEN"
-```
-
-Autocomplete:
-
-```bash
-goplaces autocomplete "cof" --session-token "goplaces-demo" --limit 5 --language en --region US
-```
-
-Nearby search:
-
-```bash
-goplaces nearby --lat 47.6062 --lng -122.3321 --radius-m 1500 --type cafe --limit 5
-```
-
-Route search:
-
-```bash
-goplaces route "coffee" --from "Seattle, WA" --to "Portland, OR" --max-waypoints 5
-```
-
-Directions (walking with optional driving comparison):
-
-```bash
-goplaces directions --from "Pike Place Market" --to "Space Needle"
-goplaces directions --from-place-id <fromId> --to-place-id <toId> --compare drive --steps
-```
-
-Driving route modifiers:
-
-```bash
-goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-tolls
-goplaces directions --from "Paris" --to "Brest" --mode drive --avoid-highways --avoid-ferries
-```
-
-Time-aware routing:
-
-```bash
-DEPARTURE_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
-ARRIVAL_TIME="$(python3 -c 'from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
-goplaces directions --from "GIG Airport" --to "Leblon, Rio de Janeiro" --mode drive --departure-time "$DEPARTURE_TIME"
-goplaces directions --from "Pike Place Market" --to "Space Needle" --mode transit --arrival-time "$ARRIVAL_TIME"
-```
-
-Transit arrival times must be within Google's schedule window: up to 7 days in the past or 100 days in the future.
-
-Units (default metric):
-
-```bash
-goplaces directions --from "Pike Place Market" --to "Space Needle" --units imperial
-```
-
-Details:
-
-```bash
-goplaces details ChIJ-bfVTh8VkFQRDZLQnmioK9s
-goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4 --reviews
-goplaces details ChIJN1t_tDeuEmsRUsoyG83frY4 --photos
-```
-
-Photo URL:
-
-```bash
-goplaces photo "places/PLACE_ID/photos/PHOTO_ID" --max-width 1200
-```
-
-Resolve:
-
-```bash
-goplaces resolve "Riverside Park, New York" --limit 5
-```
-
-JSON output:
-
-```bash
-goplaces search "sushi" --json
-```
-
-Search and nearby JSON include `results` and any returned `next_page_token`.
-Example result fields include:
-
-```json
-{
-  "results": [
-    {
-      "place_id": "ChIJ-bfVTh8VkFQRDZLQnmioK9s",
-      "name": "Space Needle",
-      "address": "400 Broad St, Seattle, WA 98109, USA",
-      "rating": 4.6,
-      "user_rating_count": 58186,
-      "open_now": true,
-      "business_status": "OPERATIONAL"
-    }
-  ],
-  "next_page_token": "..."
+func main() {
+	client := goplaces.NewClient(goplaces.Options{APIKey: os.Getenv("GOOGLE_PLACES_API_KEY")})
+	result, err := client.Search(context.Background(), goplaces.SearchRequest{Query: "coffee", Limit: 5})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(len(result.Results))
 }
 ```
 
-## Library
+See the [Go package reference](https://pkg.go.dev/github.com/steipete/goplaces) for exported request and response types. The project's intended scope and compatibility boundaries are in [VISION.md](VISION.md).
 
-```go
-boolPtr := func(v bool) *bool { return &v }
-floatPtr := func(v float64) *float64 { return &v }
+## Development
 
-client := goplaces.NewClient(goplaces.Options{
-    APIKey:  os.Getenv("GOOGLE_PLACES_API_KEY"),
-    Timeout: 8 * time.Second,
-})
+Go 1.26.5 is required.
 
-search, err := client.Search(ctx, goplaces.SearchRequest{
-    Query: "italian restaurant",
-    Filters: &goplaces.Filters{
-        OpenNow:   boolPtr(true),
-        MinRating: floatPtr(4.0),
-        Types:     []string{"restaurant"},
-    },
-    LocationBias: &goplaces.LocationBias{Lat: 40.8065, Lng: -73.9719, RadiusM: 3000},
-    Language:     "en",
-    Region:       "US",
-    Limit:        10,
-})
-
-details, err := client.DetailsWithOptions(ctx, goplaces.DetailsRequest{
-    PlaceID:        "ChIJN1t_tDeuEmsRUsoyG83frY4",
-    Language:       "en",
-    Region:         "US",
-    IncludeReviews: true,
-})
-
-autocomplete, err := client.Autocomplete(ctx, goplaces.AutocompleteRequest{
-    Input:        "cof",
-    SessionToken: "goplaces-demo",
-    Limit:        5,
-    Language:     "en",
-    Region:       "US",
-})
-
-nearby, err := client.NearbySearch(ctx, goplaces.NearbySearchRequest{
-    LocationRestriction: &goplaces.LocationBias{Lat: 47.6062, Lng: -122.3321, RadiusM: 1500},
-    IncludedTypes:       []string{"cafe"},
-    Limit:               5,
-})
-
-photo, err := client.PhotoMedia(ctx, goplaces.PhotoMediaRequest{
-    Name:       "places/PLACE_ID/photos/PHOTO_ID",
-    MaxWidthPx: 1200,
-})
-
-route, err := client.Route(ctx, goplaces.RouteRequest{
-    Query:        "coffee",
-    From:         "Seattle, WA",
-    To:           "Portland, OR",
-    MaxWaypoints: 5,
-})
-```
-
-## Notes
-
-- `Filters.Types` maps to `includedType` (Google accepts a single value). Only the first type is sent.
-- Price levels in search filters map to Google enums: `0` (free) → `4` (very expensive).
-- Reviews are returned only when `IncludeReviews`/`--reviews` is set.
-- Photos are returned only when `IncludePhotos`/`--photos` is set.
-- Photo media requires `MaxWidthPx` or `MaxHeightPx`; each provided dimension must be 1-4800.
-- Route search requires the Google Routes API to be enabled.
-- `business_status` is returned for search, nearby, and details when Google includes it.
-- Direction route modifiers (`--avoid-tolls`, `--avoid-highways`, `--avoid-ferries`) require `--mode drive`.
-- Field masks are defined alongside each request (e.g. `search.go`, `details.go`, `autocomplete.go`).
-- The Places API is billed and quota-limited; keep an eye on your Cloud Console quotas.
-
-## Testing
-
-```bash
+```sh
+go mod download
+go build ./...
 make lint test coverage
 ```
 
-### E2E tests (optional)
+Authenticated end-to-end tests are optional; see [development notes](docs/development.md).
 
-```bash
-export GOOGLE_PLACES_API_KEY="..."
-make e2e
-```
+## License
 
-Optional env overrides:
-
-- Use a custom endpoint (proxy/mock): `GOOGLE_PLACES_E2E_BASE_URL`
-- Override the search text used in E2E: `GOOGLE_PLACES_E2E_QUERY`
-- Override language code for E2E: `GOOGLE_PLACES_E2E_LANGUAGE`
-- Override region code for E2E: `GOOGLE_PLACES_E2E_REGION`
-- Override directions endpoints/locations: `GOOGLE_DIRECTIONS_E2E_BASE_URL`, `GOOGLE_PLACES_E2E_DIRECTIONS_FROM`, `GOOGLE_PLACES_E2E_DIRECTIONS_TO`
+MIT. See [LICENSE](LICENSE).
