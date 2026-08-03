@@ -95,7 +95,7 @@ func main() {
 }
 ```
 
-See the [Go package reference](https://pkg.go.dev/github.com/steipete/goplaces) for exported request and response types. The project's intended scope and compatibility boundaries are in [VISION.md](VISION.md).
+See the [Go package reference](https://pkg.go.dev/github.com/steipete/goplaces) for exported request and response types and the [client reference notes](docs/client-reference.md) for request-specific behavior. The project's intended scope and compatibility boundaries are in [VISION.md](VISION.md).
 
 ## Development
 
