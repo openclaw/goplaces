@@ -51,13 +51,17 @@ func NewClient(opts Options) *Client {
 		directionsBaseURL = defaultDirectionsBaseURL
 	}
 
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = 10 * time.Second
+	}
 	client := opts.HTTPClient
 	if client == nil {
-		timeout := opts.Timeout
-		if timeout == 0 {
-			timeout = 10 * time.Second
-		}
 		client = &http.Client{Timeout: timeout}
+	} else if client.Timeout == 0 {
+		cloned := *client
+		cloned.Timeout = timeout
+		client = &cloned
 	}
 
 	return &Client{

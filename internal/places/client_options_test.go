@@ -3,7 +3,9 @@ package places
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
+	"time"
 )
 
 func TestMissingAPIKey(t *testing.T) {
@@ -89,6 +91,30 @@ func TestValidationErrors(t *testing.T) {
 	_, err = client.Details(context.Background(), "")
 	if err == nil {
 		t.Fatalf("expected details error")
+	}
+}
+
+func TestNewClientAppliesTimeoutToProvidedClient(t *testing.T) {
+	provided := &http.Client{}
+	client := NewClient(Options{
+		APIKey:     "test-key",
+		HTTPClient: provided,
+		Timeout:    2 * time.Second,
+	})
+	if client.httpClient.Timeout != 2*time.Second {
+		t.Fatalf("timeout=%s want 2s", client.httpClient.Timeout)
+	}
+	if provided.Timeout != 0 {
+		t.Fatalf("mutated caller client timeout=%s", provided.Timeout)
+	}
+	explicit := &http.Client{Timeout: 7 * time.Second}
+	kept := NewClient(Options{
+		APIKey:     "test-key",
+		HTTPClient: explicit,
+		Timeout:    2 * time.Second,
+	})
+	if kept.httpClient.Timeout != 7*time.Second {
+		t.Fatalf("explicit timeout=%s want 7s", kept.httpClient.Timeout)
 	}
 }
 
