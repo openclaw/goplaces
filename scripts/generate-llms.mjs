@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { metadataText } from "./llms-metadata.mjs";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const docsDir = path.join(repoRoot, "docs");
 const cname = fs.readFileSync(path.join(docsDir, "CNAME"), "utf8").trim();
@@ -58,15 +60,6 @@ function allHtml(dir) {
 
 function pageUrl(rel) {
   return rel === "index.html" ? origin + "/" : origin + "/" + rel;
-}
-
-export function metadataText(value, field) {
-  const text = String(value || "");
-  if (/[<>]/.test(text)) throw new Error(`${field} must be plain text`);
-  return text
-    .replace(/&(?:mdash|amp|nbsp|#39|quot);/g, (entity) => ({ "&mdash;": "-", "&amp;": "&", "&nbsp;": " ", "&#39;": "'", "&quot;": '"' })[entity])
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function titleize(input) {

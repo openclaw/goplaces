@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { metadataText } from "./generate-llms.mjs";
+import { metadataText } from "./llms-metadata.mjs";
 
 test("rejects markup instead of trying to sanitize it", () => {
   assert.throws(
