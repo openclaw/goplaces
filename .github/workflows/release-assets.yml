@@ -187,7 +187,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ -x "$GO_BIN" ]]
-          [[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$GO_BIN" env GOVERSION)" == go1.26.5 ]]
+          [[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$GO_BIN" env GOVERSION)" == go1.26.6 ]]
           (cd "$SOURCE" && /usr/bin/env GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off \
             GOFLAGS=-mod=readonly GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org \
             GOVCS='*:off' "$GO_BIN" mod download all)

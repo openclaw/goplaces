@@ -7,7 +7,7 @@ die() {
 }
 
 go_bin="${GO_BIN:-go}"
-expected_go_version="go1.26.5"
+expected_go_version="go1.26.6"
 version="${REPRO_VERSION:-0.0.0-repro}"
 version_symbol="github.com/steipete/goplaces/internal/cli.Version"
 snapshot_dir="${1:-}"

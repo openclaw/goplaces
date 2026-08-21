@@ -79,7 +79,7 @@ func TestResolveVersion(t *testing.T) {
 
 func buildInfo(version string, settings ...debug.BuildSetting) *debug.BuildInfo {
 	return &debug.BuildInfo{
-		GoVersion: "go1.26.5",
+		GoVersion: "go1.26.6",
 		Path:      "github.com/steipete/goplaces/cmd/goplaces",
 		Main: debug.Module{
 			Path:    modulePath,

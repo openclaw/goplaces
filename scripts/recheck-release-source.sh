@@ -11,7 +11,7 @@ readonly sed_bin=/usr/bin/sed
 readonly grep_bin=/usr/bin/grep
 readonly official_origin=https://github.com/openclaw/goplaces.git
 readonly system_path=/usr/bin:/bin:/usr/sbin:/sbin
-readonly expected_go_version=go1.26.5
+readonly expected_go_version=go1.26.6
 readonly expected_goreleaser_version=2.16.0
 
 die() {

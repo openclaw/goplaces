@@ -42,7 +42,7 @@ if [[ -z "$govulncheck_bin" ]]; then
   govulncheck_bin="$($go_bin env GOPATH)/bin/govulncheck"
 fi
 [[ -x "$govulncheck_bin" ]] || die "pinned govulncheck is not executable"
-[[ "$($go_bin env GOVERSION)" == go1.26.5 ]] || die "verification requires Go 1.26.5"
+[[ "$($go_bin env GOVERSION)" == go1.26.6 ]] || die "verification requires Go 1.26.6"
 [[ "$(/usr/bin/uname -m)" == "$native_arch" ]] || die "runner architecture does not match native verifier job"
 
 sha256_file() {
@@ -134,7 +134,7 @@ verify_build_info() {
   local expected_arch="$3"
   local info="$scratch/build-info.txt"
   "$go_bin" version -m "$binary" > "$info" || die "could not read Go build info: $expected_os/$expected_arch"
-  [[ "$(sed -n '1p' "$info")" == "$binary: go1.26.5" ]] || die "wrong Go toolchain: $expected_os/$expected_arch"
+  [[ "$(sed -n '1p' "$info")" == "$binary: go1.26.6" ]] || die "wrong Go toolchain: $expected_os/$expected_arch"
   grep -Fqx $'\tpath\tgithub.com/steipete/goplaces/cmd/goplaces' "$info" || die "wrong main package: $expected_os/$expected_arch"
   [[ "$(awk -F '\t' -v tag="$tag" '$2 == "mod" && $3 == "github.com/steipete/goplaces" && $4 == tag {count++} END {print count + 0}' "$info")" -eq 1 ]] ||
     die "wrong tagged module version: $expected_os/$expected_arch"
