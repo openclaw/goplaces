@@ -156,7 +156,7 @@ EOF
   grep -Fq 'homebrew_command list "$kind_flag" --full-name' "$release_script" || die "Homebrew installed-state proof is not a no-name full inventory"
   grep -Fq 'homebrew_command --prefix --formula goplaces' "$release_script" || die "installed binary lookup is not Formula-specific"
   grep -Fq 'readonly EXPECTED_GH_VERSION="2.98.0"' "$release_script" || die "GitHub CLI version is not pinned"
-  grep -Fq 'Cellar/node/26\.5\.0(_1)?/bin/node' "$release_script" || die "reviewed Node formula revision is not allowlisted"
+  grep -Fq 'Cellar/node/26\.7\.0(_1)?/bin/node' "$release_script" || die "reviewed Node formula revision is not allowlisted"
   grep -Fq 'candidate=/opt/homebrew/opt/gh/bin/gh' "$release_script" || die "GitHub CLI does not bypass the mutable bin wrapper"
   ! grep -Fq 'candidate=/opt/homebrew/bin/gh' "$release_script" || die "GitHub CLI still freezes the mutable wrapper"
   grep -Fq "select(.path == \$path)" "$release_script" || die "workflow path is not exact"
