@@ -39,7 +39,7 @@ done
 command -v "$go_bin" >/dev/null 2>&1 || die "go is required"
 [[ -x "$git_bin" ]] || die "trusted Git executable is required"
 command -v "$jq_bin" >/dev/null 2>&1 || die "jq is required"
-[[ "$($go_bin env GOVERSION)" == go1.26.6 ]] || die "rebuild requires Go 1.26.6"
+[[ "$($go_bin env GOVERSION)" == go1.27.0 ]] || die "rebuild requires Go 1.27.0"
 
 source_dir="$(cd "$source_dir" && pwd -P)"
 verified_dir="$(cd "$verified_dir" && pwd -P)"

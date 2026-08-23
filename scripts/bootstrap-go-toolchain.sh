@@ -43,14 +43,14 @@ destination="$parent/$(basename "$destination")"
 
 case "$($uname_bin -m)" in
   arm64)
-    archive_name=go1.26.6.darwin-arm64.tar.gz
-    expected_size=64772321
-    expected_sha256=2dc95ce4675829f2df0e86b28bcef3283635902062a5f0580ca659bf570f3204
+    archive_name=go1.27.0.darwin-arm64.tar.gz
+    expected_size=68303667
+    expected_sha256=90493b3bbd5e10f91d12153198bf1994fd756399b4fec93b49b0c6e2acdeeb3e
     ;;
   x86_64)
-    archive_name=go1.26.6.darwin-amd64.tar.gz
-    expected_size=67851334
-    expected_sha256=08b65a63f244115121ced6c3b55ad38d801a7442acad5c949a17aad84ae6d684
+    archive_name=go1.27.0.darwin-amd64.tar.gz
+    expected_size=71684980
+    expected_sha256=d3314e25496e4381d71a5c51d2907e7af655d199f6780b549f015bd85fef4986
     ;;
   *) die "unsupported macOS architecture" ;;
 esac
@@ -61,7 +61,7 @@ if [[ "$testing" == 1 ]]; then
   expected_size="${EXPECTED_ARCHIVE_SIZE:-$expected_size}"
   expected_sha256="${EXPECTED_ARCHIVE_SHA256:-$expected_sha256}"
 fi
-[[ "$archive_url" == https://dl.google.com/go/go1.26.6.darwin-*.tar.gz ]] || die "unexpected toolchain URL"
+[[ "$archive_url" == https://dl.google.com/go/go1.27.0.darwin-*.tar.gz ]] || die "unexpected toolchain URL"
 [[ "$expected_size" =~ ^[1-9][0-9]*$ ]] || die "invalid pinned archive size"
 [[ "$expected_sha256" =~ ^[0-9a-f]{64}$ ]] || die "invalid pinned archive digest"
 
@@ -95,7 +95,7 @@ $tar_bin -xzf "$archive" -C "$destination" --no-same-owner || die "toolchain ext
 go_root="$destination/go"
 [[ -d "$go_root" && ! -L "$go_root" ]] || die "toolchain root is invalid"
 [[ -f "$go_root/bin/go" && ! -L "$go_root/bin/go" && -x "$go_root/bin/go" ]] || die "toolchain Go executable is invalid"
-[[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$go_root/bin/go" env GOVERSION)" == go1.26.6 ]] ||
+[[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$go_root/bin/go" env GOVERSION)" == go1.27.0 ]] ||
   die "extracted toolchain version mismatch"
 
 rm -f "$archive" "$members"

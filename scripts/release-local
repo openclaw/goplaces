@@ -9,7 +9,7 @@ umask 077
 readonly REPOSITORY="openclaw/goplaces"
 readonly EXPECTED_ORIGIN_HTTPS="https://github.com/${REPOSITORY}"
 readonly API_VERSION="2026-03-10"
-readonly EXPECTED_GO_VERSION="go1.26.6"
+readonly EXPECTED_GO_VERSION="go1.27.0"
 readonly VERIFIER_WORKFLOW=".github/workflows/release-assets.yml"
 readonly VERIFIER_WORKFLOW_ID="309911276"
 readonly TAP_REPOSITORY="openclaw/homebrew-tap"
@@ -234,7 +234,7 @@ resolve_producer_tools() {
   resolved_expect="$(resolve_executable expect)"
   resolved_python="$(resolve_executable python3)"
   if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
-    [[ "$resolved_go" =~ ^(/opt/homebrew|/usr/local)/Cellar/go/1\.26\.6/libexec/bin/go$ ]] || die "Go must resolve to the canonical Homebrew 1.26.6 executable"
+    [[ "$resolved_go" =~ ^(/opt/homebrew|/usr/local)/Cellar/go/1\.27\.0/libexec/bin/go$ ]] || die "Go must resolve to the canonical Homebrew 1.27.0 executable"
     [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.17\.1/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.17.1 executable"
     [[ "$resolved_node" =~ ^(/opt/homebrew|/usr/local)/Cellar/node/26\.7\.0(_1)?/bin/node$ ]] || die "Node must resolve to the reviewed Homebrew 26.7.0 executable"
     [[ "$resolved_expect" =~ ^(/opt/homebrew|/usr/local)/Cellar/expect/5\.45\.4_3/bin/expect$ ]] || die "Expect must resolve to the canonical Homebrew 5.45.4_3 executable"
@@ -1011,7 +1011,7 @@ preflight_repository() {
   native_go="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC GOROOT="$native_go_root" GOENV=off GOTOOLCHAIN=local "$native_go_bin" env GOVERSION)" || die "native Go toolchain is unavailable"
   [[ "$native_go" == "$EXPECTED_GO_VERSION" ]] || die "requires native $EXPECTED_GO_VERSION, found $native_go"
   require_regular_file "${protected_source_root}/go.mod"
-  grep -Eq '^go 1\.26\.6$' "${protected_source_root}/go.mod" || die "protected go.mod must require Go 1.26.6"
+  grep -Eq '^go 1\.27\.0$' "${protected_source_root}/go.mod" || die "protected go.mod must require Go 1.27.0"
   require_regular_file "${protected_source_root}/.goreleaser.yml"
   if grep -Eq 'homebrew_|HOMEBREW_|com\.apple\.quarantine|xattr' "${protected_source_root}/.goreleaser.yml"; then
     die "GoReleaser config must not publish Homebrew metadata or strip quarantine"
