@@ -98,12 +98,12 @@ done
 grep -Fq 'unzip_bin=/usr/bin/unzip' scripts/check-release-verifier.sh || fail "verifier checker does not force system unzip in production"
 grep -Fq '/usr/bin/env -i PATH=/usr/bin:/bin HOME="$scratch/unzip-home"' scripts/check-release-verifier.sh || fail "verifier checker does not isolate unzip configuration"
 grep -Fq '/usr/bin/awk' scripts/download-release-assets.sh || fail "release downloader does not force system awk"
-grep -Fq 'go1.27.0.darwin-amd64.tar.gz' scripts/bootstrap-go-toolchain.sh || fail "Intel toolchain URL is not pinned"
-grep -Fq 'd3314e25496e4381d71a5c51d2907e7af655d199f6780b549f015bd85fef4986' scripts/bootstrap-go-toolchain.sh || fail "Intel toolchain digest is not pinned"
-grep -Fq '71684980' scripts/bootstrap-go-toolchain.sh || fail "Intel toolchain size is not pinned"
-grep -Fq 'go1.27.0.darwin-arm64.tar.gz' scripts/bootstrap-go-toolchain.sh || fail "arm64 toolchain URL is not pinned"
-grep -Fq '90493b3bbd5e10f91d12153198bf1994fd756399b4fec93b49b0c6e2acdeeb3e' scripts/bootstrap-go-toolchain.sh || fail "arm64 toolchain digest is not pinned"
-grep -Fq '68303667' scripts/bootstrap-go-toolchain.sh || fail "arm64 toolchain size is not pinned"
+grep -Fq 'go1.26.7.darwin-amd64.tar.gz' scripts/bootstrap-go-toolchain.sh || fail "Intel toolchain URL is not pinned"
+grep -Fq '92e8b34bff3c89ab16404c595669ac8cb004cc2f676dcbd1f5b87a6b8def3b47' scripts/bootstrap-go-toolchain.sh || fail "Intel toolchain digest is not pinned"
+grep -Fq '67852067' scripts/bootstrap-go-toolchain.sh || fail "Intel toolchain size is not pinned"
+grep -Fq 'go1.26.7.darwin-arm64.tar.gz' scripts/bootstrap-go-toolchain.sh || fail "arm64 toolchain URL is not pinned"
+grep -Fq '020a1e8224811be75163e920bc77e0926a1390a6aeea19bdcf23f74b9d749f6d' scripts/bootstrap-go-toolchain.sh || fail "arm64 toolchain digest is not pinned"
+grep -Fq '64772572' scripts/bootstrap-go-toolchain.sh || fail "arm64 toolchain size is not pinned"
 grep -Fq 'refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG' "$workflow" || fail "exact annotated tag ref is not fetched into source"
 [[ "$(grep -Fc 'status --porcelain --untracked-files=all' "$workflow")" -eq 3 ]] || fail "workflow source trees are not checked with exact all-untracked status"
 
@@ -113,7 +113,7 @@ cat >"$bootstrap_payload/go/bin/go" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$1" == env && "$2" == GOVERSION ]]
-printf 'go1.27.0\n'
+printf 'go1.26.7\n'
 MOCK
 chmod +x "$bootstrap_payload/go/bin/go"
 bootstrap_archive="$tmp/bootstrap.tar.gz"
@@ -149,7 +149,7 @@ for bootstrap_arch in arm64 x86_64; do
   bootstrap_dest="$tmp/go-$bootstrap_arch"
   MOCK_BOOTSTRAP_LOG="$tmp/bootstrap.log" MOCK_BOOTSTRAP_ARCHIVE="$bootstrap_archive" MOCK_UNAME_ARCH="$bootstrap_arch" \
     GOPLACES_RELEASE_TESTING=1 CURL_BIN="$bootstrap_curl" UNAME_BIN="$bootstrap_uname" \
-    EXPECTED_ARCHIVE_URL="https://dl.google.com/go/go1.27.0.darwin-$archive_arch.tar.gz" \
+    EXPECTED_ARCHIVE_URL="https://dl.google.com/go/go1.26.7.darwin-$archive_arch.tar.gz" \
     EXPECTED_ARCHIVE_SIZE="$bootstrap_size" EXPECTED_ARCHIVE_SHA256="$bootstrap_sha" \
     ./scripts/bootstrap-go-toolchain.sh "$bootstrap_dest" >/dev/null
   [[ -x "$bootstrap_dest/go/bin/go" ]] || fail "bootstrap did not install $bootstrap_arch Go"
@@ -495,7 +495,7 @@ mac_mock="$tmp/mac-verify-mock"
 cat >"$go_mock" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "$1" == env && "$2" == GOVERSION ]]; then printf 'go1.27.0\n'; exit 0; fi
+if [[ "$1" == env && "$2" == GOVERSION ]]; then printf 'go1.26.7\n'; exit 0; fi
 if [[ "$1" == env && "$2" == GOMODCACHE ]]; then printf '%s\n' "$MOCK_MODULE_CACHE"; exit 0; fi
 if [[ "$1" == version && "$2" == -m ]]; then
   binary=$3
@@ -508,7 +508,7 @@ if [[ "$1" == version && "$2" == -m ]]; then
     *windows_arm64*) os=windows; arch=arm64 ;;
     *) exit 90 ;;
   esac
-  printf '%s: go1.27.0\n' "$binary"
+  printf '%s: go1.26.7\n' "$binary"
   printf '\tpath\tgithub.com/steipete/goplaces/cmd/goplaces\n'
   printf '\tmod\tgithub.com/steipete/goplaces\tv0.4.5\n'
   printf '\tbuild\t-ldflags="-s -w -X github.com/steipete/goplaces/internal/cli.Version=0.4.5"\n'

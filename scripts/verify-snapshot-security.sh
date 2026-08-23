@@ -93,7 +93,7 @@ scan_binary() {
 
   build_info="$($go_bin version -m "$binary")" || die "could not read Go build information: $binary"
   printf '%s\n' "$build_info"
-  grep -Eq ': go1\.27\.0$' <<<"$(printf '%s\n' "$build_info" | head -n 1)" || die "wrong Go toolchain in $binary"
+  grep -Eq ': go1\.26\.7$' <<<"$(printf '%s\n' "$build_info" | head -n 1)" || die "wrong Go toolchain in $binary"
   grep -Fqx $'\tpath\tgithub.com/steipete/goplaces/cmd/goplaces' <<<"$build_info" || die "wrong main package in $binary"
   grep -Fqx $'\tbuild\tCGO_ENABLED=0' <<<"$build_info" || die "CGO must be disabled in $binary"
   grep -Fqx $'\tbuild\tGOOS='"$expected_goos" <<<"$build_info" || die "wrong GOOS in $binary"
