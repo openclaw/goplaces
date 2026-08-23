@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.5 - 2026-08-23
+## 0.4.5 - Unreleased
 
 - CLI: accept `--radius` as an alias for `--radius-m` on `search`, `nearby`, `autocomplete`, and `route`.
 - Docs: validate generated llms metadata as plain text and keep the metadata helper import-safe. (#29) - thanks @vincentkoc
