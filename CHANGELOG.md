@@ -1,15 +1,16 @@
 # Changelog
 
-## 0.4.5 - 2026-08-02
+## 0.4.5 - 2026-08-23
 
 - CLI: accept `--radius` as an alias for `--radius-m` on `search`, `nearby`, `autocomplete`, and `route`.
+- Docs: validate generated llms metadata as plain text and keep the metadata helper import-safe. (#29) - thanks @vincentkoc
 - Docs: rewrite the README around verified install, quick-start, and reference paths.
 - Release: accept interpolated Cask URLs and make completed release reruns idempotent.
 - Release: keep the pinned GitHub transport reusable across shell command substitutions.
 - Release: accept the reviewed Homebrew revision of the pinned Node 26.5.0 toolchain.
 - Release: bind the pinned Go toolchain to its canonical Homebrew root across isolated build and signing steps.
 - Release: run credential-free release contract suites with the frozen jq 1.8.2 parser.
-- Security: require Go 1.26.5 and scan both source and built binaries with pinned govulncheck.
+- Security: require Go 1.26.6 and scan both source and built binaries with pinned govulncheck. (#30) - thanks @vincentkoc
 - CLI: report the tagged module version for `go install github.com/steipete/goplaces/cmd/goplaces@latest`; linked release versions still win and local builds remain `dev`.
 - Release: sign and notarize official macOS binaries with the OpenClaw Foundation Developer ID while keeping ordinary and cross-platform builds credential-free.
 
