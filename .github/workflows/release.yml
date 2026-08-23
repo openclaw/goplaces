@@ -56,7 +56,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: v2.16.0
+          version: v2.17.1
           args: release --snapshot --clean --skip=publish --config .goreleaser.yml
       - name: Snapshot binary vulnerability scan
         env:

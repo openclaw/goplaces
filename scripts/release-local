@@ -235,10 +235,10 @@ resolve_producer_tools() {
   resolved_python="$(resolve_executable python3)"
   if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
     [[ "$resolved_go" =~ ^(/opt/homebrew|/usr/local)/Cellar/go/1\.26\.6/libexec/bin/go$ ]] || die "Go must resolve to the canonical Homebrew 1.26.6 executable"
-    [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.16\.0/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.16.0 executable"
-    [[ "$resolved_node" =~ ^(/opt/homebrew|/usr/local)/Cellar/node/26\.5\.0(_1)?/bin/node$ ]] || die "Node must resolve to the reviewed Homebrew 26.5.0 executable"
+    [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.17\.1/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.17.1 executable"
+    [[ "$resolved_node" =~ ^(/opt/homebrew|/usr/local)/Cellar/node/26\.7\.0(_1)?/bin/node$ ]] || die "Node must resolve to the reviewed Homebrew 26.7.0 executable"
     [[ "$resolved_expect" =~ ^(/opt/homebrew|/usr/local)/Cellar/expect/5\.45\.4_3/bin/expect$ ]] || die "Expect must resolve to the canonical Homebrew 5.45.4_3 executable"
-    [[ "$resolved_python" =~ ^(/opt/homebrew|/usr/local)/Cellar/python@3\.14/3\.14\.6/Frameworks/Python\.framework/Versions/3\.14/bin/python3\.14$ ]] || die "Python must resolve to the canonical Homebrew 3.14.6 executable"
+    [[ "$resolved_python" =~ ^(/opt/homebrew|/usr/local)/Cellar/python@3\.14/3\.14\.7/Frameworks/Python\.framework/Versions/3\.14/bin/python3\.14$ ]] || die "Python must resolve to the canonical Homebrew 3.14.7 executable"
     producer_go_root="${resolved_go%/bin/go}"
   else
     producer_go_root="${resolved_go%/*}"

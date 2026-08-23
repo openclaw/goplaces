@@ -152,7 +152,7 @@ raise "missing active source scan" unless run_lines.any? { |line| line.match?(%r
 snapshot = steps.find { |step| step["run"].to_s.strip == "./scripts/verify-snapshot-security.sh" }
 raise "snapshot clean gate missing" unless snapshot&.fetch("env", {})&.fetch("SNAPSHOT_REQUIRE_CLEAN", nil).to_s == "1"
 goreleaser = steps.find { |step| step["uses"] == "goreleaser/goreleaser-action@v7" && step.fetch("with", {})["args"] == "release --snapshot --clean --skip=publish --config .goreleaser.yml" }
-raise "active GoReleaser snapshot missing" unless goreleaser && goreleaser.fetch("with", {})["version"] == "v2.16.0"
+raise "active GoReleaser snapshot missing" unless goreleaser && goreleaser.fetch("with", {})["version"] == "v2.17.1"
 RUBY
 }
 
@@ -160,7 +160,7 @@ assert_workflow_proof() {
   local workflow="$1"
   local contract_test
 
-  require_code_pattern "$workflow" '^[[:space:]]+version:[[:space:]]+v2\.16\.0[[:space:]]*$' "GoReleaser v2.16.0 pin"
+  require_code_pattern "$workflow" '^[[:space:]]+version:[[:space:]]+v2\.17\.1[[:space:]]*$' "GoReleaser v2.17.1 pin"
   require_code_pattern "$workflow" '^[[:space:]]+args:[[:space:]]+release --snapshot --clean --skip=publish --config \.goreleaser\.yml[[:space:]]*$' "non-publishing snapshot"
   require_code_pattern "$workflow" '^[[:space:]]+run:[[:space:]]+go install golang\.org/x/vuln/cmd/govulncheck@v1\.5\.0[[:space:]]*$' "govulncheck v1.5.0 install"
   # shellcheck disable=SC2016
