@@ -13,6 +13,7 @@
 - Release: refresh the reviewed release toolchain pins to GitHub CLI 2.98.0, GoReleaser 2.17.1, Node 26.7.0, and Python 3.14.7.
 - CI: install the reviewed GitHub CLI before the release contract suite instead of inheriting the runner image's version.
 - Security: require Go 1.27.0 and scan both source and built binaries with pinned govulncheck. The 1.26.6 floor landed in #30 - thanks @vincentkoc
+- Build: update golangci-lint to 2.13.1 and staticcheck to 0.8.1 for Go 1.27 support.
 - CLI: report the tagged module version for `go install github.com/steipete/goplaces/cmd/goplaces@latest`; linked release versions still win and local builds remain `dev`.
 - Release: sign and notarize official macOS binaries with the OpenClaw Foundation Developer ID while keeping ordinary and cross-platform builds credential-free.
 
