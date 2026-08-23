@@ -155,7 +155,7 @@ EOF
   grep -Fq 'HOMEBREW_NO_INSTALL_FROM_API=1' "$release_script" || die "Homebrew package inventory can trigger API installation"
   grep -Fq 'homebrew_command list "$kind_flag" --full-name' "$release_script" || die "Homebrew installed-state proof is not a no-name full inventory"
   grep -Fq 'homebrew_command --prefix --formula goplaces' "$release_script" || die "installed binary lookup is not Formula-specific"
-  grep -Fq 'readonly EXPECTED_GH_VERSION="2.96.0"' "$release_script" || die "GitHub CLI version is not pinned"
+  grep -Fq 'readonly EXPECTED_GH_VERSION="2.98.0"' "$release_script" || die "GitHub CLI version is not pinned"
   grep -Fq 'Cellar/node/26\.5\.0(_1)?/bin/node' "$release_script" || die "reviewed Node formula revision is not allowlisted"
   grep -Fq 'candidate=/opt/homebrew/opt/gh/bin/gh' "$release_script" || die "GitHub CLI does not bypass the mutable bin wrapper"
   ! grep -Fq 'candidate=/opt/homebrew/bin/gh' "$release_script" || die "GitHub CLI still freezes the mutable wrapper"
@@ -1104,7 +1104,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 if [[ "$*" == --version ]]; then
-  printf 'GitVersion:    2.16.0\n'
+  printf 'GitVersion:    2.17.1\n'
   exit 0
 fi
 [[ "${1:-}" == release ]] || exit 92
@@ -1252,7 +1252,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 [[ "$*" == --version ]] || exit 93
-printf 'v26.5.0\n'
+printf 'v26.7.0\n'
 EOF
   cat > "${directory}/expect" <<'EOF'
 #!/bin/bash -p
@@ -1264,7 +1264,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 if [[ "$*" == '-I --version' ]]; then
-  printf 'Python 3.14.6\n'
+  printf 'Python 3.14.7\n'
   exit 0
 fi
 [[ "${1:-}" == -I ]] || exit 95
@@ -1289,7 +1289,7 @@ test_producer_gate_hardening() {
   alias_tmp="${scratch}/tmp-alias"
   mkdir -p "$real_tmp"
   ln -s "$real_tmp" "$alias_tmp"
-  make_fake_producer_tools "$tools" go1.26.6 2.16.0
+  make_fake_producer_tools "$tools" go1.26.6 2.17.1
   mkdir -p "$launch"
   ln -s "${tools}/go" "${launch}/go"
   ln -s "${tools}/goreleaser" "${launch}/goreleaser"
@@ -1354,7 +1354,7 @@ EOF
   [[ ! -e "$sentinel" ]] || die "hostile PATH utility executed during producer resolution"
 
   old_go="${scratch}/old-go"
-  make_fake_producer_tools "$old_go" go1.26.4 2.16.0
+  make_fake_producer_tools "$old_go" go1.26.4 2.17.1
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1377,7 +1377,7 @@ EOF
   fi
 
   mutation="${scratch}/mutation-tools"
-  make_fake_producer_tools "$mutation" go1.26.6 2.16.0
+  make_fake_producer_tools "$mutation" go1.26.6 2.17.1
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1390,7 +1390,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "same-byte GoReleaser inode replacement was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.26.6 2.16.0
+  make_fake_producer_tools "$mutation" go1.26.6 2.17.1
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1402,7 +1402,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "in-place Go byte mutation was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.26.6 2.16.0
+  make_fake_producer_tools "$mutation" go1.26.6 2.17.1
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1415,7 +1415,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "same-byte release-mac-app replacement was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.26.6 2.16.0
+  make_fake_producer_tools "$mutation" go1.26.6 2.17.1
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1702,7 +1702,7 @@ EOF
 set -euo pipefail
 printf 'goreleaser' >> "$MOCK_LOG"; printf ' <%s>' "$@" >> "$MOCK_LOG"; printf '\n' >> "$MOCK_LOG"
 [[ "$*" == --version ]] || { echo "unexpected goreleaser command: $*" >&2; exit 90; }
-printf 'GitVersion:    %s\n' "${MOCK_GORELEASER_VERSION:-2.16.0}"
+printf 'GitVersion:    %s\n' "${MOCK_GORELEASER_VERSION:-2.17.1}"
 EOF
   cat > "${root}/mock-bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -1753,7 +1753,7 @@ fi
 EOF
   printf '# frozen mock helper library\n' > "${root}/mock-bin/lib/mac_release.sh"
   chmod +x "${root}/mock-bin/"*
-  write_fixture_producer_tools "$root" go1.26.6 2.16.0
+  write_fixture_producer_tools "$root" go1.26.6 2.17.1
 }
 
 write_fixture_producer_tools() {
@@ -1775,7 +1775,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 [[ "$*" == --version ]] || exit 93
-printf 'v26.5.0\n'
+printf 'v26.7.0\n'
 EOF
   cat > "${root}/mock-bin/expect" <<'EOF'
 #!/bin/bash -p
@@ -1787,7 +1787,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 if [[ "$*" == '-I --version' ]]; then
-  printf 'Python 3.14.6\n'
+  printf 'Python 3.14.7\n'
   exit 0
 fi
 [[ "${1:-}" == -I ]] || exit 95
@@ -1809,7 +1809,7 @@ run_fixture() {
       hostile_environment+=("${name}=${!name}")
     fi
   done
-  write_fixture_producer_tools "$root" "${MOCK_GO_VERSION:-go1.26.6}" "${MOCK_GORELEASER_VERSION:-2.16.0}"
+  write_fixture_producer_tools "$root" "${MOCK_GO_VERSION:-go1.26.6}" "${MOCK_GORELEASER_VERSION:-2.17.1}"
   (
     cd "$root"
     /usr/bin/env -i \
@@ -1817,7 +1817,7 @@ run_fixture() {
       PATH="${root}/mock-bin:/opt/homebrew/bin:/usr/bin:/bin" \
       HOME="${root}/home" TMPDIR="${root}/tmp" MOCK_LOG="${root}/mock.log" \
       MOCK_GO_VERSION="${MOCK_GO_VERSION:-go1.26.6}" MOCK_GIT_STATUS="${MOCK_GIT_STATUS:-}" \
-      MOCK_GORELEASER_VERSION="${MOCK_GORELEASER_VERSION:-2.16.0}" \
+      MOCK_GORELEASER_VERSION="${MOCK_GORELEASER_VERSION:-2.17.1}" \
       MOCK_ORIGIN="${MOCK_ORIGIN:-https://github.com/openclaw/goplaces}" MOCK_BRANCH="${MOCK_BRANCH:-main}" MOCK_SHA="$SHA" \
       MOCK_PROTECTED="${MOCK_PROTECTED:-true}" MOCK_API_SHA="${MOCK_API_SHA:-$SHA}" \
       MOCK_FIXTURE_ROOT="$root" MOCK_FRESH_STATUS="${MOCK_FRESH_STATUS:-}" \
@@ -1842,7 +1842,7 @@ test_preflight_and_pilot_mocks() {
   MOCK_GO_VERSION=go1.26.4 expect_failure "old native Go" run_fixture "$scratch" --check
   MOCK_GO_VERSION=go1.26.7 expect_failure "future native Go" run_fixture "$scratch" --check
   MOCK_GORELEASER_VERSION=2.15.2 expect_failure "old GoReleaser" run_fixture "$scratch" pilot v0.4.5
-  MOCK_GORELEASER_VERSION=2.17.0 expect_failure "future GoReleaser" run_fixture "$scratch" pilot v0.4.5
+  MOCK_GORELEASER_VERSION=2.17.2 expect_failure "future GoReleaser" run_fixture "$scratch" pilot v0.4.5
   MOCK_GIT_STATUS='?? hostile' expect_failure "dirty checkout" run_fixture "$scratch" --check
   MOCK_ORIGIN=https://github.com/example/goplaces expect_failure "wrong origin" run_fixture "$scratch" --check
   MOCK_BRANCH=release expect_failure "wrong branch" run_fixture "$scratch" --check
