@@ -11,7 +11,7 @@ goplaces route "coffee" --from "Seattle, WA" --to "Portland, OR" --max-waypoints
 Options:
 
 - `--mode` travel mode: DRIVE, WALK, BICYCLE, TWO_WHEELER, TRANSIT.
-- `--radius-m` search radius per waypoint.
+- `--radius-m` (alias `--radius`) search radius per waypoint.
 - `--limit` results per waypoint.
 
 ## Library

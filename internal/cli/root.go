@@ -43,7 +43,7 @@ type SearchCmd struct {
 	PriceLevel []int    `help:"Price levels 0-4. Repeatable."`
 	Lat        *float64 `help:"Latitude for location bias."`
 	Lng        *float64 `help:"Longitude for location bias."`
-	RadiusM    *float64 `help:"Radius in meters for location bias."`
+	RadiusM    *float64 `help:"Radius in meters for location bias." aliases:"radius"`
 }
 
 // AutocompleteCmd runs autocomplete queries.
@@ -55,7 +55,7 @@ type AutocompleteCmd struct {
 	Region       string   `help:"CLDR region code (e.g. US, DE)."`
 	Lat          *float64 `help:"Latitude for location bias."`
 	Lng          *float64 `help:"Longitude for location bias."`
-	RadiusM      *float64 `help:"Radius in meters for location bias."`
+	RadiusM      *float64 `help:"Radius in meters for location bias." aliases:"radius"`
 }
 
 // NearbyCmd runs nearby searches.
@@ -67,7 +67,7 @@ type NearbyCmd struct {
 	Region      string   `help:"CLDR region code (e.g. US, DE)."`
 	Lat         *float64 `help:"Latitude for location restriction."`
 	Lng         *float64 `help:"Longitude for location restriction."`
-	RadiusM     *float64 `help:"Radius in meters for location restriction."`
+	RadiusM     *float64 `help:"Radius in meters for location restriction." aliases:"radius"`
 }
 
 // DetailsCmd fetches place details.

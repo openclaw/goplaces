@@ -34,3 +34,5 @@ response, err := client.Autocomplete(ctx, goplaces.AutocompleteRequest{
 
 - Use a session token for billing consistency across autocomplete + details.
 - Limit is applied client-side after the API response.
+
+`--radius-m` also accepts the shorter `--radius` spelling.

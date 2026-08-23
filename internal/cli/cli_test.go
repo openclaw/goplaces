@@ -1377,3 +1377,110 @@ func assertNestedFloat(t *testing.T, payload map[string]any, want float64, path 
 		t.Fatalf("payload path %v = %v, want %v", path, got, want)
 	}
 }
+
+func TestRunRadiusAliasMatchesRadiusM(t *testing.T) {
+	cases := []struct {
+		name       string
+		path       string
+		args       []string
+		radiusPath []string
+	}{
+		{
+			name:       "search",
+			path:       placesSearchPath,
+			args:       []string{"search", "coffee", "--lat", "1", "--lng", "2"},
+			radiusPath: []string{"locationBias", "circle", "radius"},
+		},
+		{
+			name:       "autocomplete",
+			path:       "/places:autocomplete",
+			args:       []string{"autocomplete", "cof", "--lat", "1", "--lng", "2"},
+			radiusPath: []string{"locationBias", "circle", "radius"},
+		},
+		{
+			name:       "nearby",
+			path:       placesNearbyPath,
+			args:       []string{"nearby", "--lat", "1", "--lng", "2"},
+			radiusPath: []string{"locationRestriction", "circle", "radius"},
+		},
+	}
+
+	for _, tc := range cases {
+		for _, flag := range []string{"--radius-m", "--radius", "--radius=1500"} {
+			t.Run(tc.name+" "+flag, func(t *testing.T) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path != tc.path {
+						t.Errorf("unexpected path: %s", r.URL.Path)
+					}
+					var payload map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+						t.Errorf("decode request: %v", err)
+						return
+					}
+					assertNestedFloat(t, payload, 1500, tc.radiusPath...)
+					_, _ = w.Write([]byte(`{"places": [{"id": "abc"}]}`))
+				}))
+				defer server.Close()
+
+				args := append([]string{}, tc.args...)
+				if strings.Contains(flag, "=") {
+					args = append(args, flag)
+				} else {
+					args = append(args, flag, "1500")
+				}
+				args = append(args, "--api-key", "test-key", "--base-url", server.URL, "--json")
+
+				var stdout, stderr bytes.Buffer
+				if exitCode := Run(args, &stdout, &stderr); exitCode != 0 {
+					t.Fatalf("expected exit code 0, got %d (stderr=%s)", exitCode, stderr.String())
+				}
+			})
+		}
+	}
+}
+
+func TestRunRouteAcceptsRadiusAlias(t *testing.T) {
+	var searchRadius float64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case routesComputePath:
+			_, _ = w.Write([]byte(`{"routes": [{"polyline": {"encodedPolyline": "_p~iF~ps|U"}}]}`))
+		case placesSearchPath:
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Errorf("decode request: %v", err)
+				return
+			}
+			if bias, ok := payload["locationBias"].(map[string]any); ok {
+				if circle, ok := bias["circle"].(map[string]any); ok {
+					if radius, ok := circle["radius"].(float64); ok {
+						searchRadius = radius
+					}
+				}
+			}
+			_, _ = w.Write([]byte(`{"places": [{"id": "abc"}]}`))
+		default:
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	var stdout, stderr bytes.Buffer
+	exitCode := Run([]string{
+		"route", "coffee",
+		"--from", "A",
+		"--to", "B",
+		"--radius", "2500",
+		"--api-key", "test-key",
+		"--base-url", server.URL,
+		"--routes-base-url", server.URL,
+		"--json",
+	}, &stdout, &stderr)
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d (stderr=%s)", exitCode, stderr.String())
+	}
+	if searchRadius != 2500 {
+		t.Fatalf("expected radius 2500 from --radius alias, got %v", searchRadius)
+	}
+}

@@ -2,6 +2,7 @@
 
 ## 0.4.5 - 2026-08-02
 
+- CLI: accept `--radius` as an alias for `--radius-m` on `search`, `nearby`, `autocomplete`, and `route`.
 - Docs: rewrite the README around verified install, quick-start, and reference paths.
 - Release: accept interpolated Cask URLs and make completed release reruns idempotent.
 - Release: keep the pinned GitHub transport reusable across shell command substitutions.

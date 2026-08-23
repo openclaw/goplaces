@@ -13,7 +13,7 @@ type RouteCmd struct {
 	From         string  `help:"Origin location (address or place name)."`
 	To           string  `help:"Destination location (address or place name)."`
 	Mode         string  `help:"Travel mode: DRIVE, WALK, BICYCLE, TWO_WHEELER, TRANSIT." default:"DRIVE"`
-	RadiusM      float64 `help:"Search radius in meters." default:"1000"`
+	RadiusM      float64 `help:"Search radius in meters." default:"1000" aliases:"radius"`
 	MaxWaypoints int     `help:"Max sampled waypoints along the route." default:"5"`
 	Limit        int     `help:"Max results per waypoint (1-20)." default:"5"`
 	Language     string  `help:"BCP-47 language code (e.g. en, en-US)."`
