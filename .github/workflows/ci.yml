@@ -80,6 +80,13 @@ jobs:
         run: ./scripts/verify-snapshot-security.sh
       - name: Reproducible cross-platform binaries
         run: ./scripts/test-reproducible-builds.sh dist
+      - name: Install reviewed GitHub CLI
+        # The contract suite resolves the real Homebrew gh, so the runner image's
+        # preinstalled version must match EXPECTED_GH_VERSION in release-local.
+        run: |
+          brew update
+          brew upgrade gh || brew install gh
+          /opt/homebrew/opt/gh/bin/gh --version
       - name: Release contract tests
         run: |
           ./scripts/test-codesign-macos.sh
