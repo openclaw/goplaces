@@ -637,13 +637,19 @@ make_release_fixture() {
     "goplaces_${version}_windows_arm64.zip"
     goplaces_checksums.txt
   )
+  # A draft has no tag association yet, so GitHub serves an untagged-<hex>
+  # placeholder segment in browser_download_url instead of the tag.
+  local browser_segment="v0.4.5"
+  if [[ "$draft" == "true" ]]; then
+    browser_segment="untagged-bfe67b1c39b7ef63c1dc"
+  fi
   printf '[]\n' > "${output}.assets"
   for name in "${names[@]}"; do
     index=$((index + 1))
     jq \
       --argjson id "$((1000 + index))" --arg name "$name" --argjson size "$((2000 + index))" --arg digest "$digest" \
       --arg api "https://api.github.com/repos/openclaw/goplaces/releases/assets/$((1000 + index))" \
-      --arg browser "https://github.com/openclaw/goplaces/releases/download/v0.4.5/${name}" \
+      --arg browser "https://github.com/openclaw/goplaces/releases/download/${browser_segment}/${name}" \
       '. + [{id:$id,name:$name,size:$size,digest:$digest,url:$api,browser_download_url:$browser,content_type:"application/octet-stream",state:"uploaded",created_at:"2026-07-10T10:00:00Z",updated_at:"2026-07-10T10:00:00Z"}]' \
       "${output}.assets" > "${output}.next"
     mv "${output}.next" "${output}.assets"

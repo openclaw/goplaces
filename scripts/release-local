@@ -471,13 +471,13 @@ run_protected_script() {
     fi
   done
   if [[ -n "${GH_TOKEN+x}" ]]; then
-    [[ "$GH_TOKEN" =~ ^[A-Za-z0-9_]+$ ]] || die "protected helper token is empty or unsafe"
+    [[ "$GH_TOKEN" =~ ^[A-Za-z0-9_.-]+$ ]] || die "protected helper token is empty or unsafe"
     secret_token="$GH_TOKEN"
     if printf '%s\n' "$secret_token" | /usr/bin/env -i -C "$protected_source_root" \
       "${forwarded_environment[@]}" \
       PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
       GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 \
-      /bin/bash -p -c 'IFS= read -r GH_TOKEN; [[ "$GH_TOKEN" =~ ^[A-Za-z0-9_]+$ ]] || exit 97; export GH_TOKEN; exec "$@"' \
+      /bin/bash -p -c 'IFS= read -r GH_TOKEN; [[ "$GH_TOKEN" =~ ^[A-Za-z0-9_.-]+$ ]] || exit 97; export GH_TOKEN; exec "$@"' \
       _ "$script" "$@"; then
       command_status=0
     else
@@ -701,7 +701,7 @@ gh_api() {
     /bin/mkdir -p "${git_isolation_root}/gh-config"
     /bin/chmod 700 "${git_isolation_root}/gh-config"
     token=$(gh_auth_token) || die "could not obtain GitHub authentication"
-    [[ "$token" =~ ^[A-Za-z0-9_]+$ ]] || die "GitHub authentication token is empty or unsafe"
+    [[ "$token" =~ ^[A-Za-z0-9_.-]+$ ]] || die "GitHub authentication token is empty or unsafe"
     /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" GH_CONFIG_DIR="${git_isolation_root}/gh-config" \
       TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
       /bin/bash -p -c 'IFS= read -r GH_TOKEN <&3; exec 3<&-; export GH_TOKEN; exec "$@"' \
@@ -747,7 +747,7 @@ gh_watch_run() {
     /bin/mkdir -p "${git_isolation_root}/gh-config"
     /bin/chmod 700 "${git_isolation_root}/gh-config"
     token=$(gh_auth_token) || die "could not obtain GitHub authentication"
-    [[ "$token" =~ ^[A-Za-z0-9_]+$ ]] || die "GitHub authentication token is empty or unsafe"
+    [[ "$token" =~ ^[A-Za-z0-9_.-]+$ ]] || die "GitHub authentication token is empty or unsafe"
     /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" GH_CONFIG_DIR="${git_isolation_root}/gh-config" \
       TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
       /bin/bash -p -c 'IFS= read -r GH_TOKEN <&3; exec 3<&-; export GH_TOKEN; exec "$@"' \
@@ -1317,7 +1317,9 @@ canonical_release_record() {
       select(.name == $tag) |
       select(.prerelease == false) |
       select(wanted_state) |
-      select(.body == $notes) |
+      # GitHub normalizes a release body by appending a single trailing
+      # newline, so accept exactly that and nothing looser.
+      select(.body == $notes or .body == ($notes + "\n")) |
       select((.assets | map(.name) | sort) == $expected_assets) |
       select((.assets | map(.id) | unique | length) == 7) |
       select(all(.assets[];
@@ -1327,7 +1329,15 @@ canonical_release_record() {
         (.state == "uploaded") and
         (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")) and
         (.url == ("https://api.github.com/repos/" + $repo + "/releases/assets/" + (.id | tostring))) and
-        (.browser_download_url == ("https://github.com/" + $repo + "/releases/download/" + $tag + "/" + .name))
+        (. as $asset |
+          if $state == "draft" then
+            # A draft has no tag association yet, so GitHub serves an
+            # untagged-<hex> placeholder segment instead of the tag.
+            ($asset.browser_download_url | startswith("https://github.com/" + $repo + "/releases/download/untagged-")) and
+            ($asset.browser_download_url | endswith("/" + $asset.name))
+          else
+            $asset.browser_download_url == ("https://github.com/" + $repo + "/releases/download/" + $tag + "/" + $asset.name)
+          end)
       )) |
       {
         schema:"goplaces-release-record-v1", repository:$repo, state:$state,
@@ -2190,7 +2200,7 @@ run_codesigned_goreleaser() {
       fi
       ;;
     draft)
-      [[ "$draft_github_token" =~ ^[A-Za-z0-9_]+$ ]] || die "draft GitHub authentication token is empty or unsafe"
+      [[ "$draft_github_token" =~ ^[A-Za-z0-9_.-]+$ ]] || die "draft GitHub authentication token is empty or unsafe"
       draft_auth="$draft_github_token"
       if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
         "${clean_outer_environment[@]}" \
@@ -2260,7 +2270,7 @@ run_draft() {
     verify_remote_tag "$tag" "$default_sha"
     recheck_source_default
     draft_github_token=$(gh_auth_token) || die "could not obtain GitHub authentication for draft creation"
-    [[ "$draft_github_token" =~ ^[A-Za-z0-9_]+$ ]] || die "draft GitHub authentication token is empty or unsafe"
+    [[ "$draft_github_token" =~ ^[A-Za-z0-9_.-]+$ ]] || die "draft GitHub authentication token is empty or unsafe"
     verify_remote_tag "$tag" "$default_sha"
     recheck_source_default
     run_codesigned_goreleaser "$source" draft "$tag" \
@@ -2466,7 +2476,7 @@ download_release_copy() {
   unset token
   [[ "$output_record" == "${destination}/release-record.json" ]] || die "asset downloader returned an unexpected record path"
   run_protected_script scripts/validate-release-record.sh "$output_record" "$tag" "$default_sha" "$state" >/dev/null
-  jq -e --rawfile notes "$notes" '.body == $notes' "$output_record" >/dev/null || die "downloaded release notes differ from tagged changelog bytes"
+  jq -e --rawfile notes "$notes" '.body == $notes or .body == ($notes + "\n")' "$output_record" >/dev/null || die "downloaded release notes differ from tagged changelog bytes"
 }
 
 compare_release_copies() {

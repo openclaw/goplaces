@@ -172,7 +172,7 @@ safe_json_id "$expected_run_id" || die "invalid expected run ID"
 [[ "$dispatch_nonce" =~ ^[0-9a-f]{64}$ ]] || die "EXPECTED_DISPATCH_NONCE is required"
 [[ "$state" == draft || "$state" == published ]] || die "invalid release state"
 [[ "$api_url" == https://api.github.com || ("$testing" == 1 && "${ALLOW_TEST_API_URL:-0}" == 1) ]] || die "unexpected GitHub API URL"
-[[ -n "${GH_TOKEN:-}" && "$GH_TOKEN" =~ ^[A-Za-z0-9_]+$ ]] || die "GH_TOKEN is required and must contain safe characters"
+[[ -n "${GH_TOKEN:-}" && "$GH_TOKEN" =~ ^[A-Za-z0-9_.-]+$ ]] || die "GH_TOKEN is required and must contain safe characters"
 proof_token="$GH_TOKEN"
 unset GH_TOKEN GITHUB_TOKEN
 [[ "$curl_bin" == /* && -f "$curl_bin" && ! -L "$curl_bin" && -x "$curl_bin" ]] || die "curl must be an absolute regular nonsymlink executable"

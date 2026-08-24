@@ -127,7 +127,10 @@ if [[ "${#expected_release_id}" -gt 16 || ("${#expected_release_id}" -eq 16 && "
   die "release ID exceeds the maximum safe JSON integer"
 fi
 [[ -n "${GH_TOKEN:-}" ]] || die "GH_TOKEN is required only for this download operation"
-[[ "$GH_TOKEN" =~ ^[A-Za-z0-9_]+$ ]] || die "GH_TOKEN contains unsupported characters"
+# GitHub Actions now issues JWT-style tokens: base64url segments (which use
+# - and _) joined by dots. Allow exactly that set; whitespace, quotes, and
+# shell metacharacters remain rejected.
+[[ "$GH_TOKEN" =~ ^[A-Za-z0-9_.-]+$ ]] || die "GH_TOKEN contains unsupported characters"
 download_token="$GH_TOKEN"
 unset GH_TOKEN GITHUB_TOKEN
 [[ "$curl_bin" == /* && -f "$curl_bin" && ! -L "$curl_bin" && -x "$curl_bin" ]] || die "curl must be an absolute regular nonsymlink executable"
