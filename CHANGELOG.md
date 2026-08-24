@@ -12,6 +12,7 @@
 - Release: run credential-free release contract suites with the frozen jq 1.8.2 parser.
 - Release: refresh the reviewed release toolchain pins to GitHub CLI 2.98.0, GoReleaser 2.17.1, Node 26.7.0, and Python 3.14.7.
 - Release: accept the reviewed release-mac-app helper revision that scrubs package signing authority and narrows credential inheritance.
+- Release: resolve the signing account's keychain domain in the Darwin codesign hook so official signing works under the producer's isolated HOME.
 - CI: install the reviewed GitHub CLI before the release contract suite instead of inheriting the runner image's version.
 - Security: require Go 1.26.7 and scan both source and built binaries with pinned govulncheck. The 1.26.6 floor landed in #30 - thanks @vincentkoc
 - Build: update golangci-lint to 2.13.1 and staticcheck to 0.8.1 for Go 1.27 support.

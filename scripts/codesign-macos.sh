@@ -41,6 +41,18 @@ export PATH
 unset DEVELOPER_DIR SDKROOT TOOLCHAINS
 unset xcrun_log xcrun_nocache xcrun_verbose
 
+# codesign and notarytool resolve the signing identity through the account's
+# keychain domain, which is read from HOME. The release producer sandboxes HOME
+# for build isolation, so the tools would otherwise fail with "A default
+# keychain could not be found". Resolve the account's real home from the
+# account database and use it for the signing tools only; nothing else about
+# the isolated environment changes.
+login_home=$(/usr/bin/dscl . -read "/Users/$(/usr/bin/id -un)" NFSHomeDirectory 2>/dev/null | /usr/bin/awk '{print $2}')
+[[ -n "$login_home" && -d "$login_home" && "$login_home" == /* ]] ||
+  die "could not resolve the signing account home directory"
+HOME=$login_home
+export HOME
+
 test_mode=${GOPLACES_RELEASE_TEST_MODE-}
 test_tool_dir=${GOPLACES_RELEASE_TEST_TOOL_DIR-}
 if [[ "$test_mode" == "goplaces-release-contract-test-v1" ]]; then
