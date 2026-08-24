@@ -198,7 +198,7 @@ EOF
     die "exact tap predispatch recheck is not immediately before the workflow POST"
   grep -Fq 'readonly RELEASE_MAC_APP_DEFAULT="/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release"' "$release_script" || die "release-mac-app is not pinned independently of HOME"
   grep -Fq 'readonly RELEASE_MAC_APP_EXPECTED_SHA256="e65e06ef89ec90ebfc537d28748a3c4de8ce89bd09b51e4d67ba4bdd95427255"' "$release_script" || die "release-mac-app entrypoint digest is not pinned"
-  grep -Fq 'readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="3460c198263b94dec9f904993bd3563efa17f873f520c47d747aa27efba2700b"' "$release_script" || die "release-mac-app library digest is not pinned"
+  grep -Fq 'readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="c29d3c46506c2d0bd2db7ab688bd3108d54e8824074a4fe800de6e3fe17284c9"' "$release_script" || die "release-mac-app library digest is not pinned"
   grep -Fq '[[ "$source_digest" == "$RELEASE_MAC_APP_EXPECTED_SHA256" ]]' "$release_script" || die "release-mac-app entrypoint is not checked against reviewed bytes"
   grep -Fq '[[ "$source_lib_digest" == "$RELEASE_MAC_APP_LIB_EXPECTED_SHA256" ]]' "$release_script" || die "release-mac-app library is not checked against reviewed bytes"
   ! grep -Fq 'RELEASE_MAC_APP_DEFAULT="${HOME}' "$release_script" || die "release-mac-app still trusts ambient HOME"
