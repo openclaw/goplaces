@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.4.6 - 2026-08-24
+## 0.4.7 - 2026-08-24
 
-- Release: 0.4.5 was tagged during release automation bring-up and never published; it carries the same code as this release.
+- Release: 0.4.5 and 0.4.6 were tagged during release automation bring-up and never published; they carry the same code as this release.
 - CLI: accept `--radius` as an alias for `--radius-m` on `search`, `nearby`, `autocomplete`, and `route`.
 - Docs: validate generated llms metadata as plain text and keep the metadata helper import-safe. (#29) - thanks @vincentkoc
 - Docs: rewrite the README around verified install, quick-start, and reference paths.
@@ -14,6 +14,7 @@
 - Release: refresh the reviewed release toolchain pins to GitHub CLI 2.98.0, GoReleaser 2.17.1, Node 26.7.0, and Python 3.14.7.
 - Release: accept the reviewed release-mac-app helper revision that scrubs package signing authority and narrows credential inheritance.
 - Release: resolve the signing account's keychain domain in the Darwin codesign hook so official signing works under the producer's isolated HOME.
+- Release: accept GitHub's release-body newline normalization, the untagged asset URLs GitHub serves for drafts, and its JWT-style Actions tokens.
 - CI: install the reviewed GitHub CLI before the release contract suite instead of inheriting the runner image's version.
 - Security: require Go 1.26.7 and scan both source and built binaries with pinned govulncheck. The 1.26.6 floor landed in #30 - thanks @vincentkoc
 - Build: update golangci-lint to 2.13.1 and staticcheck to 0.8.1 for Go 1.27 support.
