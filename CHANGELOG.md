@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.4.7 - 2026-08-24
+## 0.4.8 - 2026-08-24
 
-- Release: 0.4.5 and 0.4.6 were tagged during release automation bring-up and never published; they carry the same code as this release.
+- Release: 0.4.5, 0.4.6 and 0.4.7 were tagged while bringing up the signed release automation and were never published; they carry the same code as this release.
 - CLI: accept `--radius` as an alias for `--radius-m` on `search`, `nearby`, `autocomplete`, and `route`.
 - Docs: validate generated llms metadata as plain text and keep the metadata helper import-safe. (#29) - thanks @vincentkoc
 - Docs: rewrite the README around verified install, quick-start, and reference paths.
