@@ -390,11 +390,11 @@ expect_failure "non-302 asset redirect" env MOCK_RELEASE_JSON="$raw_release" MOC
 workflow_json="$tmp/workflow.json"
 run_json="$tmp/run.json"
 preexisting="$tmp/preexisting.json"
-jq -n '{id:309911276,name:"release-assets",path:".github/workflows/release-assets.yml",state:"active"}' >"$workflow_json"
+jq -n '{id:311062804,name:"release-assets",path:".github/workflows/release-assets.yml",state:"active"}' >"$workflow_json"
 jq -n \
   --arg sha "$commit" --arg tag "$tag" --arg object "$tag_object" --arg nonce "$dispatch_nonce" '
   {
-    id:29009699237,workflow_id:309911276,path:".github/workflows/release-assets.yml",
+    id:29009699237,workflow_id:311062804,path:".github/workflows/release-assets.yml",
     event:"workflow_dispatch",head_branch:"main",head_sha:$sha,
     display_title:("Verify " + $tag + " draft release 5550 nonce " + $nonce),
     status:"completed",conclusion:"success",run_attempt:1,created_at:"2026-07-10T12:00:00Z",
@@ -744,7 +744,7 @@ case "$url" in
   */branches/main) /bin/cp "$MOCK_CHECKER_DIR/branch.json" "$output" ;;
   */actions/workflows/release-assets.yml) /bin/cp "$MOCK_CHECKER_DIR/workflow.json" "$output" ;;
   */releases/5550) /bin/cp "$MOCK_CHECKER_DIR/release.json" "$output" ;;
-  *'/actions/workflows/309911276/runs?'*) /bin/cp "$MOCK_RUNS_JSON" "$output" ;;
+  *'/actions/workflows/311062804/runs?'*) /bin/cp "$MOCK_RUNS_JSON" "$output" ;;
   */actions/runs/29009699237/jobs?per_page=100) /bin/cp "$MOCK_CHECKER_DIR/jobs.json" "$output" ;;
   */actions/runs/29009699237/logs) /bin/cp "$MOCK_CHECKER_DIR/logs.zip" "$output" ;;
   */actions/runs/29009699237) /bin/cp "$MOCK_CHECKER_DIR/exact-run.json" "$output" ;;

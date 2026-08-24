@@ -268,19 +268,19 @@ test_run_shape() {
   title="Verify v0.4.5 draft assets at ${SHA} for ${TAG_COMMIT} object ${TAG_OBJECT}"
   jq -n \
     --argjson id 29009699237 \
-    --argjson workflow_id 309911276 \
+    --argjson workflow_id 311062804 \
     --arg path .github/workflows/release-assets.yml \
     --arg title "$title" \
     --arg sha "$SHA" \
     '{id:$id,workflow_id:$workflow_id,path:$path,display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:00:00Z"}' > "$good"
   (
     source_release
-    assert_exact_run "$good" 29009699237 309911276 .github/workflows/release-assets.yml "$title" main "$SHA" true
+    assert_exact_run "$good" 29009699237 311062804 .github/workflows/release-assets.yml "$title" main "$SHA" true
   )
   jq '.id = 9007199254740992' "$good" > "$bad"
   expect_failure "overflow exact run ID" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    source "$1"; assert_exact_run "$2" 9007199254740992 309911276 .github/workflows/release-assets.yml "$3" main "$4" true
+    source "$1"; assert_exact_run "$2" 9007199254740992 311062804 .github/workflows/release-assets.yml "$3" main "$4" true
   ' _ "$release_script" "$bad" "$title" "$SHA"
   jq '.workflow_id = 9007199254740992' "$good" > "$bad"
   expect_failure "overflow exact workflow ID" bash -c '
@@ -290,29 +290,29 @@ test_run_shape() {
   jq '.workflow_id = 309911277' "$good" > "$bad"
   expect_failure "valid wrong workflow ID" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    source "$1"; assert_exact_run "$2" 29009699237 309911276 .github/workflows/release-assets.yml "$3" main "$4" true
+    source "$1"; assert_exact_run "$2" 29009699237 311062804 .github/workflows/release-assets.yml "$3" main "$4" true
   ' _ "$release_script" "$bad" "$title" "$SHA"
   jq '.head_branch = "release"' "$good" > "$bad"
   expect_failure "wrong protected head branch" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    source "$1"; assert_exact_run "$2" 29009699237 309911276 .github/workflows/release-assets.yml "$3" main "$4" true
+    source "$1"; assert_exact_run "$2" 29009699237 311062804 .github/workflows/release-assets.yml "$3" main "$4" true
   ' _ "$release_script" "$bad" "$title" "$SHA"
   jq '.head_sha = "3333333333333333333333333333333333333333"' "$good" > "$bad"
   expect_failure "wrong protected head SHA" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    source "$1"; assert_exact_run "$2" 29009699237 309911276 .github/workflows/release-assets.yml "$3" main "$4" true
+    source "$1"; assert_exact_run "$2" 29009699237 311062804 .github/workflows/release-assets.yml "$3" main "$4" true
   ' _ "$release_script" "$bad" "$title" "$SHA"
   jq '.path = ".github/workflows/release-assets.yml@main"' "$good" > "$bad"
   expect_failure "native run @branch path" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
     source "$1"
-    assert_exact_run "$2" 29009699237 309911276 .github/workflows/release-assets.yml "$3" main "$4" true
+    assert_exact_run "$2" 29009699237 311062804 .github/workflows/release-assets.yml "$3" main "$4" true
   ' _ "$release_script" "$bad" "$title" "$SHA"
   jq '.path = "./.github/workflows/release-assets.yml"' "$good" > "$bad"
   expect_failure "native run leading-dot path" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
     source "$1"
-    assert_exact_run "$2" 29009699237 309911276 .github/workflows/release-assets.yml "$3" main "$4" true
+    assert_exact_run "$2" 29009699237 311062804 .github/workflows/release-assets.yml "$3" main "$4" true
   ' _ "$release_script" "$bad" "$title" "$SHA"
 
   jq -n \
@@ -371,7 +371,7 @@ printf '%s\n' "$*" >> "$WORKFLOW_LOOKUP_LOG"
 endpoint="${*: -1}"
 case "$endpoint" in
   repos/openclaw/goplaces/actions/workflows/release-assets.yml)
-    printf '{"id":309911276,"path":".github/workflows/release-assets.yml","state":"active"}\n'
+    printf '{"id":311062804,"path":".github/workflows/release-assets.yml","state":"active"}\n'
     ;;
   repos/openclaw/homebrew-tap/actions/workflows/update-formula.yml)
     printf '{"id":220664022,"path":".github/workflows/update-formula.yml","state":"active"}\n'
@@ -490,7 +490,7 @@ test_verifier_dispatch_recovers_without_duplicate_post() {
   title="Verify v0.4.5 draft release 777 nonce ${nonce}"
   jq -n \
     --arg tag v0.4.5 --arg state draft --arg object "$TAG_OBJECT" --arg commit "$TAG_COMMIT" --arg main "$SHA" \
-    --argjson release_id 777 --argjson workflow_id 309911276 --arg record_sha256 "$record_digest" \
+    --argjson release_id 777 --argjson workflow_id 311062804 --arg record_sha256 "$record_digest" \
     --arg title "$title" --arg created_after 2026-07-10T09:59:59Z --arg nonce "$nonce" \
     '{schema:"goplaces-verifier-intent-v1",tag:$tag,state:$state,tag_object:$object,tag_commit:$commit,
       default_sha:$main,release_id:$release_id,workflow_id:$workflow_id,release_record_sha256:$record_sha256,
@@ -503,9 +503,9 @@ test_verifier_dispatch_recovers_without_duplicate_post() {
     tag_object="$TAG_OBJECT"
     tag_commit="$TAG_COMMIT"
     release_state_dir="$state"
-    workflow_record() { jq -n '{id:309911276}' > "$3"; }
+    workflow_record() { jq -n '{id:311062804}' > "$3"; }
     jq -n --argjson id 29009699237 --arg title "$title" --arg sha "$SHA" '{
-        id:$id,workflow_id:309911276,path:".github/workflows/release-assets.yml",display_title:$title,
+        id:$id,workflow_id:311062804,path:".github/workflows/release-assets.yml",display_title:$title,
         event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",
         run_attempt:1,created_at:"2026-07-10T10:00:00Z"}' > "${scratch}/run.json"
     fetch_workflow_runs() {
@@ -560,21 +560,21 @@ test_newest_selection_fails_closed() {
   runs="${scratch}/runs.json"
   title="Verify v0.4.5 draft assets at ${SHA} for ${TAG_COMMIT} object ${TAG_OBJECT}"
   jq -n --arg title "$title" --arg sha "$SHA" '{workflow_runs:[
-    {id:10,workflow_id:309911276,path:".github/workflows/release-assets.yml",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:00:00Z"},
-    {id:11,workflow_id:309911276,path:".github/workflows/release-assets.yml@main",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:01:00Z"}
+    {id:10,workflow_id:311062804,path:".github/workflows/release-assets.yml",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:00:00Z"},
+    {id:11,workflow_id:311062804,path:".github/workflows/release-assets.yml@main",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:01:00Z"}
   ]}' > "$runs"
   expect_failure "newer invalid proof fallback" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    source "$1"; newest_matching_run_id "$2" 309911276 .github/workflows/release-assets.yml "$3" main "$4"
+    source "$1"; newest_matching_run_id "$2" 311062804 .github/workflows/release-assets.yml "$3" main "$4"
   ' _ "$release_script" "$runs" "$title" "$SHA"
 
   jq -n --arg title "$title" --arg sha "$SHA" '{workflow_runs:[
-    {id:12,workflow_id:309911276,path:".github/workflows/release-assets.yml",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:02:00Z"},
-    {id:13,workflow_id:309911276,path:".github/workflows/release-assets.yml",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:02:00Z"}
+    {id:12,workflow_id:311062804,path:".github/workflows/release-assets.yml",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:02:00Z"},
+    {id:13,workflow_id:311062804,path:".github/workflows/release-assets.yml",display_title:$title,event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",created_at:"2026-07-10T10:02:00Z"}
   ]}' > "$runs"
   [[ "$(
     source_release
-    newest_matching_run_id "$runs" 309911276 .github/workflows/release-assets.yml "$title" main "$SHA"
+    newest_matching_run_id "$runs" 311062804 .github/workflows/release-assets.yml "$title" main "$SHA"
   )" == "13" ]] || die "same-time proof did not choose higher numeric ID"
   rm -rf "$scratch"
 }
@@ -589,13 +589,13 @@ test_paginated_run_inventory() {
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$1" == api && "$*" == *'--paginate'* ]] || exit 90
-printf '%s\n' '{"workflow_runs":[{"id":1,"workflow_id":309911276,"head_sha":"a"},{"id":2,"workflow_id":309911276,"head_sha":"b"}]}'
+printf '%s\n' '{"workflow_runs":[{"id":1,"workflow_id":311062804,"head_sha":"a"},{"id":2,"workflow_id":311062804,"head_sha":"b"}]}'
 if [[ "${MOCK_CONFLICT:-0}" == 1 ]]; then
-  printf '%s\n' '{"workflow_runs":[{"id":2,"workflow_id":309911276,"head_sha":"hostile"},{"id":3,"workflow_id":309911276,"head_sha":"c"}]}'
+  printf '%s\n' '{"workflow_runs":[{"id":2,"workflow_id":311062804,"head_sha":"hostile"},{"id":3,"workflow_id":311062804,"head_sha":"c"}]}'
 elif [[ "${MOCK_OVERFLOW:-0}" == 1 ]]; then
-  printf '%s\n' '{"workflow_runs":[{"id":9007199254740992,"workflow_id":309911276,"head_sha":"hostile"}]}'
+  printf '%s\n' '{"workflow_runs":[{"id":9007199254740992,"workflow_id":311062804,"head_sha":"hostile"}]}'
 else
-  printf '%s\n' '{"workflow_runs":[{"id":2,"workflow_id":309911276,"head_sha":"b"},{"id":3,"workflow_id":309911276,"head_sha":"c"}]}'
+  printf '%s\n' '{"workflow_runs":[{"id":2,"workflow_id":311062804,"head_sha":"b"},{"id":3,"workflow_id":311062804,"head_sha":"c"}]}'
 fi
 EOF
   chmod +x "${mock_bin}/gh"
@@ -603,14 +603,14 @@ EOF
     source_release
     PATH="${mock_bin}:$PATH"
     export PATH MOCK_FIXTURE_ROOT="$scratch" GOPLACES_RELEASE_LOCAL_TEST_GH_BIN="${mock_bin}/gh"
-    fetch_workflow_runs openclaw/goplaces 309911276 main "$output"
+    fetch_workflow_runs openclaw/goplaces 311062804 main "$output"
   )
   [[ "$(jq -c '[.workflow_runs[].id]' "$output")" == '[1,2,3]' ]] || die "paginated run inventory was not complete and deduplicated"
   if (
     source_release
     PATH="${mock_bin}:$PATH"
     export PATH MOCK_CONFLICT=1 MOCK_FIXTURE_ROOT="$scratch" GOPLACES_RELEASE_LOCAL_TEST_GH_BIN="${mock_bin}/gh"
-    fetch_workflow_runs openclaw/goplaces 309911276 main "$output"
+    fetch_workflow_runs openclaw/goplaces 311062804 main "$output"
   ) >/dev/null 2>&1; then
     die "conflicting duplicate workflow run ID was accepted"
   fi
@@ -618,7 +618,7 @@ EOF
     source_release
     PATH="${mock_bin}:$PATH"
     export PATH MOCK_OVERFLOW=1 MOCK_FIXTURE_ROOT="$scratch" GOPLACES_RELEASE_LOCAL_TEST_GH_BIN="${mock_bin}/gh"
-    fetch_workflow_runs openclaw/goplaces 309911276 main "$output"
+    fetch_workflow_runs openclaw/goplaces 311062804 main "$output"
   ) >/dev/null 2>&1; then
     die "overflow workflow run ID was accepted"
   fi
@@ -848,11 +848,11 @@ write_fixture_verifier_state() {
     --arg state "$state" --argjson run_id "$run_id" --arg digest "$digest" --arg nonce "$nonce" --arg title "$title" \
     --arg object "$TAG_OBJECT" --arg commit "$TAG_COMMIT" --arg main "$SHA" \
     '{schema:"goplaces-verifier-intent-v1",tag:"v0.4.5",state:$state,tag_object:$object,tag_commit:$commit,
-      default_sha:$main,release_id:777,workflow_id:309911276,release_record_sha256:$digest,
+      default_sha:$main,release_id:777,workflow_id:311062804,release_record_sha256:$digest,
       attempt:1,dispatch_nonce:$nonce,expected_title:$title,created_after:"2026-07-10T09:59:59Z",
       seen_run_ids:[],failed_run_ids:[],workflow_run_id:$run_id,recovered:true}' > "$intent"
   jq -n \
-    --argjson workflow_id 309911276 --argjson workflow_run_id "$run_id" --arg state "$state" \
+    --argjson workflow_id 311062804 --argjson workflow_run_id "$run_id" --arg state "$state" \
     --arg tag v0.4.5 --arg tag_object "$TAG_OBJECT" --arg tag_commit "$TAG_COMMIT" --arg default_sha "$SHA" \
     --argjson release_id 777 --arg release_record_sha256 "$digest" --arg dispatch_nonce "$nonce" \
     --slurpfile release_record "$record" \

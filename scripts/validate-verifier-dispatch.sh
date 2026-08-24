@@ -51,7 +51,7 @@ safe_json_id "$release_id" || die "invalid release ID"
 
 workflow_id="$($jq_bin -r '.id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$workflow_json")"
 safe_json_id "$workflow_id" || die "workflow has an invalid numeric ID"
-[[ "$workflow_id" == 309911276 ]] || die "workflow numeric identity is not pinned"
+[[ "$workflow_id" == 311062804 ]] || die "workflow numeric identity is not pinned"
 "$jq_bin" -e '
   .path == ".github/workflows/release-assets.yml" and
   .state == "active" and

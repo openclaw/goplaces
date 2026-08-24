@@ -265,7 +265,7 @@ workflow_json="$scratch/workflow.json"
 api_get "$api_url/repos/$repository/actions/workflows/release-assets.yml" "$workflow_json"
 workflow_id="$(jq_run -r '.id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' "$workflow_json")"
 safe_json_id "$workflow_id" || die "workflow ID is invalid"
-[[ "$workflow_id" == 309911276 ]] || die "workflow numeric identity is not pinned"
+[[ "$workflow_id" == 311062804 ]] || die "workflow numeric identity is not pinned"
 jq_run -e '.name == "release-assets" and .path == ".github/workflows/release-assets.yml" and .state == "active"' "$workflow_json" >/dev/null || die "workflow identity is invalid"
 
 release_json="$scratch/release.json"
