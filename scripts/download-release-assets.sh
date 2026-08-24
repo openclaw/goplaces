@@ -235,9 +235,9 @@ download_asset() {
     return
   fi
   [[ "$status" == 302 ]] || die "asset API returned unexpected HTTP $status"
-  redirect_count="$(/usr/bin/awk 'BEGIN {IGNORECASE=1} /^Location:[[:space:]]/ {count++} END {print count + 0}' "$headers")"
+  redirect_count="$(/usr/bin/awk '{ if (tolower($0) ~ /^location:[[:space:]]/) count++ } END {print count + 0}' "$headers")"
   [[ "$redirect_count" -eq 1 ]] || die "asset API returned an ambiguous redirect"
-  redirect_url="$(/usr/bin/awk 'BEGIN {IGNORECASE=1} /^Location:[[:space:]]/ {sub(/\r$/, ""); sub(/^[^:]*:[[:space:]]*/, ""); print}' "$headers")"
+  redirect_url="$(/usr/bin/awk '{ if (tolower($0) ~ /^location:[[:space:]]/) { sub(/\r$/, ""); sub(/^[^:]*:[[:space:]]*/, ""); print } }' "$headers")"
   case "$redirect_url" in
     https://release-assets.githubusercontent.com/*) ;;
     *) die "asset API redirected to an unapproved HTTPS host" ;;
