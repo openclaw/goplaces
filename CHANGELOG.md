@@ -16,6 +16,7 @@
 - Release: resolve the signing account's keychain domain in the Darwin codesign hook so official signing works under the producer's isolated HOME.
 - Release: accept GitHub's release-body newline normalization, the untagged asset URLs GitHub serves for drafts, and its JWT-style Actions tokens.
 - Release: match redirect headers without awk IGNORECASE so asset downloads work under the macOS awk the verifier runs on.
+- Release: compare distinct verifier proof markers, since a run log archive repeats every line in both its aggregated and per-step entries.
 - CI: install the reviewed GitHub CLI before the release contract suite instead of inheriting the runner image's version.
 - Security: require Go 1.26.7 and scan both source and built binaries with pinned govulncheck. The 1.26.6 floor landed in #30 - thanks @vincentkoc
 - Build: update golangci-lint to 2.13.1 and staticcheck to 0.8.1 for Go 1.27 support.

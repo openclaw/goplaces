@@ -351,9 +351,16 @@ unzip_run -p "$logs_zip" > "$logs_txt" || die "could not read verifier logs"
 proof_inventory_digest=""
 for proof_arch in arm64 x86_64; do
   marker_prefix="GOPLACES_RELEASE_PROOF_V1 arch=$proof_arch run_id=$selected_id tag=$tag tag_object=$expected_tag_object tag_commit=$expected_tag_commit release_id=$release_id default_sha=$expected_main inventory_sha256="
-  [[ "$(/usr/bin/grep -Fc "$marker_prefix" "$logs_txt")" -eq 1 ]] || die "missing or duplicate $proof_arch proof marker"
-  /usr/bin/grep -E "${marker_prefix}[0-9a-f]{64}$" "$logs_txt" >/dev/null || die "$proof_arch proof marker has an invalid inventory digest"
-  marker_line="$(/usr/bin/grep -F "$marker_prefix" "$logs_txt")"
+  # A run log archive carries each line twice: once in the aggregated
+  # 0_<job>.txt and once in the per-step <job>/<n>_<step> entry, and unzip -p
+  # concatenates both. Compare distinct marker lines with the leading ISO
+  # timestamp removed so the "exactly one marker" contract still holds.
+  marker_lines="$(/usr/bin/grep -F "$marker_prefix" "$logs_txt" |
+    /usr/bin/sed -E 's/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z //' |
+    /usr/bin/sort -u)"
+  [[ "$(printf '%s' "$marker_lines" | /usr/bin/grep -c .)" -eq 1 ]] || die "missing or duplicate $proof_arch proof marker"
+  printf '%s\n' "$marker_lines" | /usr/bin/grep -E "^${marker_prefix}[0-9a-f]{64}$" >/dev/null || die "$proof_arch proof marker has an invalid inventory digest"
+  marker_line="$marker_lines"
   current_digest="${marker_line##*inventory_sha256=}"
   [[ "$current_digest" =~ ^[0-9a-f]{64}$ ]] || die "$proof_arch inventory digest is invalid"
   if [[ -z "$proof_inventory_digest" ]]; then
