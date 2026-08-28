@@ -42,7 +42,7 @@ readonly EXPECTED_EXPECT_VERSION="expect version 5.45.4"
 readonly EXPECTED_PYTHON_VERSION="Python 3.14.7"
 readonly EXPECTED_GH_VERSION="2.98.0"
 readonly EXPECTED_JQ_VERSION="jq-1.8.2"
-readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:jGVVuNZ7NrBJlFB7IBkZ/R9c8gYCja+SWqrHpBCYJZA="
+readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:4MQBuhmXbz2uepNJrf3v+aaZLGDqw1JluwYboegA1qg="
 
 repo_root="$(cd "$(/usr/bin/dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$repo_root"
@@ -1855,8 +1855,8 @@ validate_govulncheck_build_info() {
   local build_info="$1" executable="$2"
   "$GREP_BIN" -Fqx "${executable}: ${EXPECTED_GO_VERSION}" <<< "$build_info" || die "govulncheck was not built with ${EXPECTED_GO_VERSION}"
   "$GREP_BIN" -Fqx $'\tpath\tgolang.org/x/vuln/cmd/govulncheck' <<< "$build_info" || die "govulncheck command path is not exact"
-  "$GREP_BIN" -Fqx $'\tmod\tgolang.org/x/vuln\tv1.5.0\t'"$EXPECTED_GOVULNCHECK_MODULE_SUM" <<< "$build_info" ||
-    die "govulncheck module identity is not the reviewed v1.5.0 sum"
+  "$GREP_BIN" -Fqx $'\tmod\tgolang.org/x/vuln\tv1.7.0\t'"$EXPECTED_GOVULNCHECK_MODULE_SUM" <<< "$build_info" ||
+    die "govulncheck module identity is not the reviewed v1.7.0 sum"
 }
 
 run_check_suite() {
@@ -1911,7 +1911,7 @@ run_check_suite() {
     cd "$source"
     "${download_env[@]}" "$go_bin" mod download all
   )
-  "${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+  "${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.7.0
   /bin/chmod 500 "$govulncheck_bin"
   require_canonical_executable "$govulncheck_bin" "frozen govulncheck"
   govulncheck_build_info="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${scratch}/home" TMPDIR="${scratch}/tmp" LC_ALL=C TZ=UTC GOROOT="$producer_go_root" "$go_bin" version -m "$govulncheck_bin")" ||

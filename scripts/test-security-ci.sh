@@ -138,7 +138,7 @@ run_lines = steps.flat_map do |step|
 end
 required_runs = [
   'shellcheck_bin="$(./scripts/bootstrap-shellcheck.sh "$RUNNER_TEMP/shellcheck")"',
-  "go install golang.org/x/vuln/cmd/govulncheck@v1.5.0",
+  "go install golang.org/x/vuln/cmd/govulncheck@v1.7.0",
   "./scripts/verify-snapshot-security.sh",
   "./scripts/test-reproducible-builds.sh dist",
   "./scripts/test-codesign-macos.sh",
@@ -162,7 +162,7 @@ assert_workflow_proof() {
 
   require_code_pattern "$workflow" '^[[:space:]]+version:[[:space:]]+v2\.17\.1[[:space:]]*$' "GoReleaser v2.17.1 pin"
   require_code_pattern "$workflow" '^[[:space:]]+args:[[:space:]]+release --snapshot --clean --skip=publish --config \.goreleaser\.yml[[:space:]]*$' "non-publishing snapshot"
-  require_code_pattern "$workflow" '^[[:space:]]+run:[[:space:]]+go install golang\.org/x/vuln/cmd/govulncheck@v1\.5\.0[[:space:]]*$' "govulncheck v1.5.0 install"
+  require_code_pattern "$workflow" '^[[:space:]]+run:[[:space:]]+go install golang\.org/x/vuln/cmd/govulncheck@v1\.7\.0[[:space:]]*$' "govulncheck v1.7.0 install"
   # shellcheck disable=SC2016
   require_code_pattern "$workflow" 'shellcheck_bin="\$\(\./scripts/bootstrap-shellcheck\.sh "\$RUNNER_TEMP/shellcheck"\)"' "pinned ShellCheck bootstrap"
   require_code_pattern "$workflow" '^[[:space:]]+run:[^#]*govulncheck[^#]*-db=https://vuln\.go\.dev[^#]*-test[[:space:]]+\./\.\.\.[^#]*$' "official-database source vulnerability scan including tests"

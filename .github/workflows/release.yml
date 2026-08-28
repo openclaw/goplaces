@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -49,7 +49,7 @@ jobs:
           ./scripts/test-release-local.sh
           ./scripts/test-security-ci.sh
       - name: Install vulnerability scanner
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
       - name: Source vulnerability scan
         run: '"$(go env GOPATH)/bin/govulncheck" -db=https://vuln.go.dev -test ./...'
       - name: Build credential-free snapshot

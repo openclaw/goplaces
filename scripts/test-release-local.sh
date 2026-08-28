@@ -211,18 +211,18 @@ EOF
   ! grep -Eq '^[[:space:]]+env -i PATH="\$producer_path"' "$release_script" || die "check suite trusts an ambient env executable"
   grep -Fq '"${download_env[@]}" "$go_bin" mod download all' "$release_script" || die "check suite does not populate its isolated module cache"
   ! grep -Fq 'need govulncheck' "$release_script" || die "check suite still depends on ambient govulncheck PATH"
-  grep -Fq '"${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.5.0' "$release_script" || die "check suite does not install pinned govulncheck with pinned Go"
+  grep -Fq '"${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.7.0' "$release_script" || die "check suite does not install pinned govulncheck with pinned Go"
   grep -Fq 'require_canonical_executable "$govulncheck_bin" "frozen govulncheck"' "$release_script" || die "installed govulncheck is not frozen before proof"
-  grep -Fq 'readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:jGVVuNZ7NrBJlFB7IBkZ/R9c8gYCja+SWqrHpBCYJZA="' "$release_script" || die "govulncheck reviewed module sum is not pinned"
+  grep -Fq 'readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:4MQBuhmXbz2uepNJrf3v+aaZLGDqw1JluwYboegA1qg="' "$release_script" || die "govulncheck reviewed module sum is not pinned"
   grep -Fq '"$go_bin" version -m "$govulncheck_bin"' "$release_script" || die "installed govulncheck build information is not inspected"
   grep -Fq 'GOROOT="$producer_go_root" "$go_bin" version -m "$govulncheck_bin"' "$release_script" || die "govulncheck build inspection lost the pinned Go root"
-  grep -Fq "\$'\\tmod\\tgolang.org/x/vuln\\tv1.5.0\\t'" "$release_script" || die "installed govulncheck module identity is not checked"
+  grep -Fq "\$'\\tmod\\tgolang.org/x/vuln\\tv1.7.0\\t'" "$release_script" || die "installed govulncheck module identity is not checked"
   grep -Fq '/bin/chmod -R u+w "$scratch"' "$release_script" || die "check-suite module cache is not made removable"
   grep -Fq '"${clean_env[@]}" "$govulncheck_bin" -db=https://vuln.go.dev -test ./...' "$release_script" || die "source vulnerability scan does not pin the official database URL"
   grep -Fq 'SNAPSHOT_EXPECTED_COMMIT="$default_sha" SNAPSHOT_REQUIRE_CLEAN=1' "$release_script" || die "local snapshot proof is not bound to protected clean source"
   grep -Fq 'GO_BIN="$go_bin" ./scripts/test-reproducible-builds.sh dist' "$release_script" || die "local reproducibility gate does not compare generated snapshot artifacts"
   download_line="$(grep -nF '"${download_env[@]}" "$go_bin" mod download all' "$release_script" | cut -d: -f1)"
-  govuln_install_line="$(grep -nF '"${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.5.0' "$release_script" | cut -d: -f1)"
+  govuln_install_line="$(grep -nF '"${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.7.0' "$release_script" | cut -d: -f1)"
   offline_line="$(grep -nF 'GOPROXY=off GOSUMDB=off' "$release_script" | head -n 1 | cut -d: -f1)"
   [[ "$download_line" =~ ^[0-9]+$ && "$govuln_install_line" =~ ^[0-9]+$ && "$offline_line" =~ ^[0-9]+$ && "$download_line" -lt "$govuln_install_line" && "$govuln_install_line" -lt "$offline_line" ]] || die "offline proof begins before dependencies and pinned govulncheck are populated"
   grep -Fq './scripts/recheck-release-source.sh' "$release_script" || die "codesign-run lacks its protected post-manifest source recheck"
@@ -241,7 +241,7 @@ EOF
 test_govulncheck_build_info_validation() {
   local binary good bad
   binary="/private/tmp/frozen/govulncheck"
-  good="${binary}: go1.26.7"$'\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.5.0\th1:jGVVuNZ7NrBJlFB7IBkZ/R9c8gYCja+SWqrHpBCYJZA='
+  good="${binary}: go1.26.7"$'\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.7.0\th1:4MQBuhmXbz2uepNJrf3v+aaZLGDqw1JluwYboegA1qg='
   (
     source_release
     validate_govulncheck_build_info "$good" "$binary"
@@ -249,8 +249,8 @@ test_govulncheck_build_info_validation() {
   for bad in \
     "${good/go1.26.7/go1.26.4}" \
     "${good/golang.org\/x\/vuln\/cmd\/govulncheck/example.invalid\/govulncheck}" \
-    "${good/v1.5.0/v1.4.2}" \
-    "${good/jGVVuNZ7NrBJlFB7IBkZ\/R9c8gYCja+SWqrHpBCYJZA=/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}"; do
+    "${good/v1.7.0/v1.4.2}" \
+    "${good/4MQBuhmXbz2uepNJrf3v+aaZLGDqw1JluwYboegA1qg=/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}"; do
     if (
       source_release
       validate_govulncheck_build_info "$bad" "$binary"

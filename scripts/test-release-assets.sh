@@ -46,7 +46,7 @@ grep -Fq 'runner: macos-15' "$workflow" || fail "native arm64 runner is missing"
 grep -Fq 'runner: macos-15-intel' "$workflow" || fail "native Intel runner is missing"
 if grep -Eq '^[[:space:]]*uses:' "$workflow"; then fail "release verifier must not depend on mutable actions"; fi
 grep -Fq 'Install exact pinned Go toolchain' "$workflow" || fail "pinned toolchain bootstrap step is missing"
-grep -Fq 'govulncheck@v1.5.0' "$workflow" || fail "govulncheck version is not pinned"
+grep -Fq 'govulncheck@v1.7.0' "$workflow" || fail "govulncheck version is not pinned"
 [[ "$(grep -Fc '"$RUNNER_TEMP/tools/govulncheck" -db=https://vuln.go.dev -test ./...' "$workflow")" -eq 1 ]] || fail "exact tagged source must receive one official-database vulnerability scan including tests"
 grep -Fq "GOPROXY=off GOSUMDB=off GOVCS='*:off'" "$workflow" || fail "exact tagged source scan is not module-offline"
 grep -Fq 'GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off' "$workflow" || fail "Go configuration is not hermetic"
