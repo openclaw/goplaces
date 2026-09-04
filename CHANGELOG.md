@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- CI: update the reviewed GitHub CLI pin to 2.100.0 so release contract tests accept the current Homebrew version installed by CI.
 - Build: update Kong to 1.16.1, golangci-lint to 2.13.2, deadcode to 0.49.0, gosec to 2.29.0, govulncheck to 1.7.0, and setup-go to v7.
 
 ## 0.4.9 - 2026-08-24
