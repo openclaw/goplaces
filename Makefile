@@ -1,4 +1,4 @@
-.PHONY: lint test coverage
+.PHONY: lint lint-check test coverage
 .PHONY: e2e goplaces force
 
 GOLANGCI_LINT_VERSION ?= v2.13.2
@@ -6,6 +6,10 @@ GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$
 
 lint:
 	$(GOLANGCI_LINT) fmt
+	$(GOLANGCI_LINT) run ./...
+
+lint-check:
+	$(GOLANGCI_LINT) fmt --diff
 	$(GOLANGCI_LINT) run ./...
 
 test:

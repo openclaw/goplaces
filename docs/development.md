@@ -12,6 +12,8 @@ make lint test coverage
 
 The coverage target enforces the repository's coverage threshold. The CI workflow also runs workflow linting, static analysis, security scanners, release configuration checks, and credential-free release builds.
 
+Use `make lint-check` to check formatting without modifying files. CI tests the declared Go floor on Linux and macOS, runs race tests on macOS and on Windows with the latest stable Go, and verifies the Node documentation metadata tests and generated index. Staticcheck runs through golangci-lint.
+
 ## Authenticated end-to-end tests
 
 End-to-end tests are optional because they call Google services and incur normal quota or billing usage.

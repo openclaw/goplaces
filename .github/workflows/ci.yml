@@ -2,6 +2,8 @@ name: ci
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
@@ -11,10 +13,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
@@ -25,34 +27,54 @@ jobs:
       - name: Install golangci-lint
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
       - name: Lint
-        run: make lint
+        run: make lint-check GOLANGCI_LINT=golangci-lint
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26.8.2"
+      - name: Documentation metadata
+        run: |
+          node --test scripts/llms-metadata.test.mjs
+          node scripts/generate-llms.mjs
+          git diff --exit-code -- docs/llms.txt
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.1"
+          cache: true
+      - name: Test latest Go on Windows
+        run: go test -race ./...
   audit:
     # The release contract exercises pinned macOS signing/verifier tools with
     # test doubles; run the whole audit on the platform whose system paths and
     # BSD tool semantics those boundaries deliberately freeze.
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
       - name: Install dependencies
         run: go mod download
+      - name: Race tests on macOS
+        run: go test -race ./...
       - name: Install pinned ShellCheck
         run: |
           shellcheck_bin="$(./scripts/bootstrap-shellcheck.sh "$RUNNER_TEMP/shellcheck")"
           printf '%s\n' "${shellcheck_bin%/*}" >> "$GITHUB_PATH"
       - name: Lint workflows
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-      - name: Staticcheck
-        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
       - name: Deadcode
         run: |
           output_file=$(mktemp)
-          go run golang.org/x/tools/cmd/deadcode@v0.49.0 -test ./... > "$output_file"
+          go run golang.org/x/tools/cmd/deadcode@v0.50.0 -test ./... > "$output_file"
           if [ -s "$output_file" ]; then
             cat "$output_file"
             exit 1
@@ -60,19 +82,19 @@ jobs:
       - name: Security scan
         run: go run github.com/securego/gosec/v2/cmd/gosec@v2.29.0 ./...
       - name: Install vulnerability scanner
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
       - name: Source vulnerability scan
         run: '"$(go env GOPATH)/bin/govulncheck" -db=https://vuln.go.dev -test ./...'
-      - uses: goreleaser/goreleaser-action@v7
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: v2.17.1
+          version: v2.18.1
           args: check --config .goreleaser.yml
       - name: Build credential-free snapshot
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: v2.17.1
+          version: v2.18.1
           args: release --snapshot --clean --skip=publish --config .goreleaser.yml
       - name: Snapshot binary vulnerability scan
         env:
