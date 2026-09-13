@@ -187,12 +187,12 @@ jobs:
         run: |
           set -euo pipefail
           [[ -x "$GO_BIN" ]]
-          [[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$GO_BIN" env GOVERSION)" == go1.26.7 ]]
+          [[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$GO_BIN" env GOVERSION)" == go1.26.8 ]]
           (cd "$SOURCE" && /usr/bin/env GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off \
             GOFLAGS=-mod=readonly GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org \
             GOVCS='*:off' "$GO_BIN" mod download all)
           /usr/bin/env GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off \
-            GOBIN="$RUNNER_TEMP/tools" "$GO_BIN" install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+            GOBIN="$RUNNER_TEMP/tools" "$GO_BIN" install golang.org/x/vuln/cmd/govulncheck@v1.8.0
           [[ -x "$RUNNER_TEMP/tools/govulncheck" ]]
           (cd "$SOURCE" && /usr/bin/env -u GH_TOKEN -u GITHUB_TOKEN \
             GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off GOFLAGS=-mod=readonly \

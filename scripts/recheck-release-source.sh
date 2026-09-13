@@ -11,8 +11,8 @@ readonly sed_bin=/usr/bin/sed
 readonly grep_bin=/usr/bin/grep
 readonly official_origin=https://github.com/openclaw/goplaces.git
 readonly system_path=/usr/bin:/bin:/usr/sbin:/sbin
-readonly expected_go_version=go1.26.7
-readonly expected_goreleaser_version=2.17.1
+readonly expected_go_version=go1.26.8
+readonly expected_goreleaser_version=2.18.1
 
 die() {
   echo "release source recheck: $*" >&2

@@ -15,11 +15,11 @@ jobs:
     # exercise macOS-only producer and verifier boundaries.
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
@@ -49,14 +49,14 @@ jobs:
           ./scripts/test-release-local.sh
           ./scripts/test-security-ci.sh
       - name: Install vulnerability scanner
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
       - name: Source vulnerability scan
         run: '"$(go env GOPATH)/bin/govulncheck" -db=https://vuln.go.dev -test ./...'
       - name: Build credential-free snapshot
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: v2.17.1
+          version: v2.18.1
           args: release --snapshot --clean --skip=publish --config .goreleaser.yml
       - name: Snapshot binary vulnerability scan
         env:
