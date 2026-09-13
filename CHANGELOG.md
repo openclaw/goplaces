@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Security: reject cross-origin API redirects and redact API keys echoed in errors while preserving typed error causes.
+- CLI: sanitize parser diagnostics so invalid arguments cannot emit terminal control sequences.
 - Build: require Go 1.26.8 for upstream compiler and runtime fixes; update GoReleaser to 2.18.1, Node to 26.8.2, deadcode to 0.50.0, and govulncheck to 1.8.0 with matching release-verifier pins.
 - CI: pin Actions by commit, test Windows with Go 1.27.1 and macOS with the race detector, verify documentation metadata, reject formatting drift, and avoid duplicate branch-push audits.
 

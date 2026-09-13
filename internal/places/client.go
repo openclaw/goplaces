@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -84,14 +83,14 @@ func (c *Client) doRequest(
 	if body != nil {
 		payload, err := json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("goplaces: encode request: %w", err)
+			return nil, c.requestError("encode request", err)
 		}
 		reader = bytes.NewReader(payload)
 	}
 
 	request, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
 	if err != nil {
-		return nil, fmt.Errorf("goplaces: build request: %w", err)
+		return nil, c.requestError("build request", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -101,9 +100,12 @@ func (c *Client) doRequest(
 		request.Header.Set("X-Goog-FieldMask", fieldMask)
 	}
 
-	response, err := c.httpClient.Do(request)
+	// Keep the caller's shared client and redirect policy unchanged.
+	httpClient := *c.httpClient
+	httpClient.CheckRedirect = restrictRedirects(httpClient.CheckRedirect)
+	response, err := httpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("goplaces: request failed: %w", err)
+		return nil, c.requestError("request failed", err)
 	}
 	defer func() {
 		_ = response.Body.Close()
@@ -112,11 +114,11 @@ func (c *Client) doRequest(
 	// Hard-cap payload size to avoid runaway error bodies.
 	payload, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if err != nil {
-		return nil, fmt.Errorf("goplaces: read response: %w", err)
+		return nil, c.requestError("read response", err)
 	}
 
 	if response.StatusCode >= http.StatusBadRequest {
-		apiErr := &APIError{StatusCode: response.StatusCode, Body: strings.TrimSpace(string(payload))}
+		apiErr := &APIError{StatusCode: response.StatusCode, Body: c.redactAPIKey(strings.TrimSpace(string(payload)))}
 		return nil, apiErr
 	}
 
@@ -135,7 +137,7 @@ func (c *Client) buildURL(path string, query map[string]string) (string, error) 
 
 	parsed, err := url.Parse(endpoint)
 	if err != nil {
-		return "", fmt.Errorf("goplaces: invalid url: %w", err)
+		return "", c.requestError("invalid url", err)
 	}
 
 	values := parsed.Query()

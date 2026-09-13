@@ -3,6 +3,7 @@ package places
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ErrMissingAPIKey indicates a missing API key.
@@ -29,4 +30,26 @@ func (e *APIError) Error() string {
 		return fmt.Sprintf("goplaces: api error (%d)", e.StatusCode)
 	}
 	return fmt.Sprintf("goplaces: api error (%d): %s", e.StatusCode, e.Body)
+}
+
+type clientError struct {
+	message string
+	cause   error
+}
+
+func (e *clientError) Error() string { return e.message }
+func (e *clientError) Unwrap() error { return e.cause }
+
+func (c *Client) requestError(action string, err error) error {
+	return &clientError{
+		message: c.redactAPIKey(fmt.Sprintf("goplaces: %s: %v", action, err)),
+		cause:   err,
+	}
+}
+
+func (c *Client) redactAPIKey(message string) string {
+	if c.apiKey == "" {
+		return message
+	}
+	return strings.ReplaceAll(message, c.apiKey, "[REDACTED]")
 }
