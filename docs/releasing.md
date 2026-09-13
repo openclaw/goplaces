@@ -36,7 +36,7 @@ Run the full local proof set before requesting either serialized gate:
 - formatting and clean-diff checks;
 - autoreview to no accepted or actionable findings.
 
-Run `scripts/release-local --check` for the aggregated preflight when that command is present. It must reject ambient Go build controls, the wrong native Go version, a dirty or stale checkout, a non-default branch, and any mismatch with current protected `main`. The check builds pinned govulncheck v1.7.0 with the pinned Go 1.26.7 producer into its private audit directory, verifies the reviewed module checksum, then disables Go module resolution while querying the exact official vulnerability database URL. It never trusts a user-level `go/bin` lookup.
+Run `scripts/release-local --check` for the aggregated preflight. It must reject ambient Go build controls, the wrong native Go version, a dirty or stale checkout, a non-default branch, and any mismatch with current protected `main`. The check builds pinned govulncheck v1.7.0 with the pinned Go 1.26.7 producer into its private audit directory, verifies the reviewed module checksum, then disables Go module resolution while querying the exact official vulnerability database URL. It never trusts a user-level `go/bin` lookup.
 
 For a gated pilot or draft, copy `.mac-release.env.example` to the ignored `.mac-release.env`, keep mode `0400` or `0600`, and set the two direct runtime locators shown there: `MAC_RELEASE_CODESIGN_KEYCHAIN` and exported `NOTARYTOOL_KEYCHAIN_PROFILE`. The file is strictly parsed and frozen before `release-mac-app` reads it. Package-secret and 1Password lookup fields are rejected in this lane so the helper and producer can execute with pinned, system-only tool paths. `scripts/release-local` also pins the reviewed SHA-256 of both the external `mac-release` entrypoint and its library before either can enter the secret-bearing process; any helper update requires an explicit local review and pin update.
 
@@ -56,7 +56,7 @@ These are public mutations and require the serialized public gate.
 
 Run `scripts/release-local verify-draft vX.Y.Z` only after the draft inventory is frozen.
 
-The dispatcher uses GitHub API version `2026-03-10` and dispatches `.github/workflows/release-assets.yml` from the protected current default branch. It requires the live workflow’s numeric ID to remain exactly `309911276` and the run record’s canonical path to equal `.github/workflows/release-assets.yml`; the protected branch and head SHA are pinned separately. It snapshots existing run IDs, consumes the dispatch response’s numeric `workflow_run_id`, rejects a pre-existing or substituted run, watches that exact ID, and then requires newest-proof selection to return the same run ID.
+The dispatcher uses GitHub API version `2026-03-10` and dispatches `.github/workflows/release-assets.yml` from the protected current default branch. It requires the live workflow’s numeric ID to remain exactly `311062804` and the run record’s canonical path to equal `.github/workflows/release-assets.yml`; the protected branch and head SHA are pinned separately. It snapshots existing run IDs, consumes the dispatch response’s numeric `workflow_run_id`, rejects a pre-existing or substituted run, watches that exact ID, and then requires newest-proof selection to return the same run ID.
 
 The native verifier runs independently on Apple silicon and Intel. Each job:
 
