@@ -32,3 +32,4 @@ response, err := client.Route(ctx, goplaces.RouteRequest{
 
 - Requires the Google Routes API to be enabled.
 - Waypoints are sampled evenly along the route polyline.
+- Longitude interpolation follows the short crossing of the international date line. Malformed or out-of-range polyline coordinates are rejected before place searches.

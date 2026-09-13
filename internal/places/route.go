@@ -206,11 +206,8 @@ func validateRouteRequest(req RouteRequest) error {
 	if req.Limit < 1 || req.Limit > maxSearchLimit {
 		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxSearchLimit)}
 	}
-	if req.RadiusM <= 0 {
-		return ValidationError{Field: validationFieldRadiusM, Message: "must be > 0"}
-	}
-	if req.RadiusM > maxCircleRadiusM {
-		return ValidationError{Field: validationFieldRadiusM, Message: fmt.Sprintf("must be <= %d", maxCircleRadiusM)}
+	if err := validateRadius(req.RadiusM, validationFieldRadiusM); err != nil {
+		return err
 	}
 	if req.MaxWaypoints < 1 || req.MaxWaypoints > maxRouteWaypoints {
 		return ValidationError{Field: "max_waypoints", Message: fmt.Sprintf("must be 1-%d", maxRouteWaypoints)}

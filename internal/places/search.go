@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 )
@@ -107,7 +108,7 @@ func validateSearchRequest(req SearchRequest) error {
 
 	if req.Filters != nil {
 		if req.Filters.MinRating != nil {
-			if *req.Filters.MinRating < 0 || *req.Filters.MinRating > 5 {
+			if math.IsNaN(*req.Filters.MinRating) || *req.Filters.MinRating < 0 || *req.Filters.MinRating > 5 {
 				return ValidationError{Field: "filters.min_rating", Message: "must be 0-5"}
 			}
 		}

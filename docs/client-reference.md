@@ -6,6 +6,7 @@ These request details are easy to miss when moving between the CLI and library:
 
 - `Filters.Types` maps to Google's singular `includedType`; only the first value is sent.
 - Search price levels use integers from `0` (free) through `4` (very expensive).
+- Coordinates, radii, and minimum ratings must be finite numbers; invalid values fail validation before any API calls.
 - Details include reviews or photos only when `IncludeReviews` or `IncludePhotos` is set.
 - `PhotoMediaRequest` requires `MaxWidthPx` or `MaxHeightPx`; each supplied dimension must be between 1 and 4800.
 - Search and nearby responses include `NextPageToken` when Google returns one. Place summaries include business status when it is present upstream.

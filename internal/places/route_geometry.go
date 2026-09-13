@@ -12,44 +12,30 @@ const (
 	routePolylinePrecision = 1e5
 )
 
+var errInvalidPolyline = errors.New("goplaces: invalid polyline")
+
 func decodePolyline(encoded string) ([]LatLng, error) {
 	if strings.TrimSpace(encoded) == "" {
 		return nil, errors.New("goplaces: empty polyline")
 	}
 	points := make([]LatLng, 0, len(encoded)/4)
-	var lat, lng int
+	var lat, lng int64
 	for i := 0; i < len(encoded); {
-		var delta int
-		var shift uint
-		for {
-			if i >= len(encoded) {
-				return nil, errors.New("goplaces: invalid polyline")
-			}
-			b := int(encoded[i]) - 63
-			i++
-			delta |= (b & 0x1f) << shift
-			shift += 5
-			if b < 0x20 {
-				break
-			}
+		deltaLat, next, err := decodePolylineDelta(encoded, i)
+		if err != nil {
+			return nil, err
 		}
-		lat += (delta >> 1) ^ (-(delta & 1))
-
-		delta = 0
-		shift = 0
-		for {
-			if i >= len(encoded) {
-				return nil, errors.New("goplaces: invalid polyline")
-			}
-			b := int(encoded[i]) - 63
-			i++
-			delta |= (b & 0x1f) << shift
-			shift += 5
-			if b < 0x20 {
-				break
-			}
+		deltaLng, next, err := decodePolylineDelta(encoded, next)
+		if err != nil {
+			return nil, err
 		}
-		lng += (delta >> 1) ^ (-(delta & 1))
+		i = next
+		lat += deltaLat
+		lng += deltaLng
+		if lat < -90*routePolylinePrecision || lat > 90*routePolylinePrecision ||
+			lng < -180*routePolylinePrecision || lng > 180*routePolylinePrecision {
+			return nil, errInvalidPolyline
+		}
 
 		points = append(points, LatLng{
 			Lat: float64(lat) / routePolylinePrecision,
@@ -57,6 +43,25 @@ func decodePolyline(encoded string) ([]LatLng, error) {
 		})
 	}
 	return points, nil
+}
+
+func decodePolylineDelta(encoded string, index int) (int64, int, error) {
+	var value uint32
+	for shift := uint(0); ; shift += 5 {
+		if index >= len(encoded) || encoded[index] < 63 || encoded[index] > 126 {
+			return 0, index, errInvalidPolyline
+		}
+		chunk := uint32(encoded[index] - 63)
+		index++
+		// The seventh group has only two bits left in a 32-bit coordinate.
+		if shift == 30 && chunk > 3 {
+			return 0, index, errInvalidPolyline
+		}
+		value |= (chunk & 0x1f) << shift
+		if chunk < 0x20 {
+			return int64(value>>1) ^ -int64(value&1), index, nil
+		}
+	}
 }
 
 func sampleWaypoints(points []LatLng, maxWaypoints int) []LatLng {
@@ -139,9 +144,10 @@ func pointAtCumulative(points []LatLng, cumulative []float64, target float64) La
 		return next
 	}
 	fraction := (target - cumulative[index-1]) / segment
+	longitudeDelta := math.Remainder(next.Lng-prev.Lng, 360)
 	return LatLng{
 		Lat: prev.Lat + (next.Lat-prev.Lat)*fraction,
-		Lng: prev.Lng + (next.Lng-prev.Lng)*fraction,
+		Lng: math.Remainder(prev.Lng+longitudeDelta*fraction, 360),
 	}
 }
 
@@ -157,7 +163,7 @@ func uniqueWaypoints(points []LatLng) []LatLng {
 
 func samePoint(a, b LatLng) bool {
 	const epsilon = 1e-6
-	return math.Abs(a.Lat-b.Lat) < epsilon && math.Abs(a.Lng-b.Lng) < epsilon
+	return math.Abs(a.Lat-b.Lat) < epsilon && math.Abs(math.Remainder(a.Lng-b.Lng, 360)) < epsilon
 }
 
 func distanceMeters(a, b LatLng) float64 {
@@ -169,5 +175,6 @@ func distanceMeters(a, b LatLng) float64 {
 	sinDLat := math.Sin(dlat / 2)
 	sinDLng := math.Sin(dlng / 2)
 	value := sinDLat*sinDLat + math.Cos(lat1)*math.Cos(lat2)*sinDLng*sinDLng
-	return 2 * earthRadiusMeters * math.Asin(math.Sqrt(value))
+	// Roundoff near antipodal points can push the haversine above one.
+	return 2 * earthRadiusMeters * math.Asin(math.Sqrt(min(1, value)))
 }
