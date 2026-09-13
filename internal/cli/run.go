@@ -48,7 +48,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		kong.Vars{"version": currentVersion()},
 	)
 	if err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
+		writeError(stderr, err.Error())
 		return 1
 	}
 
@@ -59,10 +59,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		if parseErr, ok := err.(*kong.ParseError); ok {
 			_ = parseErr.Context.PrintUsage(true)
-			_, _ = fmt.Fprintln(stderr, parseErr.Error())
+			writeError(stderr, parseErr.Error())
 			return parseErr.ExitCode()
 		}
-		_, _ = fmt.Fprintln(stderr, err)
+		writeError(stderr, err.Error())
 		return 2
 	}
 	if root.Global.JSON {

@@ -13,3 +13,5 @@ These request details are easy to miss when moving between the CLI and library:
 - CLI directions route modifiers apply only to a driving primary or comparison route.
 
 Field masks are defined with each request implementation so calls ask Google only for the fields represented by that workflow.
+
+Redirects may stay within the original origin (scheme, hostname, and port); redirects to another origin are rejected to keep the API key scoped to the configured endpoint. Configure an endpoint override directly when using a different host. A custom `HTTPClient.CheckRedirect` can still stop redirects. API keys echoed in upstream or transport diagnostics are redacted; error causes remain available through `errors.Is` and `errors.As`.
