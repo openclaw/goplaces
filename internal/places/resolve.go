@@ -21,12 +21,7 @@ func (c *Client) Resolve(ctx context.Context, req LocationResolveRequest) (Locat
 		"textQuery": req.LocationText,
 		"pageSize":  req.Limit,
 	}
-	if strings.TrimSpace(req.Language) != "" {
-		body["languageCode"] = strings.TrimSpace(req.Language)
-	}
-	if strings.TrimSpace(req.Region) != "" {
-		body["regionCode"] = strings.TrimSpace(req.Region)
-	}
+	setLocale(body, req.Language, req.Region)
 
 	endpoint, err := c.buildURL("/places:searchText", nil)
 	if err != nil {

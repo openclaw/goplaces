@@ -132,3 +132,26 @@ func mapPriceLevel(value string) *int {
 	}
 	return nil
 }
+
+func mapPlaceSummaries(places []placeItem) []PlaceSummary {
+	results := make([]PlaceSummary, 0, len(places))
+	for _, place := range places {
+		results = append(results, mapPlaceSummary(place))
+	}
+	return results
+}
+
+func mapPlaceSummary(place placeItem) PlaceSummary {
+	return PlaceSummary{
+		PlaceID:         place.ID,
+		Name:            displayName(place.DisplayName),
+		Address:         place.FormattedAddress,
+		Location:        mapLatLng(place.Location),
+		Rating:          place.Rating,
+		UserRatingCount: place.UserRatingCount,
+		PriceLevel:      mapPriceLevel(place.PriceLevel),
+		Types:           place.Types,
+		OpenNow:         openNow(place.CurrentOpeningHours),
+		BusinessStatus:  strings.TrimSpace(place.BusinessStatus),
+	}
+}

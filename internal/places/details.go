@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -61,7 +62,7 @@ func placeDetailsPath(placeID string) (string, error) {
 	if strings.Contains(placeID, "/") {
 		return "", ValidationError{Field: validationFieldPlaceID, Message: "must be a place ID or places/{place_id}"}
 	}
-	return "/places/" + pathEscapeSegment(placeID), nil
+	return "/places/" + url.PathEscape(placeID), nil
 }
 
 func detailsFieldMaskForRequest(req DetailsRequest) string {

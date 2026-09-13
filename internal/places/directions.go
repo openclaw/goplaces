@@ -94,7 +94,7 @@ func (c *Client) Directions(ctx context.Context, req DirectionsRequest) (Directi
 	}
 
 	body := buildDirectionsBody(req)
-	endpoint := directionsEndpoint(c.directionsBaseURL)
+	endpoint := routesEndpoint(c.directionsBaseURL)
 	payload, err := c.doRequest(ctx, http.MethodPost, endpoint, body, directionsFieldMask)
 	if err != nil {
 		return DirectionsResponse{}, err
@@ -261,10 +261,6 @@ func normalizeDirectionsMode(mode string) string {
 	}
 }
 
-func directionsEndpoint(base string) string {
-	return routesEndpoint(base)
-}
-
 func directionsTravelMode(mode string) string {
 	switch normalizeDirectionsMode(mode) {
 	case directionsModeWalk:
@@ -313,12 +309,7 @@ func buildDirectionsBody(req DirectionsRequest) map[string]any {
 		"travelMode":  directionsTravelMode(req.Mode),
 		"units":       directionsRouteUnits(req.Units),
 	}
-	if strings.TrimSpace(req.Language) != "" {
-		body["languageCode"] = strings.TrimSpace(req.Language)
-	}
-	if strings.TrimSpace(req.Region) != "" {
-		body["regionCode"] = strings.TrimSpace(req.Region)
-	}
+	setLocale(body, req.Language, req.Region)
 	if req.AvoidTolls || req.AvoidHighways || req.AvoidFerries {
 		body["routeModifiers"] = map[string]any{
 			"avoidTolls":    req.AvoidTolls,

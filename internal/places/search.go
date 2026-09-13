@@ -32,10 +32,7 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (SearchResponse,
 		return SearchResponse{}, fmt.Errorf("goplaces: decode search response: %w", err)
 	}
 
-	results := make([]PlaceSummary, 0, len(response.Places))
-	for _, place := range response.Places {
-		results = append(results, mapPlaceSummary(place))
-	}
+	results := mapPlaceSummaries(response.Places)
 
 	return SearchResponse{
 		Results:       results,
@@ -54,12 +51,7 @@ func buildSearchBody(req SearchRequest) map[string]any {
 		"textQuery": textQuery,
 		"pageSize":  req.Limit,
 	}
-	if strings.TrimSpace(req.Language) != "" {
-		body["languageCode"] = strings.TrimSpace(req.Language)
-	}
-	if strings.TrimSpace(req.Region) != "" {
-		body["regionCode"] = strings.TrimSpace(req.Region)
-	}
+	setLocale(body, req.Language, req.Region)
 
 	if req.PageToken != "" {
 		body["pageToken"] = req.PageToken
@@ -98,21 +90,6 @@ func buildSearchBody(req SearchRequest) map[string]any {
 	return body
 }
 
-func mapPlaceSummary(place placeItem) PlaceSummary {
-	return PlaceSummary{
-		PlaceID:         place.ID,
-		Name:            displayName(place.DisplayName),
-		Address:         place.FormattedAddress,
-		Location:        mapLatLng(place.Location),
-		Rating:          place.Rating,
-		UserRatingCount: place.UserRatingCount,
-		PriceLevel:      mapPriceLevel(place.PriceLevel),
-		Types:           place.Types,
-		OpenNow:         openNow(place.CurrentOpeningHours),
-		BusinessStatus:  strings.TrimSpace(place.BusinessStatus),
-	}
-}
-
 func applySearchDefaults(req SearchRequest) SearchRequest {
 	if req.Limit == 0 {
 		req.Limit = defaultSearchLimit
@@ -141,10 +118,8 @@ func validateSearchRequest(req SearchRequest) error {
 		}
 	}
 
-	if req.LocationBias != nil {
-		if err := validateLocationBias(req.LocationBias); err != nil {
-			return err
-		}
+	if err := validateLocationBias(req.LocationBias); err != nil {
+		return err
 	}
 
 	return nil

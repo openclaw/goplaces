@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 )
 
 const nearbyFieldMask = "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,places.businessStatus"
@@ -21,12 +20,7 @@ func (c *Client) NearbySearch(ctx context.Context, req NearbySearchRequest) (Nea
 		"locationRestriction": circlePayload(req.LocationRestriction),
 		"maxResultCount":      req.Limit,
 	}
-	if strings.TrimSpace(req.Language) != "" {
-		body["languageCode"] = strings.TrimSpace(req.Language)
-	}
-	if strings.TrimSpace(req.Region) != "" {
-		body["regionCode"] = strings.TrimSpace(req.Region)
-	}
+	setLocale(body, req.Language, req.Region)
 	if len(req.IncludedTypes) > 0 {
 		body["includedTypes"] = req.IncludedTypes
 	}
@@ -48,10 +42,7 @@ func (c *Client) NearbySearch(ctx context.Context, req NearbySearchRequest) (Nea
 		return NearbySearchResponse{}, fmt.Errorf("goplaces: decode nearby response: %w", err)
 	}
 
-	results := make([]PlaceSummary, 0, len(response.Places))
-	for _, place := range response.Places {
-		results = append(results, mapPlaceSummary(place))
-	}
+	results := mapPlaceSummaries(response.Places)
 
 	return NearbySearchResponse{Results: results, NextPageToken: response.NextPageToken}, nil
 }

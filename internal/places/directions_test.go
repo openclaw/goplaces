@@ -206,11 +206,11 @@ func TestResolveDirectionsLocationVariants(t *testing.T) {
 }
 
 func TestDirectionsEndpointCompatibility(t *testing.T) {
-	if got := directionsEndpoint("https://routes.googleapis.com"); got != "https://routes.googleapis.com"+routesPath {
+	if got := routesEndpoint("https://routes.googleapis.com"); got != "https://routes.googleapis.com"+routesPath {
 		t.Fatalf("unexpected endpoint: %s", got)
 	}
 	full := "https://routes.googleapis.com" + routesPath
-	if got := directionsEndpoint(full); got != full {
+	if got := routesEndpoint(full); got != full {
 		t.Fatalf("unexpected full endpoint handling: %s", got)
 	}
 }
