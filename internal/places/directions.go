@@ -206,11 +206,8 @@ func validateDirectionsLocation(label, placeID string, location *LatLng, text st
 	}
 	if location != nil {
 		provided++
-		if location.Lat < -90 || location.Lat > 90 {
-			return ValidationError{Field: label + ".lat", Message: "must be -90..90"}
-		}
-		if location.Lng < -180 || location.Lng > 180 {
-			return ValidationError{Field: label + ".lng", Message: "must be -180..180"}
+		if err := validateCoordinates(location.Lat, location.Lng, label); err != nil {
+			return err
 		}
 	}
 	if strings.TrimSpace(text) != "" {
