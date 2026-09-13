@@ -3,7 +3,7 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -11,15 +11,19 @@ import (
 )
 
 func renderSearch(color Color, response goplaces.SearchResponse) string {
+	return renderPlaceResults(color, "Results", response.Results, response.NextPageToken)
+}
+
+func renderPlaceResults(color Color, title string, results []goplaces.PlaceSummary, nextPageToken string) string {
 	var out bytes.Buffer
-	count := len(response.Results)
+	count := len(results)
 	if count == 0 {
 		return emptyResultsMessage
 	}
-	out.WriteString(color.Bold(fmt.Sprintf("Results (%d)", count)))
+	out.WriteString(color.Bold(fmt.Sprintf("%s (%d)", title, count)))
 	out.WriteString("\n")
 
-	for i, place := range response.Results {
+	for i, place := range results {
 		fmt.Fprintf(&out, "%d. %s\n", i+1, formatTitle(color, place.Name, place.Address))
 		writePlaceSummary(&out, color, place)
 		if i < count-1 {
@@ -27,11 +31,11 @@ func renderSearch(color Color, response goplaces.SearchResponse) string {
 		}
 	}
 
-	if strings.TrimSpace(response.NextPageToken) != "" {
+	if strings.TrimSpace(nextPageToken) != "" {
 		out.WriteString("\n")
 		out.WriteString(color.Dim("Next page token:"))
 		out.WriteString(" ")
-		out.WriteString(sanitizeTerminalText(response.NextPageToken))
+		out.WriteString(sanitizeTerminalText(nextPageToken))
 	}
 
 	return out.String()
@@ -58,30 +62,7 @@ func renderAutocomplete(color Color, response goplaces.AutocompleteResponse) str
 }
 
 func renderNearby(color Color, response goplaces.NearbySearchResponse) string {
-	var out bytes.Buffer
-	count := len(response.Results)
-	if count == 0 {
-		return emptyResultsMessage
-	}
-	out.WriteString(color.Bold(fmt.Sprintf("Nearby (%d)", count)))
-	out.WriteString("\n")
-
-	for i, place := range response.Results {
-		fmt.Fprintf(&out, "%d. %s\n", i+1, formatTitle(color, place.Name, place.Address))
-		writePlaceSummary(&out, color, place)
-		if i < count-1 {
-			out.WriteString("\n")
-		}
-	}
-
-	if strings.TrimSpace(response.NextPageToken) != "" {
-		out.WriteString("\n")
-		out.WriteString(color.Dim("Next page token:"))
-		out.WriteString(" ")
-		out.WriteString(sanitizeTerminalText(response.NextPageToken))
-	}
-
-	return out.String()
+	return renderPlaceResults(color, "Nearby", response.Results, response.NextPageToken)
 }
 
 func renderPhoto(color Color, response goplaces.PhotoMediaResponse) string {
@@ -292,10 +273,7 @@ func writePhotos(out *bytes.Buffer, color Color, photos []goplaces.Photo) {
 
 	const maxPhotos = 3
 	count := len(photos)
-	limit := count
-	if count > maxPhotos {
-		limit = maxPhotos
-	}
+	limit := min(count, maxPhotos)
 
 	for i := 0; i < limit; i++ {
 		photo := photos[i]
@@ -324,10 +302,7 @@ func writeReviews(out *bytes.Buffer, color Color, reviews []goplaces.Review) {
 	// Keep CLI output compact by default.
 	const maxReviews = 3
 	count := len(reviews)
-	limit := count
-	if count > maxReviews {
-		limit = maxReviews
-	}
+	limit := min(count, maxReviews)
 
 	for i := 0; i < limit; i++ {
 		review := reviews[i]
@@ -510,6 +485,6 @@ func uniqueStrings(values []string) []string {
 		seen[value] = struct{}{}
 		result = append(result, value)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
