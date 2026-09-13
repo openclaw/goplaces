@@ -1,4 +1,4 @@
-// Package goplaces provides a Go client for the Google Places API (New).
+// Package places implements the Places and Routes API client.
 package places
 
 import (
@@ -149,14 +149,10 @@ func (c *Client) buildURL(path string, query map[string]string) (string, error) 
 	return parsed.String(), nil
 }
 
-func pathEscapeSegment(segment string) string {
-	return url.PathEscape(segment)
-}
-
 func pathEscapeSegments(segments []string) string {
 	escaped := make([]string, 0, len(segments))
 	for _, segment := range segments {
-		escaped = append(escaped, pathEscapeSegment(segment))
+		escaped = append(escaped, url.PathEscape(segment))
 	}
 	return strings.Join(escaped, "/")
 }

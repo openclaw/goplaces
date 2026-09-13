@@ -1,9 +1,12 @@
 package places
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // ErrMissingAPIKey indicates a missing API key.
-var ErrMissingAPIKey = fmt.Errorf("goplaces: missing api key")
+var ErrMissingAPIKey = errors.New("goplaces: missing api key")
 
 // ValidationError describes an invalid request payload.
 type ValidationError struct {

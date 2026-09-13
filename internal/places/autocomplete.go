@@ -27,12 +27,7 @@ func (c *Client) Autocomplete(ctx context.Context, req AutocompleteRequest) (Aut
 	if strings.TrimSpace(req.SessionToken) != "" {
 		body["sessionToken"] = strings.TrimSpace(req.SessionToken)
 	}
-	if strings.TrimSpace(req.Language) != "" {
-		body["languageCode"] = strings.TrimSpace(req.Language)
-	}
-	if strings.TrimSpace(req.Region) != "" {
-		body["regionCode"] = strings.TrimSpace(req.Region)
-	}
+	setLocale(body, req.Language, req.Region)
 	if req.LocationBias != nil {
 		body["locationBias"] = circlePayload(req.LocationBias)
 	}
@@ -60,7 +55,7 @@ func (c *Client) Autocomplete(ctx context.Context, req AutocompleteRequest) (Aut
 		suggestions = append(suggestions, mapped)
 	}
 
-	if req.Limit > 0 && len(suggestions) > req.Limit {
+	if len(suggestions) > req.Limit {
 		suggestions = suggestions[:req.Limit]
 	}
 
@@ -158,10 +153,8 @@ func validateAutocompleteRequest(req AutocompleteRequest) error {
 	if req.Limit < 1 || req.Limit > maxAutocompleteLimit {
 		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxAutocompleteLimit)}
 	}
-	if req.LocationBias != nil {
-		if err := validateLocationBias(req.LocationBias); err != nil {
-			return err
-		}
+	if err := validateLocationBias(req.LocationBias); err != nil {
+		return err
 	}
 	return nil
 }
