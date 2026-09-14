@@ -82,6 +82,59 @@ source_release() {
   ensure_git_isolation
 }
 
+test_release_note_rollup() {
+  local scratch
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-notes.XXXXXX")"
+  cat > "${scratch}/CHANGELOG.md" <<'EOF'
+# Changelog
+
+## 0.4.11 - 2026-09-13
+
+- Release tooling: recover signed binaries.
+
+## 0.4.10 - 2026-09-13
+
+**Highlights:** Security and routing fixes.
+
+- Security: reject cross-origin redirects.
+
+## 0.4.9 - 2026-08-24
+
+- Older changes must not appear.
+EOF
+  cat > "${scratch}/expected.md" <<'EOF'
+
+- Release tooling: recover signed binaries.
+
+## 0.4.10 - 2026-09-13
+
+**Highlights:** Security and routing fixes.
+
+- Security: reject cross-origin redirects.
+
+EOF
+  (
+    source_release
+    extract_release_notes v0.4.11 released "${scratch}/actual.md" "${scratch}/CHANGELOG.md"
+    /usr/bin/cmp "${scratch}/expected.md" "${scratch}/actual.md"
+    extract_release_notes v0.4.10 released "${scratch}/ordinary.md" "${scratch}/CHANGELOG.md"
+    grep -Fq '**Highlights:** Security and routing fixes.' "${scratch}/ordinary.md"
+    if grep -Eq '^## |Older changes|recover signed' "${scratch}/ordinary.md"; then
+      die "ordinary release notes included another version"
+    fi
+    /usr/bin/sed '/^## 0.4.10 - /d' "${scratch}/CHANGELOG.md" > "${scratch}/missing.md"
+    if (extract_release_notes v0.4.11 released "${scratch}/bad.md" "${scratch}/missing.md") >/dev/null 2>&1; then
+      die "missing recovery section was accepted"
+    fi
+    /bin/cp "${scratch}/CHANGELOG.md" "${scratch}/duplicate.md"
+    printf '\n## 0.4.10 - 2026-09-13\n' >> "${scratch}/duplicate.md"
+    if (extract_release_notes v0.4.11 released "${scratch}/bad.md" "${scratch}/duplicate.md") >/dev/null 2>&1; then
+      die "duplicate recovery section was accepted"
+    fi
+  )
+  rm -rf "$scratch"
+}
+
 test_static_contract() {
   local download_line offline_line brew_test_line post_brew_status_line override_output tap_predispatch_line tap_dispatch_line mutation_shape
   local mutation_root mutation_gh mutation_sentinel mutation_error
@@ -198,7 +251,7 @@ EOF
     die "exact tap predispatch recheck is not immediately before the workflow POST"
   grep -Fq 'readonly RELEASE_MAC_APP_DEFAULT="/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release"' "$release_script" || die "release-mac-app is not pinned independently of HOME"
   grep -Fq 'readonly RELEASE_MAC_APP_EXPECTED_SHA256="e65e06ef89ec90ebfc537d28748a3c4de8ce89bd09b51e4d67ba4bdd95427255"' "$release_script" || die "release-mac-app entrypoint digest is not pinned"
-  grep -Fq 'readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="170b05a794e5ade32a603a01c7942f8170d44ccc13b678c5285076510a008baf"' "$release_script" || die "release-mac-app library digest is not pinned"
+  grep -Fq 'readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="0d8e347856c873fd8251e2f594943884f001f26b62da64863c802218c7a4cdd6"' "$release_script" || die "release-mac-app library digest is not pinned"
   grep -Fq '[[ "$source_digest" == "$RELEASE_MAC_APP_EXPECTED_SHA256" ]]' "$release_script" || die "release-mac-app entrypoint is not checked against reviewed bytes"
   grep -Fq '[[ "$source_lib_digest" == "$RELEASE_MAC_APP_LIB_EXPECTED_SHA256" ]]' "$release_script" || die "release-mac-app library is not checked against reviewed bytes"
   ! grep -Fq 'RELEASE_MAC_APP_DEFAULT="${HOME}' "$release_script" || die "release-mac-app still trusts ambient HOME"
@@ -3145,6 +3198,7 @@ EOF
 main() {
   command -v jq >/dev/null 2>&1 || die "jq is required"
   command -v shellcheck >/dev/null 2>&1 || die "shellcheck is required"
+  test_release_note_rollup
   test_static_contract
   test_govulncheck_build_info_validation
   test_jq_freeze_survives_command_substitution

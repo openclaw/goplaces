@@ -22,7 +22,7 @@ readonly HOMEBREW_REPOSITORY="Homebrew/brew"
 readonly EXPECTED_HOMEBREW_ORIGIN_HTTPS="https://github.com/${HOMEBREW_REPOSITORY}"
 readonly RELEASE_MAC_APP_DEFAULT="/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release"
 readonly RELEASE_MAC_APP_EXPECTED_SHA256="e65e06ef89ec90ebfc537d28748a3c4de8ce89bd09b51e4d67ba4bdd95427255"
-readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="170b05a794e5ade32a603a01c7942f8170d44ccc13b678c5285076510a008baf"
+readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="0d8e347856c873fd8251e2f594943884f001f26b62da64863c802218c7a4cdd6"
 readonly CLEAN_SYSTEM_PATH="/opt/homebrew/opt/go@1.26/bin:/usr/local/opt/go@1.26/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 readonly SECRET_SCOPE_SYSTEM_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 readonly SSH_KEYGEN_BIN="/usr/bin/ssh-keygen"
@@ -1190,6 +1190,16 @@ extract_release_notes() {
       found {print}
       END {if (!found) exit 3}
     ' "$changelog" > "$output"
+  fi
+  if [[ "$mode" == released && "$version" == 0.4.11 ]]; then
+    # The prior tag shipped no binaries; include its changes in the recovery release.
+    header_count="$(grep -Fxc '## 0.4.10 - 2026-09-13' "$changelog" || true)"
+    [[ "$header_count" == 1 ]] || die "0.4.11 release notes require exactly one dated 0.4.10 section"
+    /usr/bin/awk '
+      $0 == "## 0.4.10 - 2026-09-13" {found=1; print; next}
+      found && /^## / {exit}
+      found {print}
+    ' "$changelog" >> "$output"
   fi
   grep -Eq '^[-*] ' "$output" || die "release notes section has no entries"
 }
