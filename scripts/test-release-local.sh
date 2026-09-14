@@ -202,7 +202,7 @@ EOF
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
     source "$1"; homebrew_command --debug install --formula hostile.rb
   ' _ "$release_script"
-  grep -Fq 'readonly TAP_BASE="c8c4f0efec5b8a113e20454053574019aeec7a77"' "$release_script" || die "tap trust base is not pinned"
+  grep -Fq 'readonly TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8"' "$release_script" || die "tap trust base is not pinned"
   grep -Fq 'readonly TAP_WORKFLOW_ID="220664022"' "$release_script" || die "tap workflow numeric identity is not pinned"
   grep -Fq 'readonly TAR_BIN="/usr/bin/bsdtar"' "$release_script" || die "system tar does not name the canonical nonsymlink executable"
   grep -Fq 'HOMEBREW_NO_INSTALL_FROM_API=1' "$release_script" || die "Homebrew package inventory can trigger API installation"
@@ -2613,7 +2613,7 @@ prepare_homebrew_dispatch_fixture() {
   )
   hb_title="$(jq -er '.expected_title' "${hb_state}/homebrew-intent.json")"
   jq -n --argjson id 29010348667 --arg title "$hb_title" \
-    --arg sha c8c4f0efec5b8a113e20454053574019aeec7a77 --arg repo openclaw/homebrew-tap '{
+    --arg sha 104616d9828cf28202bccff19c0738f179c2a3f8 --arg repo openclaw/homebrew-tap '{
       id:$id,workflow_id:220664022,path:".github/workflows/update-formula.yml",display_title:$title,
       event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",
       run_attempt:1,created_at:"2026-07-10T10:00:00Z",repository:{full_name:$repo},
@@ -2665,7 +2665,7 @@ run_homebrew_dispatch_fixture() {
       tap_default_branch=main
       tap_workflow_id=220664022
       if ((hb_call == 1)) && [[ "$hb_mode" != direct-child && "$hb_mode" != unbound-child ]]; then
-        tap_head=c8c4f0efec5b8a113e20454053574019aeec7a77
+        tap_head=104616d9828cf28202bccff19c0738f179c2a3f8
       else
         tap_head=3333333333333333333333333333333333333333
       fi
@@ -3056,8 +3056,8 @@ endpoint=""
 for arg in "$@"; do case "$arg" in repos/*) endpoint="$arg" ;; esac; done
 case "$endpoint" in
   repos/openclaw/homebrew-tap) printf '{"default_branch":"main"}\n' ;;
-  repos/openclaw/homebrew-tap/branches/main) printf '{"name":"main","protected":%s,"commit":{"sha":"%s"}}\n' "${TAP_PROTECTED:-true}" "${TAP_HEAD:-c8c4f0efec5b8a113e20454053574019aeec7a77}" ;;
-  repos/openclaw/homebrew-tap/compare/c8c4f0efec5b8a113e20454053574019aeec7a77...c8c4f0efec5b8a113e20454053574019aeec7a77)
+  repos/openclaw/homebrew-tap/branches/main) printf '{"name":"main","protected":%s,"commit":{"sha":"%s"}}\n' "${TAP_PROTECTED:-true}" "${TAP_HEAD:-104616d9828cf28202bccff19c0738f179c2a3f8}" ;;
+  repos/openclaw/homebrew-tap/compare/104616d9828cf28202bccff19c0738f179c2a3f8...104616d9828cf28202bccff19c0738f179c2a3f8)
     printf '{"status":"%s","base_commit":{"sha":"%s"},"merge_base_commit":{"sha":"%s"},"head_commit":{"sha":"%s"}}\n' "${TAP_COMPARE_STATUS:-identical}" "${TAP_COMPARE_BASE:-$TAP_BASE}" "${TAP_COMPARE_MERGE_BASE:-$TAP_BASE}" "${TAP_COMPARE_HEAD:-$TAP_BASE}"
     ;;
   repos/openclaw/homebrew-tap/contents/.github/workflows/update-formula.yml*)
@@ -3074,7 +3074,7 @@ EOF
   export MOCK_FIXTURE_ROOT="$scratch" GOPLACES_RELEASE_LOCAL_TEST_GH_BIN="${mock_bin}/gh"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c8c4f0efec5b8a113e20454053574019aeec7a77" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     # shellcheck source=release-local
@@ -3090,7 +3090,7 @@ EOF
   mkdir -p "${scratch}/work-moved"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c8c4f0efec5b8a113e20454053574019aeec7a77" TAP_HEAD="3333333333333333333333333333333333333333" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" TAP_HEAD="3333333333333333333333333333333333333333" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3106,7 +3106,7 @@ EOF
   mkdir -p "${scratch}/work-unprotected"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c8c4f0efec5b8a113e20454053574019aeec7a77" TAP_PROTECTED=false WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" TAP_PROTECTED=false WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3121,7 +3121,7 @@ EOF
   mkdir -p "${scratch}/work-bad-compare"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c8c4f0efec5b8a113e20454053574019aeec7a77" TAP_COMPARE_STATUS=ahead WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" TAP_COMPARE_STATUS=ahead WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3139,7 +3139,7 @@ EOF
     export "$compare_control=3333333333333333333333333333333333333333"
     if (
       export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-      export GH_BLOCKER_LOG="$log" TAP_BASE="c8c4f0efec5b8a113e20454053574019aeec7a77" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+      export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
       PATH="${mock_bin}:$PATH"
       export PATH
       source "$release_script"
