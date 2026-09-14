@@ -81,9 +81,9 @@ After publication:
 
 - verify every public archive and checksum against the frozen release record;
 - verify `go install github.com/steipete/goplaces/cmd/goplaces@vX.Y.Z` reports `X.Y.Z`, then retry `@latest` after the module proxy catches up;
-- complete the Homebrew handoff only if the separate gate in [releasing-homebrew.md](releasing-homebrew.md) is unblocked;
+- complete the Formula handoff under the separate gate in [releasing-homebrew.md](releasing-homebrew.md);
 - reopen the next patch section as `Unreleased`, commit that closeout separately, pull with `--ff-only`, and finish on clean synchronized `main`.
 
 ## Homebrew Status
 
-The pinned `verified-hashes-v1` tap handoff is currently blocked for goplaces. Do not run or claim Homebrew handoff proof until [the documented blocker](releasing-homebrew.md#current-blocker) is resolved under its own serialized gate. Until then, public installation text remains the already-published Cask command.
+The pinned `verified-hashes-v1` handoff updates `Formula/goplaces.rb` in `openclaw/homebrew-tap`. The Formula installs published archives without rebuilding or stripping quarantine. GoReleaser does not generate or publish Homebrew metadata. Follow [the Homebrew playbook](releasing-homebrew.md), including its recovery procedure when release closeout has already advanced `main`.

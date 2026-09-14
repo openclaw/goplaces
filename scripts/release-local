@@ -13,7 +13,7 @@ readonly EXPECTED_GO_VERSION="go1.26.8"
 readonly VERIFIER_WORKFLOW=".github/workflows/release-assets.yml"
 readonly VERIFIER_WORKFLOW_ID="311062804"
 readonly TAP_REPOSITORY="openclaw/homebrew-tap"
-readonly TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd"
+readonly TAP_BASE="c8c4f0efec5b8a113e20454053574019aeec7a77"
 readonly TAP_WORKFLOW=".github/workflows/update-formula.yml"
 readonly TAP_WORKFLOW_ID="220664022"
 readonly TAP_UPDATER=".github/scripts/update_formula.py"
@@ -2452,7 +2452,6 @@ tap_trust_preflight() {
   decode_api_content "$current_updater" "$updater_bytes"
   grep -Fqx '# verified-hashes-v1' "$updater_bytes" || die "tap updater lacks the exact verified-hashes-v1 marker"
 
-  # Current contract is expected to stop here until the gated Formula seed lands.
   fetch_content_record "$TAP_REPOSITORY" Formula/goplaces.rb "$tap_head" "$current_formula" || die "Homebrew blocked: Formula/goplaces.rb is absent at protected current tap"
   formula_file="${output_dir}/goplaces.rb"
   decode_api_content "$current_formula" "$formula_file"
@@ -2772,16 +2771,37 @@ formula_pair_count() {
   ' "$file"
 }
 
+validate_formula_version() {
+  # Tokenize without executing the Formula or treating strings/comments as DSL calls.
+  /usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" /usr/bin/ruby --disable-gems -rripper - "$1" "$2" <<'RUBY' || die "tap Formula has an invalid or duplicate version declaration"
+source = File.read(ARGV.fetch(0))
+abort "invalid Formula Ruby syntax" unless Ripper.sexp(source)
+expected = %(version "#{ARGV.fetch(1)}")
+ignored = [:on_sp, :on_nl, :on_ignored_nl, :on_comment]
+tokens = Ripper.lex(source).reject { |token| ignored.include?(token[1]) }
+count = 0
+tokens.each_with_index do |token, index|
+  next unless token[1] == :on_ident && token[2] == "version"
+  following = tokens[index + 1]
+  next if following && following[1] == :on_period && following[2] == "."
+  previous = index.positive? ? tokens[index - 1] : nil
+  abort "noncanonical Formula version call" if previous && previous[1] == :on_period
+  abort "noncanonical Formula version call" unless source.lines[token[0][0] - 1].strip == expected
+  count += 1
+end
+abort "duplicate Formula version calls" if count > 1
+RUBY
+}
+
 validate_formula_content() {
-  local file="$1" tag="$2" darwin_amd64="$3" darwin_arm64="$4" linux_amd64="$5" linux_arm64="$6" version url_count digest_count version_count
+  local file="$1" tag="$2" darwin_amd64="$3" darwin_arm64="$4" linux_amd64="$5" linux_arm64="$6" version url_count digest_count
   local darwin_amd64_url darwin_arm64_url linux_amd64_url linux_arm64_url
   version="$(version_from_tag "$tag")"
   darwin_amd64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_darwin_amd64.tar.gz"
   darwin_arm64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_darwin_arm64.tar.gz"
   linux_amd64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_linux_amd64.tar.gz"
   linux_arm64_url="https://github.com/${REPOSITORY}/releases/download/${tag}/goplaces_${version}_linux_arm64.tar.gz"
-  version_count="$(/usr/bin/awk -v expected="version \"${version}\"" '{line=$0; sub(/[[:space:]]*#.*/, "", line); sub(/^[[:space:]]+/, "", line); sub(/[[:space:]]+$/, "", line); if (line == expected) count++} END {print count+0}' "$file")"
-  [[ "$version_count" == 1 ]] || die "tap Formula lacks one exact active version declaration"
+  validate_formula_version "$file" "$version"
   url_count="$(/usr/bin/awk '{line=$0; sub(/[[:space:]]*#.*/, "", line); sub(/^[[:space:]]+/, "", line); if (line ~ /^url "/) count++} END {print count+0}' "$file")"
   digest_count="$(/usr/bin/awk '{line=$0; sub(/[[:space:]]*#.*/, "", line); sub(/^[[:space:]]+/, "", line); if (line ~ /^sha256 "/) count++} END {print count+0}' "$file")"
   [[ "$url_count" == 4 && "$digest_count" == 4 ]] || die "tap Formula must contain exactly four active URL/SHA stanzas"
@@ -2804,6 +2824,18 @@ validate_tap_commit_record() {
   [[ "$message" == "$expected_message" ]] || die "tap commit message differs from the pinned updater contract"
 }
 
+validate_tap_compare_record() {
+  local file="$1" old_head="$2" new_head="$3"
+  jq -e --arg old "$old_head" --arg new "$new_head" '
+    select(.status == "ahead" and .ahead_by == 1 and .behind_by == 0 and .total_commits == 1) |
+    select(.base_commit.sha == $old and .merge_base_commit.sha == $old and .head_commit.sha == $new) |
+    select((.commits | length) == 1 and .commits[0].sha == $new) |
+    select((.files | type) == "array") |
+    select((.files | length) == 0 or
+      ((.files | length) == 1 and .files[0].filename == "Formula/goplaces.rb" and (.files[0].status == "added" or .files[0].status == "modified")))
+  ' "$file" >/dev/null || die "tap result is not one exact direct-child Formula commit"
+}
+
 verify_tap_commit() {
   local work="$1" tag="$2" request_id="$3" old_head="$4" darwin_amd64="$5" darwin_arm64="$6" linux_amd64="$7" linux_arm64="$8"
   local branch_json new_head compare_json commit_json expected_message formula_json result_formula
@@ -2820,12 +2852,7 @@ verify_tap_commit() {
   [[ "$new_head" != "$old_head" ]] || die "tap workflow did not create a commit"
 
   gh_api "repos/${TAP_REPOSITORY}/compare/${old_head}...${new_head}" > "$compare_json"
-  jq -e --arg old "$old_head" --arg new "$new_head" '
-    select(.status == "ahead" and .ahead_by == 1 and .behind_by == 0 and .total_commits == 1) |
-    select(.base_commit.sha == $old and .merge_base_commit.sha == $old and .head_commit.sha == $new) |
-    select((.commits | length) == 1 and .commits[0].sha == $new) |
-    select((.files | length) == 1 and .files[0].filename == "Formula/goplaces.rb" and (.files[0].status == "added" or .files[0].status == "modified"))
-  ' "$compare_json" >/dev/null || die "tap result is not one exact direct-child Formula commit"
+  validate_tap_compare_record "$compare_json" "$old_head" "$new_head"
 
   gh_api "repos/${TAP_REPOSITORY}/commits/${new_head}" > "$commit_json"
   expected_message="goplaces: update formula for ${tag}
