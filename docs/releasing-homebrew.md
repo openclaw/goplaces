@@ -5,13 +5,13 @@ This is the required `verified-hashes-v1` Formula handoff contract for a publish
 ## Frozen Tap Trust Anchor
 
 - Repository: `openclaw/homebrew-tap`.
-- Pinned base commit: `104616d9828cf28202bccff19c0738f179c2a3f8`.
+- Pinned base commit: `c697e7ce1bf42f8c4a8c909e117204f3beadd088`.
 - Workflow: `.github/workflows/update-formula.yml`.
 - Workflow numeric ID: `220664022`.
 - Updater: `.github/scripts/update_formula.py`.
 - Required updater marker: `# verified-hashes-v1`.
 
-This base includes the [Formula migration](https://github.com/openclaw/homebrew-tap/pull/56) and the [literal-URL updater fix](https://github.com/openclaw/homebrew-tap/pull/57). Verified updates must retain literal release URLs so Homebrew can infer the version without an explicit version declaration.
+This base includes the [Formula migration](https://github.com/openclaw/homebrew-tap/pull/56), [literal-URL updater fix](https://github.com/openclaw/homebrew-tap/pull/57), and [trust-marker restoration](https://github.com/openclaw/homebrew-tap/pull/58). Verified updates must retain literal release URLs so Homebrew can infer the version without an explicit version declaration.
 
 The protected default branch, workflow bytes, updater bytes (including `.github/scripts/formula_text.py` at the pinned commit), and marker must match this pinned contract before dispatch. A newer tap commit is not implicitly trusted.
 
