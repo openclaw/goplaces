@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.4.10 - 2026-09-13
+
+**Highlights:** Security: cross-origin API redirects are refused and API keys are redacted from errors; routing across the date line is fixed.
 
 - Security: reject cross-origin API redirects and redact API keys echoed in errors while preserving typed error causes.
-- CLI: sanitize parser diagnostics so invalid arguments cannot emit terminal control sequences.
 - Route: sample correctly across the international date line, keep antipodal distances finite, and reject malformed upstream polylines before searching.
 - Client: reject non-finite coordinates, radii, and ratings before API calls, with normal validation errors and CLI exit code 2.
+- CLI: sanitize parser diagnostics so invalid arguments cannot emit terminal control sequences.
 - Build: require Go 1.26.8 for upstream compiler and runtime fixes; update GoReleaser to 2.18.1, Node to 26.8.2, deadcode to 0.50.0, and govulncheck to 1.8.0 with matching release-verifier pins.
 - CI: pin Actions by commit, test Windows with Go 1.27.1 and macOS with the race detector, verify documentation metadata, reject formatting drift, and avoid duplicate branch-push audits.
-
 - CI: update the reviewed GitHub CLI pin to 2.100.0 so release contract tests accept the current Homebrew version installed by CI.
 - Build: update Kong to 1.16.1, golangci-lint to 2.13.2, deadcode to 0.49.0, gosec to 2.29.0, govulncheck to 1.7.0, and setup-go to v7.
 
