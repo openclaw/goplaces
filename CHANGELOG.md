@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.4.11 - 2026-09-13
 
 - Release tooling: fix the Developer ID signing canary under the isolated producer home so signed macOS binaries publish again; v0.4.10 was tagged but shipped no binaries, and 0.4.11 contains everything listed under 0.4.10.
