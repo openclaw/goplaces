@@ -24,7 +24,7 @@ v0.4.5 and later use a serialized, local, draft-first release flow for notarized
 
 ## Prepare Locally
 
-Keep `CHANGELOG.md` at `## X.Y.Z - Unreleased` throughout local preparation. Its section is the only release-note source; release commands read it from the protected commit or fresh tagged checkout, never from mutable maintainer working-tree bytes.
+Keep `CHANGELOG.md` at `## X.Y.Z - Unreleased` throughout local preparation. Tagged changelog content is the only release-note source; release commands read it from the protected commit or fresh tagged checkout, never from mutable maintainer working-tree bytes. For the 0.4.11 recovery release, the producer appends the complete dated 0.4.10 section after the 0.4.11 entry because 0.4.10 shipped no binaries. The draft and published notes are verified against that same combined text.
 
 Run the full local proof set before requesting either serialized gate:
 
