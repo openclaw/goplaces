@@ -202,7 +202,7 @@ EOF
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
     source "$1"; homebrew_command --debug install --formula hostile.rb
   ' _ "$release_script"
-  grep -Fq 'readonly TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd"' "$release_script" || die "tap trust base is not pinned"
+  grep -Fq 'readonly TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8"' "$release_script" || die "tap trust base is not pinned"
   grep -Fq 'readonly TAP_WORKFLOW_ID="220664022"' "$release_script" || die "tap workflow numeric identity is not pinned"
   grep -Fq 'readonly TAR_BIN="/usr/bin/bsdtar"' "$release_script" || die "system tar does not name the canonical nonsymlink executable"
   grep -Fq 'HOMEBREW_NO_INSTALL_FROM_API=1' "$release_script" || die "Homebrew package inventory can trigger API installation"
@@ -1007,7 +1007,7 @@ test_publish_is_resumable() {
 }
 
 test_formula_pairs_and_tap_commit_record() {
-  local scratch formula hostile commit_record bad old_head new_head expected_message
+  local scratch formula hostile commit_record bad old_head new_head expected_message version_call
   local darwin_amd64 darwin_arm64 linux_amd64 linux_arm64
   scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-formula-contract.XXXXXX")"
   formula="${scratch}/goplaces.rb"
@@ -1047,6 +1047,28 @@ EOF
     source_release
     validate_formula_content "$formula" v0.4.5 "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64"
   )
+  sed '/^  version /d' "$formula" > "$hostile"
+  (source_release; validate_formula_content "$hostile" v0.4.5 "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64")
+  sed 's/version "0.4.5"/version "9.9.9"/' "$formula" > "$hostile"
+  if (source_release; validate_formula_content "$hostile" v0.4.5 "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64") >/dev/null 2>&1; then
+    die "wrong explicit Formula version was accepted"
+  fi
+  sed 's/version "0.4.5"/version("9.9.9")/' "$formula" > "$hostile"
+  if (source_release; validate_formula_content "$hostile" v0.4.5 "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64") >/dev/null 2>&1; then
+    die "parenthesized wrong Formula version was accepted"
+  fi
+  for version_call in 'self.version("9.9.9")' 'desc "x"; version("9.9.9")'; do
+    sed "s/version \"0.4.5\"/${version_call}/" "$formula" > "$hostile"
+    if (source_release; validate_formula_content "$hostile" v0.4.5 "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64") >/dev/null 2>&1; then
+      die "noncanonical Formula version call was accepted: $version_call"
+    fi
+  done
+  { printf '# version("9.9.9")\n'; sed 's/version "0.4.5"/desc "version(9.9.9)"/' "$formula"; } > "$hostile"
+  (source_release; validate_formula_content "$hostile" v0.4.5 "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64")
+  { printf '  version "0.4.5"\n'; cat "$formula"; } > "$hostile"
+  if (source_release; validate_formula_content "$hostile" v0.4.5 "$darwin_amd64" "$darwin_arm64" "$linux_amd64" "$linux_arm64") >/dev/null 2>&1; then
+    die "duplicate explicit Formula versions were accepted"
+  fi
   cat > "$hostile" <<EOF
 class Goplaces < Formula
   version "0.4.5"
@@ -2591,7 +2613,7 @@ prepare_homebrew_dispatch_fixture() {
   )
   hb_title="$(jq -er '.expected_title' "${hb_state}/homebrew-intent.json")"
   jq -n --argjson id 29010348667 --arg title "$hb_title" \
-    --arg sha 45b93a0b3de27e46b636a0cef819fb1ecef25bcd --arg repo openclaw/homebrew-tap '{
+    --arg sha 104616d9828cf28202bccff19c0738f179c2a3f8 --arg repo openclaw/homebrew-tap '{
       id:$id,workflow_id:220664022,path:".github/workflows/update-formula.yml",display_title:$title,
       event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",
       run_attempt:1,created_at:"2026-07-10T10:00:00Z",repository:{full_name:$repo},
@@ -2643,7 +2665,7 @@ run_homebrew_dispatch_fixture() {
       tap_default_branch=main
       tap_workflow_id=220664022
       if ((hb_call == 1)) && [[ "$hb_mode" != direct-child && "$hb_mode" != unbound-child ]]; then
-        tap_head=45b93a0b3de27e46b636a0cef819fb1ecef25bcd
+        tap_head=104616d9828cf28202bccff19c0738f179c2a3f8
       else
         tap_head=3333333333333333333333333333333333333333
       fi
@@ -3034,8 +3056,8 @@ endpoint=""
 for arg in "$@"; do case "$arg" in repos/*) endpoint="$arg" ;; esac; done
 case "$endpoint" in
   repos/openclaw/homebrew-tap) printf '{"default_branch":"main"}\n' ;;
-  repos/openclaw/homebrew-tap/branches/main) printf '{"name":"main","protected":%s,"commit":{"sha":"%s"}}\n' "${TAP_PROTECTED:-true}" "${TAP_HEAD:-45b93a0b3de27e46b636a0cef819fb1ecef25bcd}" ;;
-  repos/openclaw/homebrew-tap/compare/45b93a0b3de27e46b636a0cef819fb1ecef25bcd...45b93a0b3de27e46b636a0cef819fb1ecef25bcd)
+  repos/openclaw/homebrew-tap/branches/main) printf '{"name":"main","protected":%s,"commit":{"sha":"%s"}}\n' "${TAP_PROTECTED:-true}" "${TAP_HEAD:-104616d9828cf28202bccff19c0738f179c2a3f8}" ;;
+  repos/openclaw/homebrew-tap/compare/104616d9828cf28202bccff19c0738f179c2a3f8...104616d9828cf28202bccff19c0738f179c2a3f8)
     printf '{"status":"%s","base_commit":{"sha":"%s"},"merge_base_commit":{"sha":"%s"},"head_commit":{"sha":"%s"}}\n' "${TAP_COMPARE_STATUS:-identical}" "${TAP_COMPARE_BASE:-$TAP_BASE}" "${TAP_COMPARE_MERGE_BASE:-$TAP_BASE}" "${TAP_COMPARE_HEAD:-$TAP_BASE}"
     ;;
   repos/openclaw/homebrew-tap/contents/.github/workflows/update-formula.yml*)
@@ -3052,7 +3074,7 @@ EOF
   export MOCK_FIXTURE_ROOT="$scratch" GOPLACES_RELEASE_LOCAL_TEST_GH_BIN="${mock_bin}/gh"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     # shellcheck source=release-local
@@ -3068,7 +3090,7 @@ EOF
   mkdir -p "${scratch}/work-moved"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd" TAP_HEAD="3333333333333333333333333333333333333333" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" TAP_HEAD="3333333333333333333333333333333333333333" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3084,7 +3106,7 @@ EOF
   mkdir -p "${scratch}/work-unprotected"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd" TAP_PROTECTED=false WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" TAP_PROTECTED=false WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3099,7 +3121,7 @@ EOF
   mkdir -p "${scratch}/work-bad-compare"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd" TAP_COMPARE_STATUS=ahead WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" TAP_COMPARE_STATUS=ahead WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3117,7 +3139,7 @@ EOF
     export "$compare_control=3333333333333333333333333333333333333333"
     if (
       export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-      export GH_BLOCKER_LOG="$log" TAP_BASE="45b93a0b3de27e46b636a0cef819fb1ecef25bcd" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+      export GH_BLOCKER_LOG="$log" TAP_BASE="104616d9828cf28202bccff19c0738f179c2a3f8" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
       PATH="${mock_bin}:$PATH"
       export PATH
       source "$release_script"
@@ -3195,6 +3217,36 @@ EOF
   rm -rf "$scratch"
 }
 
+test_tap_compare_accepts_provenance_only_commit() {
+  local scratch good candidate change
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-tap-compare.XXXXXX")"
+  good="${scratch}/good.json"
+  candidate="${scratch}/candidate.json"
+  jq -n --arg old "$SHA" --arg new "$TAG_OBJECT" '{
+    status:"ahead", ahead_by:1, behind_by:0, total_commits:1,
+    base_commit:{sha:$old}, merge_base_commit:{sha:$old}, head_commit:{sha:$new},
+    commits:[{sha:$new}], files:[]
+  }' > "$good"
+  (source_release; validate_tap_compare_record "$good" "$SHA" "$TAG_OBJECT")
+  jq '.files = [{filename:"Formula/goplaces.rb",status:"modified"}]' "$good" > "$candidate"
+  (source_release; validate_tap_compare_record "$candidate" "$SHA" "$TAG_OBJECT")
+  for change in \
+    'del(.files)' \
+    '.files = {}' \
+    '.files = [{filename:"Formula/other.rb",status:"modified"}]' \
+    '.files = [{filename:"Formula/goplaces.rb",status:"removed"}]' \
+    '.files = [{filename:"Formula/goplaces.rb",status:"modified"},{filename:"README.md",status:"modified"}]' \
+    '.ahead_by = 2' \
+    '.total_commits = 0' \
+    '.head_commit.sha = .base_commit.sha'; do
+    jq "$change" "$good" > "$candidate"
+    if (source_release; validate_tap_compare_record "$candidate" "$SHA" "$TAG_OBJECT") >/dev/null 2>&1; then
+      die "invalid provenance-only tap comparison was accepted: $change"
+    fi
+  done
+  rm -rf "$scratch"
+}
+
 main() {
   command -v jq >/dev/null 2>&1 || die "jq is required"
   command -v shellcheck >/dev/null 2>&1 || die "shellcheck is required"
@@ -3213,6 +3265,7 @@ main() {
   test_draft_intent_is_crash_resumable
   test_publish_is_resumable
   test_formula_pairs_and_tap_commit_record
+  test_tap_compare_accepts_provenance_only_commit
   test_trusted_ancestry_rejects_graph_overrides
   test_post_manifest_source_recheck
   test_production_git_is_pinned

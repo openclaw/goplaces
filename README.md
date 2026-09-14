@@ -6,7 +6,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/openclaw/goplaces?style=flat-square)](https://github.com/openclaw/goplaces/releases/latest)
 [![Go](https://img.shields.io/badge/Go-1.26.8-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/dl/)
 [![License](https://img.shields.io/github/license/openclaw/goplaces?style=flat-square)](LICENSE)
-[![Homebrew](https://img.shields.io/badge/Homebrew-openclaw%2Ftap-FBB040?style=flat-square&logo=homebrew&logoColor=black)](https://github.com/openclaw/homebrew-tap/blob/main/Casks/goplaces.rb)
+[![Homebrew](https://img.shields.io/badge/Homebrew-openclaw%2Ftap-FBB040?style=flat-square&logo=homebrew&logoColor=black)](https://github.com/openclaw/homebrew-tap/blob/main/Formula/goplaces.rb)
 [![Docs](https://img.shields.io/badge/docs-goplaces.sh-3b82f6?style=flat-square)](https://goplaces.sh)
 
 `goplaces` is a Go client and CLI for Google Places API (New) and selected Routes API workflows. It is for terminal use, shell automation, agents, and Go programs that need typed requests and JSON output without hand-building field masks or request payloads.
@@ -16,8 +16,10 @@
 Homebrew installs the published binary on macOS or Linux:
 
 ```sh
-brew install --cask openclaw/tap/goplaces
+brew install openclaw/tap/goplaces
 ```
+
+If you installed the retired Cask, run `brew uninstall --cask goplaces` first, then install the Formula.
 
 With Go 1.26.8 or newer:
 
