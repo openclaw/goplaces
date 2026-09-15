@@ -76,7 +76,8 @@ func TestClientPreservesCustomRedirectPolicy(t *testing.T) {
 	client := NewClient(Options{APIKey: securityTestKey, BaseURL: server.URL, HTTPClient: httpClient})
 	for range 2 {
 		place, err := client.Details(t.Context(), "fixture")
-		if err != nil || place.PlaceID != "stopped" {
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusFound || place.PlaceID != "" {
 			t.Fatalf("place=%+v err=%v", place, err)
 		}
 	}
