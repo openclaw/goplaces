@@ -16,6 +16,11 @@ import (
 // DefaultBaseURL is the default endpoint for the Places API (New).
 const DefaultBaseURL = "https://places.googleapis.com/v1"
 
+const (
+	maxResponseBytes        = 1 << 20
+	responseTooLargeMessage = "response exceeds 1 MiB limit"
+)
+
 // Client wraps access to the Google Places API.
 type Client struct {
 	apiKey            string
@@ -111,15 +116,23 @@ func (c *Client) doRequest(
 		_ = response.Body.Close()
 	}()
 
-	// Hard-cap payload size to avoid runaway error bodies.
-	payload, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	// Read one extra byte to distinguish an exact-size response from truncation.
+	payload, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {
 		return nil, c.requestError("read response", err)
 	}
 
-	if response.StatusCode >= http.StatusBadRequest {
-		apiErr := &APIError{StatusCode: response.StatusCode, Body: c.redactAPIKey(strings.TrimSpace(string(payload)))}
+	tooLarge := len(payload) > maxResponseBytes
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		body := responseTooLargeMessage
+		if !tooLarge {
+			body = c.redactAPIKey(strings.TrimSpace(string(payload)))
+		}
+		apiErr := &APIError{StatusCode: response.StatusCode, Body: body}
 		return nil, apiErr
+	}
+	if tooLarge {
+		return nil, errors.New("goplaces: " + responseTooLargeMessage)
 	}
 
 	if len(payload) == 0 {

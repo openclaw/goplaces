@@ -16,3 +16,5 @@ These request details are easy to miss when moving between the CLI and library:
 Field masks are defined with each request implementation so calls ask Google only for the fields represented by that workflow.
 
 Redirects may stay within the original origin (scheme, hostname, and port); redirects to another origin are rejected to keep the API key scoped to the configured endpoint. Configure an endpoint override directly when using a different host. A custom `HTTPClient.CheckRedirect` can still stop redirects. API keys echoed in upstream or transport diagnostics are redacted; error causes remain available through `errors.Is` and `errors.As`.
+
+Only final 2xx responses are decoded as results. Other HTTP statuses return an `APIError`, including redirects stopped with `http.ErrUseLastResponse` or returned without a `Location` header. Responses are limited to 1 MiB; larger bodies return an explicit size error instead of decoding a truncated payload. Oversized HTTP error responses retain their status in `APIError` and replace the body with a size diagnostic. The CLI exits with code 1 for these response failures.
