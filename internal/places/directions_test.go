@@ -188,20 +188,15 @@ func TestNormalizeDirectionsModeAliases(t *testing.T) {
 	}
 }
 
-func TestResolveDirectionsLocationVariants(t *testing.T) {
-	value, err := resolveDirectionsLocation("from", "pid", nil, "")
-	if err != nil || value != "place_id:pid" {
-		t.Fatalf("unexpected place id resolution: value=%q err=%v", value, err)
+func TestDirectionsLocationLabelVariants(t *testing.T) {
+	if got := directionsLocationLabel("pid", nil, ""); got != "place_id:pid" {
+		t.Fatalf("unexpected place id label: %q", got)
 	}
-
-	value, err = resolveDirectionsLocation("to", "", &LatLng{Lat: 1.23, Lng: 4.56}, "")
-	if err != nil || value != "1.230000,4.560000" {
-		t.Fatalf("unexpected lat/lng resolution: value=%q err=%v", value, err)
+	if got := directionsLocationLabel("", &LatLng{Lat: 1.23, Lng: 4.56}, ""); got != "1.230000,4.560000" {
+		t.Fatalf("unexpected lat/lng label: %q", got)
 	}
-
-	value, err = resolveDirectionsLocation("to", "", nil, " Seattle ")
-	if err != nil || value != "Seattle" {
-		t.Fatalf("unexpected text resolution: value=%q err=%v", value, err)
+	if got := directionsLocationLabel("", nil, "Seattle"); got != "Seattle" {
+		t.Fatalf("unexpected text label: %q", got)
 	}
 }
 
