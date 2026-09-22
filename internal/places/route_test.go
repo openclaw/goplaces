@@ -106,10 +106,10 @@ func TestSampleWaypoints(t *testing.T) {
 }
 
 func TestSampleWaypointsSingle(t *testing.T) {
-	points := []LatLng{{Lat: 1, Lng: 1}, {Lat: 2, Lng: 2}}
+	points := []LatLng{{Lat: 0, Lng: 0}, {Lat: 0, Lng: 1}, {Lat: 0, Lng: 4}}
 	waypoints := sampleWaypoints(points, 1)
-	if len(waypoints) != 1 {
-		t.Fatalf("expected 1 waypoint")
+	if len(waypoints) != 1 || !samePoint(waypoints[0], LatLng{Lat: 0, Lng: 2}) {
+		t.Fatalf("expected distance midpoint (0, 2), got %#v", waypoints)
 	}
 }
 
@@ -163,19 +163,6 @@ func TestDistanceMeters(t *testing.T) {
 	distance := distanceMeters(LatLng{Lat: 0, Lng: 0}, LatLng{Lat: 0, Lng: 1})
 	if distance <= 0 {
 		t.Fatalf("expected positive distance")
-	}
-}
-
-func TestTotalDistanceEmpty(t *testing.T) {
-	if totalDistance([]LatLng{{Lat: 1, Lng: 1}}) != 0 {
-		t.Fatalf("expected zero distance")
-	}
-}
-
-func TestPointAtDistanceEmpty(t *testing.T) {
-	point := pointAtDistance(nil, 10)
-	if point != (LatLng{}) {
-		t.Fatalf("expected empty point")
 	}
 }
 

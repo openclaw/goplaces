@@ -71,9 +71,6 @@ func sampleWaypoints(points []LatLng, maxWaypoints int) []LatLng {
 	if len(points) == 1 {
 		return []LatLng{points[0]}
 	}
-	if maxWaypoints == 1 {
-		return []LatLng{pointAtDistance(points, totalDistance(points)/2)}
-	}
 	if maxWaypoints >= len(points) {
 		return uniqueWaypoints(points)
 	}
@@ -82,6 +79,9 @@ func sampleWaypoints(points []LatLng, maxWaypoints int) []LatLng {
 	total := cumulative[len(cumulative)-1]
 	if total == 0 {
 		return []LatLng{points[0]}
+	}
+	if maxWaypoints == 1 {
+		return []LatLng{pointAtCumulative(points, cumulative, total/2)}
 	}
 	spacing := total / float64(maxWaypoints-1)
 
@@ -102,25 +102,6 @@ func cumulativeDistances(points []LatLng) []float64 {
 		distances[i] = distances[i-1] + distanceMeters(points[i-1], points[i])
 	}
 	return distances
-}
-
-func totalDistance(points []LatLng) float64 {
-	if len(points) < 2 {
-		return 0
-	}
-	var total float64
-	for i := 1; i < len(points); i++ {
-		total += distanceMeters(points[i-1], points[i])
-	}
-	return total
-}
-
-func pointAtDistance(points []LatLng, target float64) LatLng {
-	if len(points) == 0 {
-		return LatLng{}
-	}
-	cumulative := cumulativeDistances(points)
-	return pointAtCumulative(points, cumulative, target)
 }
 
 func pointAtCumulative(points []LatLng, cumulative []float64, target float64) LatLng {

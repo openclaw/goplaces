@@ -222,25 +222,14 @@ func validateDirectionsLocation(label, placeID string, location *LatLng, text st
 	return nil
 }
 
-func resolveDirectionsLocation(label, placeID string, location *LatLng, text string) (string, error) {
-	if err := validateDirectionsLocation(label, placeID, location, text); err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(placeID) != "" {
-		return "place_id:" + strings.TrimSpace(placeID), nil
+func directionsLocationLabel(placeID string, location *LatLng, text string) string {
+	if placeID != "" {
+		return "place_id:" + placeID
 	}
 	if location != nil {
-		return fmt.Sprintf("%.6f,%.6f", location.Lat, location.Lng), nil
+		return fmt.Sprintf("%.6f,%.6f", location.Lat, location.Lng)
 	}
-	return strings.TrimSpace(text), nil
-}
-
-func directionsLocationLabel(placeID string, location *LatLng, text string) string {
-	label, err := resolveDirectionsLocation("location", placeID, location, text)
-	if err != nil {
-		return ""
-	}
-	return label
+	return text
 }
 
 func normalizeDirectionsMode(mode string) string {
