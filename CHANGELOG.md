@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CI: remove failed tool bootstrap installations so pinned Go and ShellCheck downloads can be retried, and clean temporary extraction data after success.
+
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
