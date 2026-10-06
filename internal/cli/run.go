@@ -70,6 +70,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		root.Global.NoColor = true
 	}
 
+	if root.Global.Timeout <= 0 {
+		return handleError(stderr, goplaces.ValidationError{Field: "timeout", Message: "must be greater than zero"})
+	}
+
 	client := goplaces.NewClient(goplaces.Options{
 		APIKey:            root.Global.APIKey,
 		BaseURL:           root.Global.BaseURL,
