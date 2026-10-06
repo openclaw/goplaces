@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- CLI: reject explicit zero result limits before requests instead of applying library defaults that contradict the documented bounds.
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
