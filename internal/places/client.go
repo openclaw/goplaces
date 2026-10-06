@@ -139,6 +139,10 @@ func (c *Client) doRequest(
 		return nil, errors.New("goplaces: empty response")
 	}
 
+	if bytes.Equal(bytes.TrimSpace(payload), []byte("null")) {
+		return nil, errors.New("goplaces: null response: expected a JSON object")
+	}
+
 	return payload, nil
 }
 
