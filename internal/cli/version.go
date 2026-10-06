@@ -54,7 +54,11 @@ func (v VersionFlag) IsBool() bool { return true }
 
 // BeforeApply prints the version and exits.
 func (v VersionFlag) BeforeApply(app *kong.Kong, vars kong.Vars) error {
-	_, _ = fmt.Fprintln(app.Stdout, vars["version"])
+	if _, err := fmt.Fprintln(app.Stdout, vars["version"]); err != nil {
+		writeError(app.Stderr, err.Error())
+		app.Exit(1)
+		return nil
+	}
 	app.Exit(0)
 	return nil
 }
