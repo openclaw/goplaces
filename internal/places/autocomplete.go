@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 )
@@ -153,8 +154,19 @@ func validateAutocompleteRequest(req AutocompleteRequest) error {
 	if req.Limit < 1 || req.Limit > maxAutocompleteLimit {
 		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxAutocompleteLimit)}
 	}
-	if err := validateLocationBias(req.LocationBias); err != nil {
+	if err := validateAutocompleteLocationBias(req.LocationBias); err != nil {
 		return err
 	}
 	return nil
+}
+
+// Autocomplete permits a point bias: unlike nearby restrictions, radius zero is valid.
+func validateAutocompleteLocationBias(bias *LocationBias) error {
+	if bias == nil {
+		return nil
+	}
+	if math.IsNaN(bias.RadiusM) || bias.RadiusM < 0 || bias.RadiusM > maxCircleRadiusM {
+		return ValidationError{Field: "location_bias.radius_m", Message: fmt.Sprintf("must be 0-%d", maxCircleRadiusM)}
+	}
+	return validateCoordinates(bias.Lat, bias.Lng, "location_bias")
 }
