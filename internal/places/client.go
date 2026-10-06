@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -119,7 +120,13 @@ func (c *Client) doRequest(
 	// Read one extra byte to distinguish an exact-size response from truncation.
 	payload, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {
-		return nil, c.requestError("read response", err)
+		readErr := c.requestError("read response", err)
+		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+			// The status remains actionable even if its diagnostic body is incomplete.
+			apiErr := &APIError{StatusCode: response.StatusCode}
+			return nil, fmt.Errorf("%w: %w", apiErr, readErr)
+		}
+		return nil, readErr
 	}
 
 	tooLarge := len(payload) > maxResponseBytes

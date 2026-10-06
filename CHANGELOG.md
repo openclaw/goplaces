@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Client: preserve HTTP error status and the read-error cause when an upstream error body is truncated or interrupted.
+
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
