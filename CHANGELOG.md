@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- CLI: reject nonpositive HTTP timeouts instead of silently using a default or disabling request deadlines.
+- CLI: require positive `--timeout` values; zero and negative durations now return validation exit 2. Omit a previous `--timeout=0` flag to keep the 10-second default; replace negative durations with an explicit positive bound. This compatibility tightening is intended for a non-patch release.
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
