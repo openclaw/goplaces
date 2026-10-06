@@ -42,15 +42,15 @@ type Options struct {
 
 // NewClient builds a client with sane defaults.
 func NewClient(opts Options) *Client {
-	baseURL := strings.TrimRight(opts.BaseURL, "/")
+	baseURL := trimEndpointBase(opts.BaseURL)
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
-	routesBaseURL := strings.TrimRight(opts.RoutesBaseURL, "/")
+	routesBaseURL := trimEndpointBase(opts.RoutesBaseURL)
 	if routesBaseURL == "" {
 		routesBaseURL = defaultRoutesBaseURL
 	}
-	directionsBaseURL := strings.TrimRight(opts.DirectionsBaseURL, "/")
+	directionsBaseURL := trimEndpointBase(opts.DirectionsBaseURL)
 	if directionsBaseURL == "" {
 		directionsBaseURL = defaultDirectionsBaseURL
 	}
@@ -143,16 +143,12 @@ func (c *Client) doRequest(
 }
 
 func (c *Client) buildURL(path string, query map[string]string) (string, error) {
-	endpoint := c.baseURL + path
-	if len(query) == 0 {
-		return endpoint, nil
-	}
-
-	parsed, err := url.Parse(endpoint)
+	parsed, err := url.Parse(c.baseURL)
 	if err != nil {
 		return "", c.requestError("invalid url", err)
 	}
 
+	parsed = parsed.JoinPath(path)
 	values := parsed.Query()
 	for key, value := range query {
 		if strings.TrimSpace(value) == "" {
@@ -170,4 +166,12 @@ func pathEscapeSegments(segments []string) string {
 		escaped = append(escaped, url.PathEscape(segment))
 	}
 	return strings.Join(escaped, "/")
+}
+
+// Trim path separators without trimming a proxy query value or fragment.
+func trimEndpointBase(endpoint string) string {
+	if suffix := strings.IndexAny(endpoint, "?#"); suffix >= 0 {
+		return strings.TrimRight(endpoint[:suffix], "/") + endpoint[suffix:]
+	}
+	return strings.TrimRight(endpoint, "/")
 }

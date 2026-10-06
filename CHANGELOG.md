@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Client: preserve proxy query parameters when joining Places and Routes endpoint paths, including complete Routes endpoint overrides.
+
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
