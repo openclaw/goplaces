@@ -144,5 +144,5 @@ func handleError(writer io.Writer, err error) int {
 }
 
 func writeError(writer io.Writer, message string) {
-	_, _ = fmt.Fprintln(writer, sanitizeTerminalText(message))
+	_, _ = fmt.Fprintln(writer, sanitizeTerminalErrorText(message))
 }
