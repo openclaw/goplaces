@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Docs: preserve complete descriptions in the agent documentation index regardless of HTML attribute order or quote style.
+
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
