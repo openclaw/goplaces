@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Nearby: reject conflicting included/excluded types and filters above the API's 50-type limit before sending requests.
+
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
