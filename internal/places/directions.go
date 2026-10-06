@@ -184,7 +184,7 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 		return ValidationError{Field: "time", Message: "use only one of departure_time or arrival_time"}
 	}
 	if req.DepartureTime != "" {
-		if _, err := time.Parse(time.RFC3339, req.DepartureTime); err != nil {
+		if !validDirectionsTimestamp(req.DepartureTime) {
 			return ValidationError{Field: "departure_time", Message: "must be RFC3339, e.g. 2030-05-10T18:57:00-03:00"}
 		}
 	}
@@ -192,11 +192,28 @@ func validateDirectionsRequest(req DirectionsRequest) error {
 		if req.Mode != directionsModeTransit {
 			return ValidationError{Field: "arrival_time", Message: "requires transit mode"}
 		}
-		if _, err := time.Parse(time.RFC3339, req.ArrivalTime); err != nil {
+		if !validDirectionsTimestamp(req.ArrivalTime) {
 			return ValidationError{Field: "arrival_time", Message: "must be RFC3339, e.g. 2030-05-10T19:57:00-03:00"}
 		}
 	}
 	return nil
+}
+
+func validDirectionsTimestamp(value string) bool {
+	// time.Parse accepts single-digit hours, comma fractions and overflowing
+	// timezone components even with the RFC3339 layout. Do not send those
+	// non-RFC3339 forms to the provider after promising local validation.
+	if len(value) < len("2006-01-02T15:04:05Z") || value[13] != ':' || strings.Contains(value, ",") {
+		return false
+	}
+	if _, err := time.Parse(time.RFC3339, value); err != nil {
+		return false
+	}
+	if strings.HasSuffix(value, "Z") {
+		return true
+	}
+	zone := value[len(value)-6:]
+	return zone[1:3] < "24" && zone[4:6] < "60"
 }
 
 func validateDirectionsLocation(label, placeID string, location *LatLng, text string) error {
