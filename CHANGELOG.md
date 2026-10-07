@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Build: update golangci-lint to 2.14.0, deadcode to 0.51.0, and the reviewed GitHub CLI pin to 2.102.0 so CI accepts the current Homebrew installation.
+- CI: clean failed Go and ShellCheck bootstrap installations so valid retries succeed, and remove temporary extraction data after success. (#69) - thanks @rudycelekli
+- Docs: preserve complete metadata descriptions across HTML quote styles and attribute order. (#68) - thanks @rudycelekli
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 

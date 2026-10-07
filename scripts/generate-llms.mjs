@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { metadataText } from "./llms-metadata.mjs";
+import { descriptionMetadata, metadataText } from "./llms-metadata.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const docsDir = path.join(repoRoot, "docs");
@@ -21,10 +21,7 @@ const pages = allHtml(docsDir)
     return {
       rel,
       title: metadataText(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1], "title") || titleize(path.basename(rel, ".html")),
-      description: metadataText(
-        html.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["'][^>]*>/i)?.[1],
-        "description",
-      ),
+      description: descriptionMetadata(html),
     };
   })
   .filter(Boolean)

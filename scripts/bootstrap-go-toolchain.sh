@@ -66,7 +66,18 @@ fi
 [[ "$expected_sha256" =~ ^[0-9a-f]{64}$ ]] || die "invalid pinned archive digest"
 
 scratch="$(mktemp -d "$parent/.goplaces-go.XXXXXX")"
-trap 'rm -rf "$scratch"' EXIT
+destination_created=false
+installation_verified=false
+cleanup() {
+  rm -rf "$scratch"
+  if [[ "$destination_created" == true && "$installation_verified" == false ]]; then
+    rm -rf "$destination"
+  fi
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 archive="$scratch/$archive_name"
 status="$($curl_bin \
   --disable \
@@ -91,6 +102,7 @@ while IFS= read -r member; do
 done < "$members"
 
 mkdir "$destination"
+destination_created=true
 $tar_bin -xzf "$archive" -C "$destination" --no-same-owner || die "toolchain extraction failed"
 go_root="$destination/go"
 [[ -d "$go_root" && ! -L "$go_root" ]] || die "toolchain root is invalid"
@@ -98,6 +110,5 @@ go_root="$destination/go"
 [[ "$(GOENV=off GOTOOLCHAIN=local GOWORK=off GOTELEMETRY=off "$go_root/bin/go" env GOVERSION)" == go1.26.8 ]] ||
   die "extracted toolchain version mismatch"
 
-rm -f "$archive" "$members"
-trap - EXIT
+installation_verified=true
 printf '%s\n' "$go_root"
