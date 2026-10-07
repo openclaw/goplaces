@@ -21,6 +21,9 @@ type NearbyCmd struct {
 
 // Run executes the nearby command.
 func (c *NearbyCmd) Run(app *App) error {
+	if err := validateLimit(c.Limit, 20); err != nil {
+		return err
+	}
 	if c.Lat == nil || c.Lng == nil || c.RadiusM == nil {
 		return goplaces.ValidationError{Field: "location_restriction", Message: locationCoordinatesRequired}
 	}

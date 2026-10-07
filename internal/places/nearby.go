@@ -7,6 +7,8 @@ import (
 	"net/http"
 )
 
+const maxNearbyTypes = 50
+
 const nearbyFieldMask = "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,places.businessStatus"
 
 // NearbySearch performs a nearby search around a location restriction.
@@ -63,6 +65,21 @@ func validateNearbyRequest(req NearbySearchRequest) error {
 	}
 	if req.Limit < 1 || req.Limit > maxNearbyLimit {
 		return ValidationError{Field: validationFieldLimit, Message: fmt.Sprintf("must be 1-%d", maxNearbyLimit)}
+	}
+	if len(req.IncludedTypes) > maxNearbyTypes {
+		return ValidationError{Field: "included_types", Message: fmt.Sprintf("must contain at most %d types", maxNearbyTypes)}
+	}
+	if len(req.ExcludedTypes) > maxNearbyTypes {
+		return ValidationError{Field: "excluded_types", Message: fmt.Sprintf("must contain at most %d types", maxNearbyTypes)}
+	}
+	included := make(map[string]struct{}, len(req.IncludedTypes))
+	for _, placeType := range req.IncludedTypes {
+		included[placeType] = struct{}{}
+	}
+	for _, placeType := range req.ExcludedTypes {
+		if _, exists := included[placeType]; exists {
+			return ValidationError{Field: "excluded_types", Message: "must not overlap included_types"}
+		}
 	}
 	return nil
 }

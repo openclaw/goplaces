@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -42,15 +43,15 @@ type Options struct {
 
 // NewClient builds a client with sane defaults.
 func NewClient(opts Options) *Client {
-	baseURL := strings.TrimRight(opts.BaseURL, "/")
+	baseURL := trimEndpointBase(opts.BaseURL)
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
-	routesBaseURL := strings.TrimRight(opts.RoutesBaseURL, "/")
+	routesBaseURL := trimEndpointBase(opts.RoutesBaseURL)
 	if routesBaseURL == "" {
 		routesBaseURL = defaultRoutesBaseURL
 	}
-	directionsBaseURL := strings.TrimRight(opts.DirectionsBaseURL, "/")
+	directionsBaseURL := trimEndpointBase(opts.DirectionsBaseURL)
 	if directionsBaseURL == "" {
 		directionsBaseURL = defaultDirectionsBaseURL
 	}
@@ -119,7 +120,13 @@ func (c *Client) doRequest(
 	// Read one extra byte to distinguish an exact-size response from truncation.
 	payload, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {
-		return nil, c.requestError("read response", err)
+		readErr := c.requestError("read response", err)
+		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+			// The status remains actionable even if its diagnostic body is incomplete.
+			apiErr := &APIError{StatusCode: response.StatusCode}
+			return nil, fmt.Errorf("%w: %w", apiErr, readErr)
+		}
+		return nil, readErr
 	}
 
 	tooLarge := len(payload) > maxResponseBytes
@@ -139,20 +146,25 @@ func (c *Client) doRequest(
 		return nil, errors.New("goplaces: empty response")
 	}
 
+	if bytes.Equal(bytes.TrimSpace(payload), []byte("null")) {
+		return nil, errors.New("goplaces: null response: expected a JSON object")
+	}
+
 	return payload, nil
 }
 
 func (c *Client) buildURL(path string, query map[string]string) (string, error) {
-	endpoint := c.baseURL + path
-	if len(query) == 0 {
-		return endpoint, nil
-	}
-
-	parsed, err := url.Parse(endpoint)
+	parsed, err := url.Parse(c.baseURL)
 	if err != nil {
 		return "", c.requestError("invalid url", err)
 	}
 
+	if err := appendEndpointPath(parsed, path); err != nil {
+		return "", c.requestError("invalid url", err)
+	}
+	if len(query) == 0 {
+		return parsed.String(), nil
+	}
 	values := parsed.Query()
 	for key, value := range query {
 		if strings.TrimSpace(value) == "" {
@@ -170,4 +182,24 @@ func pathEscapeSegments(segments []string) string {
 		escaped = append(escaped, url.PathEscape(segment))
 	}
 	return strings.Join(escaped, "/")
+}
+
+// Preserve opaque resource IDs and proxy paths instead of cleaning dot segments.
+func appendEndpointPath(endpoint *url.URL, escapedPath string) error {
+	rawPath := strings.TrimRight(endpoint.EscapedPath(), "/") + escapedPath
+	path, err := url.PathUnescape(rawPath)
+	if err != nil {
+		return err
+	}
+	endpoint.Path = path
+	endpoint.RawPath = rawPath
+	return nil
+}
+
+// Trim path separators without trimming a proxy query value or fragment.
+func trimEndpointBase(endpoint string) string {
+	if suffix := strings.IndexAny(endpoint, "?#"); suffix >= 0 {
+		return strings.TrimRight(endpoint[:suffix], "/") + endpoint[suffix:]
+	}
+	return strings.TrimRight(endpoint, "/")
 }

@@ -58,6 +58,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 	if err != nil {
 		if parseErr, ok := err.(*kong.ParseError); ok {
+			// Parse errors must not contaminate the result stream. Successful help
+			// still uses stdout, but error usage belongs with its diagnostic.
+			parser.Stdout = stderr
 			_ = parseErr.Context.PrintUsage(true)
 			writeError(stderr, parseErr.Error())
 			return parseErr.ExitCode()
@@ -144,5 +147,5 @@ func handleError(writer io.Writer, err error) int {
 }
 
 func writeError(writer io.Writer, message string) {
-	_, _ = fmt.Fprintln(writer, sanitizeTerminalText(message))
+	_, _ = fmt.Fprintln(writer, sanitizeTerminalErrorText(message))
 }

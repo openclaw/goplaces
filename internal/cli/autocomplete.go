@@ -21,6 +21,9 @@ type AutocompleteCmd struct {
 
 // Run executes the autocomplete command.
 func (c *AutocompleteCmd) Run(app *App) error {
+	if err := validateLimit(c.Limit, 20); err != nil {
+		return err
+	}
 	request := goplaces.AutocompleteRequest{
 		Input:        c.Input,
 		Limit:        c.Limit,
