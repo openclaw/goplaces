@@ -7,6 +7,7 @@ These request details are easy to miss when moving between the CLI and library:
 - `Filters.Types` maps to Google's singular `includedType`; only the first value is sent.
 - Search price levels use integers from `0` (free) through `4` (very expensive).
 - Coordinates, radii, and minimum ratings must be finite numbers; invalid values fail validation before any API calls.
+- `DetailsRequest.SessionToken` forwards the matching autocomplete session token; `details --session-token` provides the same handoff in the CLI.
 - Autocomplete accepts a zero-radius point bias; search and nearby radii must remain greater than zero. All circle radii are limited to 50,000 meters.
 - Nearby included and excluded type lists accept at most 50 entries each and must not overlap.
 - Directions timestamps use RFC3339 with two-digit hours, dot-separated fractional seconds, and valid timezone offsets.
