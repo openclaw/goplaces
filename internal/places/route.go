@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -258,10 +259,18 @@ func (c *Client) computeRoutePolyline(ctx context.Context, req RouteRequest) (st
 }
 
 func routesEndpoint(base string) string {
-	if strings.HasSuffix(base, routesPath) {
-		return base
+	parsed, err := url.Parse(base)
+	if err != nil {
+		// Preserve invalid endpoint diagnostics at the existing request boundary.
+		return base + routesPath
 	}
-	return base + routesPath
+	if strings.HasSuffix(parsed.EscapedPath(), routesPath) {
+		return parsed.String()
+	}
+	if err := appendEndpointPath(parsed, routesPath); err != nil {
+		return base + routesPath
+	}
+	return parsed.String()
 }
 
 type routesResponse struct {

@@ -22,6 +22,9 @@ type RouteCmd struct {
 
 // Run executes the route command.
 func (c *RouteCmd) Run(app *App) error {
+	if err := validateLimit(c.Limit, 20); err != nil {
+		return err
+	}
 	request := goplaces.RouteRequest{
 		Query:        c.Query,
 		From:         c.From,

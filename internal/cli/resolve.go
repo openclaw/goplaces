@@ -17,6 +17,9 @@ type ResolveCmd struct {
 
 // Run executes the resolve command.
 func (c *ResolveCmd) Run(app *App) error {
+	if err := validateLimit(c.Limit, 10); err != nil {
+		return err
+	}
 	request := goplaces.LocationResolveRequest{
 		LocationText: c.LocationText,
 		Limit:        c.Limit,

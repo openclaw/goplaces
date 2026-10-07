@@ -448,7 +448,17 @@ func directionsStepLine(step goplaces.DirectionsStep) string {
 	return strings.Join(parts, " · ")
 }
 
+// Human output preserves shaping joiners used in names and emoji, while
+// diagnostics keep the stricter format-control boundary.
 func sanitizeTerminalText(value string) string {
+	return sanitizeText(value, true)
+}
+
+func sanitizeTerminalErrorText(value string) string {
+	return sanitizeText(value, false)
+}
+
+func sanitizeText(value string, preserveJoiners bool) string {
 	if value == "" {
 		return ""
 	}
@@ -463,7 +473,7 @@ func sanitizeTerminalText(value string) string {
 		if unicode.IsControl(r) {
 			continue
 		}
-		if unicode.Is(unicode.Cf, r) {
+		if unicode.Is(unicode.Cf, r) && (!preserveJoiners || (r != '\u200c' && r != '\u200d')) {
 			continue
 		}
 		out.WriteRune(r)
