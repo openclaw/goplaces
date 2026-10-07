@@ -26,6 +26,9 @@ type SearchCmd struct {
 
 // Run executes the search command.
 func (c *SearchCmd) Run(app *App) error {
+	if err := validateLimit(c.Limit, 20); err != nil {
+		return err
+	}
 	request := goplaces.SearchRequest{
 		Query:     c.Query,
 		Limit:     c.Limit,

@@ -695,4 +695,6 @@ if verify_fixture >/dev/null 2>&1; then
   die "empty snapshot binary was accepted"
 fi
 
+"$repo_root/scripts/test-bootstrap-cleanup.sh"
+
 echo "security CI test: workflow and hostile snapshot checks passed"

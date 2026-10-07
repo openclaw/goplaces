@@ -74,7 +74,18 @@ fi
 archive_url="${RELEASE_ROOT}/${archive_name}"
 expected_member="shellcheck-v${SHELLCHECK_VERSION}/shellcheck"
 scratch=$(/usr/bin/mktemp -d "$parent/.goplaces-shellcheck.XXXXXX")
-trap '/bin/rm -rf "$scratch"' EXIT HUP INT TERM
+destination_created=false
+installation_verified=false
+cleanup() {
+  /bin/rm -rf "$scratch"
+  if [[ "$destination_created" == true && "$installation_verified" == false ]]; then
+    /bin/rm -rf "$destination"
+  fi
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 archive="$scratch/$archive_name"
 members="$scratch/members.txt"
 
@@ -108,6 +119,7 @@ done < "$members"
 [[ "$member_count" -eq 1 ]] || die "archive must contain exactly one ShellCheck executable"
 
 /bin/mkdir "$destination"
+destination_created=true
 $tar_bin -xzf "$archive" -C "$destination" --no-same-owner "$expected_member" || die "extraction failed"
 binary="$destination/$expected_member"
 [[ -f "$binary" && ! -L "$binary" && -x "$binary" ]] || die "extracted executable is invalid"
@@ -118,6 +130,5 @@ version_output=$(/usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin LC_ALL=C "$b
 [[ "$(/usr/bin/grep -c '^version: 0\.11\.0$' <<<"$version_output")" -eq 1 ]] ||
   die "extracted executable version mismatch"
 
-/bin/rm -f "$archive" "$members"
-trap - EXIT HUP INT TERM
+installation_verified=true
 printf '%s\n' "$binary"

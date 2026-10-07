@@ -4,6 +4,12 @@
 
 - Details: accept the matching autocomplete session token in the library and CLI so the documented session billing workflow can complete.
 
+- Build: update golangci-lint to 2.14.0, deadcode to 0.51.0, and the reviewed GitHub CLI pin to 2.102.0 so CI accepts the current Homebrew installation.
+- CI: clean failed Go and ShellCheck bootstrap installations so valid retries succeed, and remove temporary extraction data after success. (#69) - thanks @rudycelekli
+- Docs: preserve complete metadata descriptions across HTML quote styles and attribute order. (#68) - thanks @rudycelekli
+- Client: preserve endpoint override query parameters and opaque paths, retain HTTP error status when response reads fail, and reject JSON null results. (#73, #74, #75) - thanks @rudycelekli
+- Validation: reject malformed directions timestamps and conflicting or oversized nearby type filters; accept zero-radius autocomplete point biases. (#63, #70, #71) - thanks @rudycelekli
+- CLI: keep parse-error usage on stderr, enforce explicit result-limit bounds, report version output failures, and preserve Unicode shaping joiners in human results. (#64, #65, #67, #76) - thanks @rudycelekli
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
 
