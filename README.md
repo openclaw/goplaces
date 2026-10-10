@@ -101,7 +101,7 @@ See the [Go package reference](https://pkg.go.dev/github.com/steipete/goplaces) 
 
 ## Development
 
-Go 1.26.8 is required.
+Go 1.26.8 is the minimum supported version. Development and official builds use Go 1.27.2 for the latest standard-library security fixes; Go's automatic toolchain selection uses the version pinned in `go.mod`.
 
 ```sh
 go mod download
