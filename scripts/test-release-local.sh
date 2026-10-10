@@ -209,7 +209,7 @@ EOF
   grep -Fq 'homebrew_command list "$kind_flag" --full-name' "$release_script" || die "Homebrew installed-state proof is not a no-name full inventory"
   grep -Fq 'homebrew_command --prefix --formula goplaces' "$release_script" || die "installed binary lookup is not Formula-specific"
   grep -Fq 'readonly EXPECTED_GH_VERSION="2.102.0"' "$release_script" || die "GitHub CLI version is not pinned"
-  grep -Fq 'Cellar/node/26\.9\.0/bin/node' "$release_script" || die "reviewed Node formula revision is not allowlisted"
+  grep -Fq 'Cellar/node/26\.11\.1/bin/node' "$release_script" || die "reviewed Node formula revision is not allowlisted"
   grep -Fq 'candidate=/opt/homebrew/opt/gh/bin/gh' "$release_script" || die "GitHub CLI does not bypass the mutable bin wrapper"
   ! grep -Fq 'candidate=/opt/homebrew/bin/gh' "$release_script" || die "GitHub CLI still freezes the mutable wrapper"
   grep -Fq "select(.path == \$path)" "$release_script" || die "workflow path is not exact"
@@ -294,13 +294,13 @@ EOF
 test_govulncheck_build_info_validation() {
   local binary good bad
   binary="/private/tmp/frozen/govulncheck"
-  good="${binary}: go1.26.8"$'\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.8.0\th1:clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U='
+  good="${binary}: go1.27.2"$'\n\tpath\tgolang.org/x/vuln/cmd/govulncheck\n\tmod\tgolang.org/x/vuln\tv1.8.0\th1:clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U='
   (
     source_release
     validate_govulncheck_build_info "$good" "$binary"
   )
   for bad in \
-    "${good/go1.26.8/go1.26.4}" \
+    "${good/go1.27.2/go1.26.4}" \
     "${good/golang.org\/x\/vuln\/cmd\/govulncheck/example.invalid\/govulncheck}" \
     "${good/v1.8.0/v1.4.2}" \
     "${good/clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U=/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}"; do
@@ -1180,7 +1180,7 @@ test_post_manifest_source_recheck() {
 #!/bin/bash -p
 set -euo pipefail
 [[ "$*" == 'env GOVERSION' ]] || exit 91
-printf 'go1.26.8\n'
+printf 'go1.27.2\n'
 EOF
   cat > "$goreleaser_bin" <<'EOF'
 #!/bin/bash -p
@@ -1334,7 +1334,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 [[ "$*" == --version ]] || exit 93
-printf 'v26.9.0\n'
+printf 'v26.11.1\n'
 EOF
   cat > "${directory}/expect" <<'EOF'
 #!/bin/bash -p
@@ -1371,7 +1371,7 @@ test_producer_gate_hardening() {
   alias_tmp="${scratch}/tmp-alias"
   mkdir -p "$real_tmp"
   ln -s "$real_tmp" "$alias_tmp"
-  make_fake_producer_tools "$tools" go1.26.8 2.18.2
+  make_fake_producer_tools "$tools" go1.27.2 2.18.2
   mkdir -p "$launch"
   ln -s "${tools}/go" "${launch}/go"
   ln -s "${tools}/goreleaser" "${launch}/goreleaser"
@@ -1447,7 +1447,7 @@ EOF
     die "old Go entered the producer gate"
   fi
   old_goreleaser="${scratch}/old-goreleaser"
-  make_fake_producer_tools "$old_goreleaser" go1.26.8 2.15.2
+  make_fake_producer_tools "$old_goreleaser" go1.27.2 2.15.2
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1459,7 +1459,7 @@ EOF
   fi
 
   mutation="${scratch}/mutation-tools"
-  make_fake_producer_tools "$mutation" go1.26.8 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1472,7 +1472,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "same-byte GoReleaser inode replacement was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.26.8 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1484,7 +1484,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "in-place Go byte mutation was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.26.8 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1497,7 +1497,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "same-byte release-mac-app replacement was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.26.8 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1758,7 +1758,7 @@ case "$1 ${2:-}" in
       'merge-base --is-ancestor') ;;
       'checkout --quiet')
         mkdir -p "$2/scripts"
-        printf 'module example.invalid/goplaces\n\ngo 1.26.8\n' > "$2/go.mod"
+        printf 'module example.invalid/goplaces\n\ngo 1.26.8\n\ntoolchain go1.27.2\n' > "$2/go.mod"
         printf 'version: 2\nrelease:\n  draft: true\n' > "$2/.goreleaser.yml"
         printf '## 0.4.5 - Unreleased\n\n- Protected pilot release.\n' > "$2/CHANGELOG.md"
         cp "$MOCK_FIXTURE_ROOT/scripts/release-local" "$2/scripts/release-local"
@@ -1777,7 +1777,7 @@ EOF
 set -euo pipefail
 printf 'go' >> "$MOCK_LOG"; printf ' <%s>' "$@" >> "$MOCK_LOG"; printf '\n' >> "$MOCK_LOG"
 [[ "$*" == 'env GOVERSION' ]] || { echo "unexpected go command: $*" >&2; exit 90; }
-printf '%s\n' "${MOCK_GO_VERSION:-go1.26.8}"
+printf '%s\n' "${MOCK_GO_VERSION:-go1.27.2}"
 EOF
   cat > "${root}/mock-bin/goreleaser" <<'EOF'
 #!/usr/bin/env bash
@@ -1835,7 +1835,7 @@ fi
 EOF
   printf '# frozen mock helper library\n' > "${root}/mock-bin/lib/mac_release.sh"
   chmod +x "${root}/mock-bin/"*
-  write_fixture_producer_tools "$root" go1.26.8 2.18.2
+  write_fixture_producer_tools "$root" go1.27.2 2.18.2
 }
 
 write_fixture_producer_tools() {
@@ -1857,7 +1857,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 [[ "$*" == --version ]] || exit 93
-printf 'v26.9.0\n'
+printf 'v26.11.1\n'
 EOF
   cat > "${root}/mock-bin/expect" <<'EOF'
 #!/bin/bash -p
@@ -1891,14 +1891,14 @@ run_fixture() {
       hostile_environment+=("${name}=${!name}")
     fi
   done
-  write_fixture_producer_tools "$root" "${MOCK_GO_VERSION:-go1.26.8}" "${MOCK_GORELEASER_VERSION:-2.18.2}"
+  write_fixture_producer_tools "$root" "${MOCK_GO_VERSION:-go1.27.2}" "${MOCK_GORELEASER_VERSION:-2.18.2}"
   (
     cd "$root"
     /usr/bin/env -i \
       "${hostile_environment[@]}" \
       PATH="${root}/mock-bin:/opt/homebrew/bin:/usr/bin:/bin" \
       HOME="${root}/home" TMPDIR="${root}/tmp" MOCK_LOG="${root}/mock.log" \
-      MOCK_GO_VERSION="${MOCK_GO_VERSION:-go1.26.8}" MOCK_GIT_STATUS="${MOCK_GIT_STATUS:-}" \
+      MOCK_GO_VERSION="${MOCK_GO_VERSION:-go1.27.2}" MOCK_GIT_STATUS="${MOCK_GIT_STATUS:-}" \
       MOCK_GORELEASER_VERSION="${MOCK_GORELEASER_VERSION:-2.18.2}" \
       MOCK_ORIGIN="${MOCK_ORIGIN:-https://github.com/openclaw/goplaces}" MOCK_BRANCH="${MOCK_BRANCH:-main}" MOCK_SHA="$SHA" \
       MOCK_PROTECTED="${MOCK_PROTECTED:-true}" MOCK_API_SHA="${MOCK_API_SHA:-$SHA}" \
@@ -1922,7 +1922,7 @@ test_preflight_and_pilot_mocks() {
   grep -Fq 'gh <api> <--hostname> <github.com> <-H> <X-GitHub-Api-Version: 2026-03-10> <repos/openclaw/goplaces>' "${scratch}/mock.log" || die "preflight did not pin the API host and version"
 
   MOCK_GO_VERSION=go1.26.4 expect_failure "old native Go" run_fixture "$scratch" --check
-  MOCK_GO_VERSION=go1.27.1 expect_failure "newer non-pinned Go" run_fixture "$scratch" --check
+  MOCK_GO_VERSION=go1.27.3 expect_failure "newer non-pinned Go" run_fixture "$scratch" --check
   MOCK_GORELEASER_VERSION=2.15.2 expect_failure "old GoReleaser" run_fixture "$scratch" pilot v0.4.5
   MOCK_GORELEASER_VERSION=2.19.0 expect_failure "future GoReleaser" run_fixture "$scratch" pilot v0.4.5
   MOCK_GIT_STATUS='?? hostile' expect_failure "dirty checkout" run_fixture "$scratch" --check
@@ -2168,7 +2168,7 @@ fake_root="$(cd "$(dirname "$0")" && pwd -P)"
 [[ "${GOWORK:-}" == off ]] || exit 94
 printf '%s\n' "$*" >> "${fake_root}/go.log"
 case "$*" in
-  'env GOVERSION') printf 'go1.26.8\n' ;;
+  'env GOVERSION') printf 'go1.27.2\n' ;;
   'env GOMODCACHE') exit 91 ;;
   build\ *)
     output=""
