@@ -68,6 +68,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		writeError(stderr, err.Error())
 		return 2
 	}
+	if root.Global.Timeout < 0 {
+		return handleError(stderr, goplaces.ValidationError{Field: "timeout", Message: "must not be negative"})
+	}
 	if root.Global.JSON {
 		// JSON output should never include ANSI escapes.
 		root.Global.NoColor = true
