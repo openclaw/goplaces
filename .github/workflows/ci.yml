@@ -80,7 +80,17 @@ jobs:
             exit 1
           fi
       - name: Security scan
-        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.29.0 ./...
+        run: |
+          tool_dir=$(mktemp -d)
+          trap 'rm -rf "$tool_dir"' EXIT
+          # gosec's pinned x/tools cannot read Go 1.27 export data.
+          (
+            cd "$tool_dir"
+            go mod init goplaces-gosec
+            go get github.com/securego/gosec/v2/cmd/gosec@v2.29.0 golang.org/x/tools@v0.51.0
+            go build -o "$tool_dir/gosec" github.com/securego/gosec/v2/cmd/gosec
+          )
+          "$tool_dir/gosec" ./...
       - name: Install vulnerability scanner
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
       - name: Source vulnerability scan
