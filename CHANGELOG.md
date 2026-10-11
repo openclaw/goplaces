@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CLI: honor `NO_COLOR` only when its value is nonempty, preserving color when the variable is empty. (#81) - thanks @rudycelekli
+- Build: update deadcode and the gosec importer to x/tools 0.52.0, and pin govulncheck 1.9.0 across CI and release verification.
 - Security: build and test with Go 1.27.2 for standard-library vulnerability fixes while retaining the Go 1.26.8 minimum; update the pinned Node tooling to 26.11.1 and repair gosec's Go 1.27 export-data compatibility.
 - Build: update golangci-lint to 2.14.0, deadcode to 0.51.0, and the reviewed GitHub CLI pin to 2.102.0 so CI accepts the current Homebrew installation.
 - CI: clean failed Go and ShellCheck bootstrap installations so valid retries succeed, and remove temporary extraction data after success. (#69) - thanks @rudycelekli

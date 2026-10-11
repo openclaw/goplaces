@@ -51,7 +51,7 @@ func colorEnabled(noColor bool) bool {
 	if noColor {
 		return false
 	}
-	if _, ok := os.LookupEnv("NO_COLOR"); ok {
+	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
 	term := strings.TrimSpace(os.Getenv("TERM"))
