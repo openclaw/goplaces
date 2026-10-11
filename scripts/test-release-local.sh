@@ -748,6 +748,12 @@ test_release_record_freeze() {
     canonical_release_record "${scratch}/published-raw.json" "${scratch}/published.json" v0.4.5 published "$notes"
     [[ "$(release_identity "$canonical")" == "$(release_identity "${scratch}/published.json")" ]] ||
       die "publication URL transition changed asset identity"
+    mkdir "${scratch}/state"
+    cp "$canonical" "${scratch}/state/draft-release.json"
+    release_state_dir="${scratch}/state"
+    gh_api() { cat "${scratch}/published-raw.json"; }
+    [[ "$(verify_frozen_release_current_state v0.4.5 "$notes" "${scratch}/current.json")" == published ]] ||
+      die "published false draft state was rejected during resumption"
     jq '.assets[0].digest = "sha256:" + ("1" * 64)' "${scratch}/published.json" > "$tampered"
     [[ "$(release_identity "$canonical")" != "$(release_identity "$tampered")" ]] ||
       die "publication accepted a changed asset digest"

@@ -1420,7 +1420,7 @@ verify_frozen_release_current_state() {
   release_id="$(load_frozen_release_id)"
   raw="$(mktemp "${TMPDIR:-/tmp}/goplaces-release-current.XXXXXX")"
   gh_api "repos/${REPOSITORY}/releases/${release_id}" > "$raw"
-  draft="$(jq -er '.draft | select(type == "boolean")' "$raw")" || die "release draft state is malformed"
+  draft="$(jq -er '.draft | if type == "boolean" then tostring else error("invalid draft state") end' "$raw")" || die "release draft state is malformed"
   if [[ "$draft" == true ]]; then state=draft; else state=published; fi
   canonical_release_record "$raw" "$output" "$tag" "$state" "$notes"
   rm -f "$raw"

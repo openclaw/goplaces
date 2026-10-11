@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Release: resume published releases without rejecting their `draft: false` state.
+
 ## 0.4.12 - 2026-10-11
 
 **Highlights:** More reliable API errors and CLI validation, with Go standard-library security fixes and verified Homebrew Formula installs.
