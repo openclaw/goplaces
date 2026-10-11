@@ -17,14 +17,14 @@ v0.4.5 and later use a serialized, local, draft-first release flow for notarized
   ```
 
 - Ordinary source builds, tests, snapshots, and cross-platform builds are credential-free. Signing is local-only through the managed release keychain exposed by `release-mac-app` / `codesign-run`; repository scripts never discover or unlock keychains themselves.
-- Each Darwin binary is thin for its advertised architecture, signed with the hardened runtime and secure timestamp, and notarized. Notarization submits an ephemeral ZIP with `notarytool --no-s3-acceleration --wait`; that ZIP is deleted and never published.
+- Each Darwin binary requires macOS 13.0 or later and is thin for its advertised architecture, signed with the hardened runtime and secure timestamp, and notarized. Before publishing, inspect `otool -l <binary>` for both archives and require `LC_BUILD_VERSION` to report `minos 13.0`. Notarization submits an ephemeral ZIP with `notarytool --no-s3-acceleration --wait`; that ZIP is deleted and never published.
 - Notarization is an online gate. A release cannot be prepared offline and later represented as notarized.
 - The repository verifier is the release policy boundary. It validates the exact identity, Team ID, designated requirement, runtime, timestamp, architecture, version, and online notarization state. Raw system-policy assessment, policy-check, and ticket-stapling CLI invocations are forbidden throughout producer, verifier, workflow, and release paths.
 - Tag CI has read-only contents access, runs release-contract tests plus a credential-free GoReleaser snapshot, and cannot upload or publish unsigned Darwin artifacts.
 
 ## Prepare Locally
 
-Keep `CHANGELOG.md` at `## X.Y.Z - Unreleased` throughout local preparation. Tagged changelog content is the only release-note source; release commands read it from the protected commit or fresh tagged checkout, never from mutable maintainer working-tree bytes. For the 0.4.11 recovery release, the producer appends the complete dated 0.4.10 section after the 0.4.11 entry because 0.4.10 shipped no binaries. The draft and published notes are verified against that same combined text.
+Keep `CHANGELOG.md` at `## Unreleased` throughout local preparation. Tagged changelog content is the only release-note source; release commands read it from the protected commit or fresh tagged checkout, never from mutable maintainer working-tree bytes. For the 0.4.11 recovery release, the producer appends the complete dated 0.4.10 section after the 0.4.11 entry because 0.4.10 shipped no binaries. The draft and published notes are verified against that same combined text.
 
 Run the full local proof set before requesting either serialized gate:
 
@@ -56,7 +56,7 @@ These are public mutations and require the serialized public gate.
 
 Run `scripts/release-local verify-draft vX.Y.Z` only after the draft inventory is frozen.
 
-The dispatcher uses GitHub API version `2026-03-10` and dispatches `.github/workflows/release-assets.yml` from the protected current default branch. It requires the live workflow’s numeric ID to remain exactly `311062804` and the run record’s canonical path to equal `.github/workflows/release-assets.yml`; the protected branch and head SHA are pinned separately. It snapshots existing run IDs, consumes the dispatch response’s numeric `workflow_run_id`, rejects a pre-existing or substituted run, watches that exact ID, and then requires newest-proof selection to return the same run ID.
+The dispatcher uses GitHub API version `2026-03-10` and dispatches `.github/workflows/release-assets.yml` from the protected current default branch. It requires the live workflow’s numeric ID to remain exactly `311062804` and the run record’s canonical path to equal `.github/workflows/release-assets.yml`; the protected branch and head SHA are pinned separately. It snapshots existing run IDs, consumes the dispatch response’s numeric `workflow_run_id`, rejects a pre-existing or substituted run, polls that exact ID at five-minute intervals, up to eight times, and then requires newest-proof selection to return the same run ID.
 
 The native verifier runs independently on Apple silicon and Intel. Each job:
 
@@ -82,7 +82,7 @@ After publication:
 - verify every public archive and checksum against the frozen release record;
 - verify `go install github.com/steipete/goplaces/cmd/goplaces@vX.Y.Z` reports `X.Y.Z`, then retry `@latest` after the module proxy catches up;
 - complete the Formula handoff under the separate gate in [releasing-homebrew.md](releasing-homebrew.md);
-- reopen the next patch section as `Unreleased`, commit that closeout separately, pull with `--ff-only`, and finish on clean synchronized `main`.
+- reopen an empty `## Unreleased` section, commit that closeout separately, pull with `--ff-only`, and finish on clean synchronized `main`.
 
 ## Homebrew Status
 

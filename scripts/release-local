@@ -13,7 +13,7 @@ readonly EXPECTED_GO_VERSION="go1.27.2"
 readonly VERIFIER_WORKFLOW=".github/workflows/release-assets.yml"
 readonly VERIFIER_WORKFLOW_ID="311062804"
 readonly TAP_REPOSITORY="openclaw/homebrew-tap"
-readonly TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088"
+readonly TAP_BASE="22b262a218d734287d16197247b6de529b09cce1"
 readonly TAP_WORKFLOW=".github/workflows/update-formula.yml"
 readonly TAP_WORKFLOW_ID="220664022"
 readonly TAP_UPDATER=".github/scripts/update_formula.py"
@@ -22,8 +22,8 @@ readonly HOMEBREW_REPOSITORY="Homebrew/brew"
 readonly EXPECTED_HOMEBREW_ORIGIN_HTTPS="https://github.com/${HOMEBREW_REPOSITORY}"
 readonly RELEASE_MAC_APP_DEFAULT="/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release"
 readonly RELEASE_MAC_APP_EXPECTED_SHA256="e65e06ef89ec90ebfc537d28748a3c4de8ce89bd09b51e4d67ba4bdd95427255"
-readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="0d8e347856c873fd8251e2f594943884f001f26b62da64863c802218c7a4cdd6"
-readonly CLEAN_SYSTEM_PATH="/opt/homebrew/opt/go@1.27/bin:/usr/local/opt/go@1.27/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="c86345c75b9965fd2ae8b439d9b24390f01a25d82a673f4ce3b3b91323c1d645"
+readonly CLEAN_SYSTEM_PATH="/opt/homebrew/opt/go@1.27/bin:/usr/local/opt/go@1.27/bin:/opt/homebrew/opt/python@3.14/libexec/bin:/usr/local/opt/python@3.14/libexec/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 readonly SECRET_SCOPE_SYSTEM_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 readonly SSH_KEYGEN_BIN="/usr/bin/ssh-keygen"
 readonly SYSTEM_GIT_BIN="/usr/bin/git"
@@ -36,10 +36,10 @@ readonly GREP_BIN="/usr/bin/grep"
 readonly CMP_BIN="/usr/bin/cmp"
 readonly TAR_BIN="/usr/bin/bsdtar"
 readonly UNAME_BIN="/usr/bin/uname"
-readonly EXPECTED_GORELEASER_VERSION="2.18.2"
+readonly EXPECTED_GORELEASER_VERSION="2.18.3"
 readonly EXPECTED_NODE_VERSION="v26.11.1"
 readonly EXPECTED_EXPECT_VERSION="expect version 5.45.4"
-readonly EXPECTED_PYTHON_VERSION="Python 3.14.7"
+readonly EXPECTED_PYTHON_VERSION="Python 3.14.8"
 readonly EXPECTED_GH_VERSION="2.102.0"
 readonly EXPECTED_JQ_VERSION="jq-1.8.2"
 readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:12VaqnI9kJfqwRoPptxoqsUhQtdfrSbdksT7X/KY/sc="
@@ -235,10 +235,10 @@ resolve_producer_tools() {
   resolved_python="$(resolve_executable python3)"
   if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
     [[ "$resolved_go" =~ ^(/opt/homebrew|/usr/local)/Cellar/go(@1\.27)?/1\.27\.2/libexec/bin/go$ ]] || die "Go must resolve to the canonical Homebrew 1.27.2 executable"
-    [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.18\.2/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.18.2 executable"
+    [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.18\.3/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.18.3 executable"
     [[ "$resolved_node" =~ ^(/opt/homebrew|/usr/local)/Cellar/node/26\.11\.1/bin/node$ ]] || die "Node must resolve to the reviewed Homebrew 26.11.1 executable"
     [[ "$resolved_expect" =~ ^(/opt/homebrew|/usr/local)/Cellar/expect/5\.45\.4_3/bin/expect$ ]] || die "Expect must resolve to the canonical Homebrew 5.45.4_3 executable"
-    [[ "$resolved_python" =~ ^(/opt/homebrew|/usr/local)/Cellar/python@3\.14/3\.14\.7/Frameworks/Python\.framework/Versions/3\.14/bin/python3\.14$ ]] || die "Python must resolve to the canonical Homebrew 3.14.7 executable"
+    [[ "$resolved_python" =~ ^(/opt/homebrew|/usr/local)/Cellar/python@3\.14/3\.14\.8_2/Frameworks/Python\.framework/Versions/3\.14/bin/python3\.14$ ]] || die "Python must resolve to the canonical Homebrew 3.14.8_2 executable"
     producer_go_root="${resolved_go%/bin/go}"
   else
     producer_go_root="${resolved_go%/*}"
@@ -734,26 +734,20 @@ gh_auth_token() {
 }
 
 gh_watch_run() {
-  local repository="$1" run_id="$2" token
+  local repository="$1" run_id="$2" run_json attempt
   assert_js_safe_positive_integer "$run_id" "workflow run ID"
-  freeze_gh_transport
-  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
-    /usr/bin/env -u BASH_ENV -u ENV -u CDPATH -u BASHOPTS -u SHELLOPTS \
-      -u GITHUB_TOKEN -u GH_TOKEN -u GH_HOST -u GH_CONFIG_DIR -u XDG_CONFIG_HOME -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN \
-      -u HOMEBREW_GITHUB_API_TOKEN -u HOMEBREW_TAP_GITHUB_TOKEN \
-      "$gh_binary" run watch "$run_id" --repo "github.com/${repository}" --exit-status
-  else
-    [[ "${HOME:-}" == /* ]] || die "HOME must be absolute for GitHub authentication"
-    /bin/mkdir -p "${git_isolation_root}/gh-config"
-    /bin/chmod 700 "${git_isolation_root}/gh-config"
-    token=$(gh_auth_token) || die "could not obtain GitHub authentication"
-    [[ "$token" =~ ^[A-Za-z0-9_.-]+$ ]] || die "GitHub authentication token is empty or unsafe"
-    /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" GH_CONFIG_DIR="${git_isolation_root}/gh-config" \
-      TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
-      /bin/bash -p -c 'IFS= read -r GH_TOKEN <&3; exec 3<&-; export GH_TOKEN; exec "$@"' \
-      release-local-gh "$gh_binary" run watch "$run_id" --repo "github.com/${repository}" --exit-status 3<<<"$token"
-    unset token
-  fi
+  for ((attempt = 1; attempt <= 8; attempt++)); do
+    run_json="$(gh_api "repos/${repository}/actions/runs/${run_id}")"
+    jq -e --argjson id "$run_id" '.id == $id' <<<"$run_json" >/dev/null || die "workflow run identity changed"
+    if [[ "$(jq -r '.status' <<<"$run_json")" == completed ]]; then
+      [[ "$(jq -r '.conclusion' <<<"$run_json")" == success ]] || die "workflow run ${run_id} did not succeed"
+      return 0
+    fi
+    ((attempt < 8)) || break
+    echo "release-local: run ${run_id} pending; checking again in 300 seconds" >&2
+    sleep 300
+  done
+  die "workflow run ${run_id} exceeded the bounded wait; resume with its stored identity"
 }
 
 homebrew_git() {
@@ -1360,7 +1354,8 @@ canonical_release_record() {
 }
 
 release_identity() {
-  jq -S 'del(.state, .draft, .published_at, .updated_at)' "$1"
+  # Canonical validation binds each state's URL; GitHub changes it at publication.
+  jq -S 'del(.state, .draft, .published_at, .updated_at) | .assets |= map(del(.browser_download_url))' "$1"
 }
 
 fetch_release_record() {
