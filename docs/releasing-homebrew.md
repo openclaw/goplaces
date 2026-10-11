@@ -5,13 +5,13 @@ This is the required `verified-hashes-v1` Formula handoff contract for a publish
 ## Frozen Tap Trust Anchor
 
 - Repository: `openclaw/homebrew-tap`.
-- Pinned base commit: `c697e7ce1bf42f8c4a8c909e117204f3beadd088`.
+- Pinned base commit: `22b262a218d734287d16197247b6de529b09cce1`.
 - Workflow: `.github/workflows/update-formula.yml`.
 - Workflow numeric ID: `220664022`.
 - Updater: `.github/scripts/update_formula.py`.
 - Required updater marker: `# verified-hashes-v1`.
 
-This base includes the [Formula migration](https://github.com/openclaw/homebrew-tap/pull/56), [literal-URL updater fix](https://github.com/openclaw/homebrew-tap/pull/57), and [trust-marker restoration](https://github.com/openclaw/homebrew-tap/pull/58). Verified updates must retain literal release URLs so Homebrew can infer the version without an explicit version declaration.
+This base also includes the reviewed architecture-pair and allowlisted Formula-profile support; the four-platform `verified-hashes-v1` path is unchanged. It includes the [Formula migration](https://github.com/openclaw/homebrew-tap/pull/56), [literal-URL updater fix](https://github.com/openclaw/homebrew-tap/pull/57), and [trust-marker restoration](https://github.com/openclaw/homebrew-tap/pull/58). Verified updates must retain literal release URLs so Homebrew can infer the version without an explicit version declaration.
 
 The protected default branch, workflow bytes, updater bytes (including `.github/scripts/formula_text.py` at the pinned commit), and marker must match this pinned contract before dispatch. A newer tap commit is not implicitly trusted.
 
@@ -51,7 +51,7 @@ brew install openclaw/tap/goplaces
 
 ## Handoff After Release Closeout
 
-The producer currently requires the release tag commit to equal protected current `main`, and its draft-to-published identity comparison still includes GitHub's changing `browser_download_url`. The v0.4.11 publication recovery recorded both limitations before this Formula migration. Do not move the tag, overwrite frozen release records, republish assets, or claim that the producer command passed when it did not.
+The producer requires the release tag commit to equal protected current `main`. Publication validates the state's canonical download URLs separately from the unchanged numeric asset identities and digests. The v0.4.11 publication recovery recorded both limitations before this Formula migration. Do not move the tag, overwrite frozen release records, republish assets, or claim that the producer command passed when it did not.
 
 For an already-published release such as v0.4.11, an equivalent serialized handoff must retain the checks above, with these explicit bindings:
 

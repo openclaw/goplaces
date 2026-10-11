@@ -1,19 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.4.12 - 2026-10-11
 
-- CI: prevent early workflow-proof matches from triggering false failures through SIGPIPE on macOS.
-- CLI: honor `NO_COLOR` only when its value is nonempty, preserving color when the variable is empty. (#81) - thanks @rudycelekli
-- Build: update deadcode and the gosec importer to x/tools 0.52.0, and pin govulncheck 1.9.0 across CI and release verification.
-- Security: build and test with Go 1.27.2 for standard-library vulnerability fixes while retaining the Go 1.26.8 minimum; update the pinned Node tooling to 26.11.1 and repair gosec's Go 1.27 export-data compatibility.
-- Build: update golangci-lint to 2.14.0, deadcode to 0.51.0, and the reviewed GitHub CLI pin to 2.102.0 so CI accepts the current Homebrew installation.
-- CI: clean failed Go and ShellCheck bootstrap installations so valid retries succeed, and remove temporary extraction data after success. (#69) - thanks @rudycelekli
-- Docs: preserve complete metadata descriptions across HTML quote styles and attribute order. (#68) - thanks @rudycelekli
+**Highlights:** More reliable API errors and CLI validation, with Go standard-library security fixes and verified Homebrew Formula installs.
+
 - Client: preserve endpoint override query parameters and opaque paths, retain HTTP error status when response reads fail, and reject JSON null results. (#73, #74, #75) - thanks @rudycelekli
-- Validation: reject malformed directions timestamps and conflicting or oversized nearby type filters; accept zero-radius autocomplete point biases. (#63, #70, #71) - thanks @rudycelekli
 - CLI: keep parse-error usage on stderr, enforce explicit result-limit bounds, report version output failures, and preserve Unicode shaping joiners in human results. (#64, #65, #67, #76) - thanks @rudycelekli
+- Validation: reject malformed directions timestamps and conflicting or oversized nearby type filters; accept zero-radius autocomplete point biases. (#63, #70, #71) - thanks @rudycelekli
 - Client: reject responses larger than 1 MiB without decoding truncated data, and report unhandled HTTP redirects as API errors instead of successful results.
+- CLI: honor `NO_COLOR` only when its value is nonempty, preserving color when the variable is empty. (#81) - thanks @rudycelekli
+- Security: build and test with Go 1.27.2 for standard-library vulnerability fixes while retaining the Go 1.26.8 minimum; update the pinned Node tooling to 26.11.1 and repair gosec's Go 1.27 export-data compatibility.
 - Homebrew: install through a Formula (`brew install openclaw/tap/goplaces`) instead of the retired Cask; quarantine is preserved.
+- Docs: preserve complete metadata descriptions across HTML quote styles and attribute order. (#68) - thanks @rudycelekli
+- CI: clean failed Go and ShellCheck bootstrap installations so valid retries succeed, and remove temporary extraction data after success. (#69) - thanks @rudycelekli
+- Build: update deadcode and the gosec importer to x/tools 0.52.0, and pin govulncheck 1.9.0 across CI and release verification.
+- Build: update golangci-lint to 2.14.0, deadcode to 0.51.0, and the reviewed GitHub CLI pin to 2.102.0 so CI accepts the current Homebrew installation.
+- CI: prevent early workflow-proof matches from triggering false failures through SIGPIPE on macOS.
+- Release: refresh the reviewed producer and Homebrew handoff pins, and accept GitHub’s validated draft-to-published download URL transition without weakening asset identity checks.
 
 ## 0.4.11 - 2026-09-13
 

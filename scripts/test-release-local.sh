@@ -202,7 +202,7 @@ EOF
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
     source "$1"; homebrew_command --debug install --formula hostile.rb
   ' _ "$release_script"
-  grep -Fq 'readonly TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088"' "$release_script" || die "tap trust base is not pinned"
+  grep -Fq 'readonly TAP_BASE="22b262a218d734287d16197247b6de529b09cce1"' "$release_script" || die "tap trust base is not pinned"
   grep -Fq 'readonly TAP_WORKFLOW_ID="220664022"' "$release_script" || die "tap workflow numeric identity is not pinned"
   grep -Fq 'readonly TAR_BIN="/usr/bin/bsdtar"' "$release_script" || die "system tar does not name the canonical nonsymlink executable"
   grep -Fq 'HOMEBREW_NO_INSTALL_FROM_API=1' "$release_script" || die "Homebrew package inventory can trigger API installation"
@@ -251,7 +251,7 @@ EOF
     die "exact tap predispatch recheck is not immediately before the workflow POST"
   grep -Fq 'readonly RELEASE_MAC_APP_DEFAULT="/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release"' "$release_script" || die "release-mac-app is not pinned independently of HOME"
   grep -Fq 'readonly RELEASE_MAC_APP_EXPECTED_SHA256="e65e06ef89ec90ebfc537d28748a3c4de8ce89bd09b51e4d67ba4bdd95427255"' "$release_script" || die "release-mac-app entrypoint digest is not pinned"
-  grep -Fq 'readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="0d8e347856c873fd8251e2f594943884f001f26b62da64863c802218c7a4cdd6"' "$release_script" || die "release-mac-app library digest is not pinned"
+  grep -Fq 'readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="c86345c75b9965fd2ae8b439d9b24390f01a25d82a673f4ce3b3b91323c1d645"' "$release_script" || die "release-mac-app library digest is not pinned"
   grep -Fq '[[ "$source_digest" == "$RELEASE_MAC_APP_EXPECTED_SHA256" ]]' "$release_script" || die "release-mac-app entrypoint is not checked against reviewed bytes"
   grep -Fq '[[ "$source_lib_digest" == "$RELEASE_MAC_APP_LIB_EXPECTED_SHA256" ]]' "$release_script" || die "release-mac-app library is not checked against reviewed bytes"
   ! grep -Fq 'RELEASE_MAC_APP_DEFAULT="${HOME}' "$release_script" || die "release-mac-app still trusts ambient HOME"
@@ -731,6 +731,18 @@ test_release_record_freeze() {
     canonical_release_record "$raw" "$canonical" v0.4.5 draft "$notes"
   )
   [[ "$(jq '.assets | length' "$canonical")" == "7" ]] || die "canonical record lost assets"
+  make_release_fixture "${scratch}/published-raw.json" "$notes" false
+  (
+    source_release
+    default_branch=main
+    default_sha="$SHA"
+    canonical_release_record "${scratch}/published-raw.json" "${scratch}/published.json" v0.4.5 published "$notes"
+    [[ "$(release_identity "$canonical")" == "$(release_identity "${scratch}/published.json")" ]] ||
+      die "publication URL transition changed asset identity"
+    jq '.assets[0].digest = "sha256:" + ("1" * 64)' "${scratch}/published.json" > "$tampered"
+    [[ "$(release_identity "$canonical")" != "$(release_identity "$tampered")" ]] ||
+      die "publication accepted a changed asset digest"
+  )
   jq '.assets[1].id = .assets[0].id' "$raw" > "$tampered"
   expect_failure "duplicate asset ID" bash -c '
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
@@ -1186,7 +1198,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 if [[ "$*" == --version ]]; then
-  printf 'GitVersion:    2.18.2\n'
+  printf 'GitVersion:    2.18.3\n'
   exit 0
 fi
 [[ "${1:-}" == release ]] || exit 92
@@ -1346,7 +1358,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 if [[ "$*" == '-I --version' ]]; then
-  printf 'Python 3.14.7\n'
+  printf 'Python 3.14.8\n'
   exit 0
 fi
 [[ "${1:-}" == -I ]] || exit 95
@@ -1371,7 +1383,7 @@ test_producer_gate_hardening() {
   alias_tmp="${scratch}/tmp-alias"
   mkdir -p "$real_tmp"
   ln -s "$real_tmp" "$alias_tmp"
-  make_fake_producer_tools "$tools" go1.27.2 2.18.2
+  make_fake_producer_tools "$tools" go1.27.2 2.18.3
   mkdir -p "$launch"
   ln -s "${tools}/go" "${launch}/go"
   ln -s "${tools}/goreleaser" "${launch}/goreleaser"
@@ -1436,7 +1448,7 @@ EOF
   [[ ! -e "$sentinel" ]] || die "hostile PATH utility executed during producer resolution"
 
   old_go="${scratch}/old-go"
-  make_fake_producer_tools "$old_go" go1.26.4 2.18.2
+  make_fake_producer_tools "$old_go" go1.26.4 2.18.3
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1459,7 +1471,7 @@ EOF
   fi
 
   mutation="${scratch}/mutation-tools"
-  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.3
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1472,7 +1484,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "same-byte GoReleaser inode replacement was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.3
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1484,7 +1496,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "in-place Go byte mutation was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.3
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1497,7 +1509,7 @@ EOF
   ) >/dev/null 2>&1; then
     die "same-byte release-mac-app replacement was accepted"
   fi
-  make_fake_producer_tools "$mutation" go1.27.2 2.18.2
+  make_fake_producer_tools "$mutation" go1.27.2 2.18.3
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1 RELEASE_MAC_APP_BIN="$helper"
     source "$release_script"
@@ -1678,7 +1690,7 @@ printf '%s\n' "$*" >> "$GH_TRANSPORT_LOG"
 case "$*" in
   'api --hostname github.com -H X-GitHub-Api-Version: 2026-03-10 repos/openclaw/goplaces') printf '{}\n' ;;
   'auth token --hostname github.com') printf 'fixture_token\n' ;;
-  'run watch 29009699237 --repo github.com/openclaw/goplaces --exit-status') ;;
+  'api --hostname github.com -H X-GitHub-Api-Version: 2026-03-10 repos/openclaw/goplaces/actions/runs/29009699237') printf '{"id":29009699237,"status":"completed","conclusion":"success"}\n' ;;
   *) exit 82 ;;
 esac
 EOF
@@ -1692,8 +1704,28 @@ EOF
     [[ "$(gh_auth_token)" == fixture_token ]] || exit 83
     gh_watch_run openclaw/goplaces 29009699237
   )
-  [[ "$(cat "$log")" == $'api --hostname github.com -H X-GitHub-Api-Version: 2026-03-10 repos/openclaw/goplaces\nauth token --hostname github.com\nrun watch 29009699237 --repo github.com/openclaw/goplaces --exit-status' ]] ||
+  [[ "$(cat "$log")" == $'api --hostname github.com -H X-GitHub-Api-Version: 2026-03-10 repos/openclaw/goplaces\nauth token --hostname github.com\napi --hostname github.com -H X-GitHub-Api-Version: 2026-03-10 repos/openclaw/goplaces/actions/runs/29009699237' ]] ||
     die "GitHub transport wrappers were not pinned exactly"
+  rm -rf "$scratch"
+}
+
+
+test_workflow_wait_is_bounded() {
+  local scratch
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/goplaces-bounded-wait.XXXXXX")"
+  if (
+    source_release
+    gh_api() {
+      printf 'poll\n' >> "${scratch}/polls"
+      printf '{"id":42,"status":"in_progress","conclusion":null}\n'
+    }
+    sleep() { [[ "$1" == 300 ]] || exit 91; printf 'sleep\n' >> "${scratch}/sleeps"; }
+    gh_watch_run openclaw/goplaces 42
+  ) >/dev/null 2>&1; then
+    die "pending workflow escaped bounded wait"
+  fi
+  [[ "$(wc -l < "${scratch}/polls" | tr -d ' ')" == 8 ]] || die "workflow poll budget changed"
+  [[ "$(wc -l < "${scratch}/sleeps" | tr -d ' ')" == 7 ]] || die "workflow backoff changed"
   rm -rf "$scratch"
 }
 
@@ -1784,7 +1816,7 @@ EOF
 set -euo pipefail
 printf 'goreleaser' >> "$MOCK_LOG"; printf ' <%s>' "$@" >> "$MOCK_LOG"; printf '\n' >> "$MOCK_LOG"
 [[ "$*" == --version ]] || { echo "unexpected goreleaser command: $*" >&2; exit 90; }
-printf 'GitVersion:    %s\n' "${MOCK_GORELEASER_VERSION:-2.18.2}"
+printf 'GitVersion:    %s\n' "${MOCK_GORELEASER_VERSION:-2.18.3}"
 EOF
   cat > "${root}/mock-bin/gh" <<'EOF'
 #!/usr/bin/env bash
@@ -1835,7 +1867,7 @@ fi
 EOF
   printf '# frozen mock helper library\n' > "${root}/mock-bin/lib/mac_release.sh"
   chmod +x "${root}/mock-bin/"*
-  write_fixture_producer_tools "$root" go1.27.2 2.18.2
+  write_fixture_producer_tools "$root" go1.27.2 2.18.3
 }
 
 write_fixture_producer_tools() {
@@ -1869,7 +1901,7 @@ EOF
 #!/bin/bash -p
 set -euo pipefail
 if [[ "$*" == '-I --version' ]]; then
-  printf 'Python 3.14.7\n'
+  printf 'Python 3.14.8\n'
   exit 0
 fi
 [[ "${1:-}" == -I ]] || exit 95
@@ -1891,7 +1923,7 @@ run_fixture() {
       hostile_environment+=("${name}=${!name}")
     fi
   done
-  write_fixture_producer_tools "$root" "${MOCK_GO_VERSION:-go1.27.2}" "${MOCK_GORELEASER_VERSION:-2.18.2}"
+  write_fixture_producer_tools "$root" "${MOCK_GO_VERSION:-go1.27.2}" "${MOCK_GORELEASER_VERSION:-2.18.3}"
   (
     cd "$root"
     /usr/bin/env -i \
@@ -1899,7 +1931,7 @@ run_fixture() {
       PATH="${root}/mock-bin:/opt/homebrew/bin:/usr/bin:/bin" \
       HOME="${root}/home" TMPDIR="${root}/tmp" MOCK_LOG="${root}/mock.log" \
       MOCK_GO_VERSION="${MOCK_GO_VERSION:-go1.27.2}" MOCK_GIT_STATUS="${MOCK_GIT_STATUS:-}" \
-      MOCK_GORELEASER_VERSION="${MOCK_GORELEASER_VERSION:-2.18.2}" \
+      MOCK_GORELEASER_VERSION="${MOCK_GORELEASER_VERSION:-2.18.3}" \
       MOCK_ORIGIN="${MOCK_ORIGIN:-https://github.com/openclaw/goplaces}" MOCK_BRANCH="${MOCK_BRANCH:-main}" MOCK_SHA="$SHA" \
       MOCK_PROTECTED="${MOCK_PROTECTED:-true}" MOCK_API_SHA="${MOCK_API_SHA:-$SHA}" \
       MOCK_FIXTURE_ROOT="$root" MOCK_FRESH_STATUS="${MOCK_FRESH_STATUS:-}" \
@@ -2613,7 +2645,7 @@ prepare_homebrew_dispatch_fixture() {
   )
   hb_title="$(jq -er '.expected_title' "${hb_state}/homebrew-intent.json")"
   jq -n --argjson id 29010348667 --arg title "$hb_title" \
-    --arg sha c697e7ce1bf42f8c4a8c909e117204f3beadd088 --arg repo openclaw/homebrew-tap '{
+    --arg sha 22b262a218d734287d16197247b6de529b09cce1 --arg repo openclaw/homebrew-tap '{
       id:$id,workflow_id:220664022,path:".github/workflows/update-formula.yml",display_title:$title,
       event:"workflow_dispatch",head_branch:"main",head_sha:$sha,status:"completed",conclusion:"success",
       run_attempt:1,created_at:"2026-07-10T10:00:00Z",repository:{full_name:$repo},
@@ -2665,7 +2697,7 @@ run_homebrew_dispatch_fixture() {
       tap_default_branch=main
       tap_workflow_id=220664022
       if ((hb_call == 1)) && [[ "$hb_mode" != direct-child && "$hb_mode" != unbound-child ]]; then
-        tap_head=c697e7ce1bf42f8c4a8c909e117204f3beadd088
+        tap_head=22b262a218d734287d16197247b6de529b09cce1
       else
         tap_head=3333333333333333333333333333333333333333
       fi
@@ -3056,8 +3088,8 @@ endpoint=""
 for arg in "$@"; do case "$arg" in repos/*) endpoint="$arg" ;; esac; done
 case "$endpoint" in
   repos/openclaw/homebrew-tap) printf '{"default_branch":"main"}\n' ;;
-  repos/openclaw/homebrew-tap/branches/main) printf '{"name":"main","protected":%s,"commit":{"sha":"%s"}}\n' "${TAP_PROTECTED:-true}" "${TAP_HEAD:-c697e7ce1bf42f8c4a8c909e117204f3beadd088}" ;;
-  repos/openclaw/homebrew-tap/compare/c697e7ce1bf42f8c4a8c909e117204f3beadd088...c697e7ce1bf42f8c4a8c909e117204f3beadd088)
+  repos/openclaw/homebrew-tap/branches/main) printf '{"name":"main","protected":%s,"commit":{"sha":"%s"}}\n' "${TAP_PROTECTED:-true}" "${TAP_HEAD:-22b262a218d734287d16197247b6de529b09cce1}" ;;
+  repos/openclaw/homebrew-tap/compare/22b262a218d734287d16197247b6de529b09cce1...22b262a218d734287d16197247b6de529b09cce1)
     printf '{"status":"%s","base_commit":{"sha":"%s"},"merge_base_commit":{"sha":"%s"},"head_commit":{"sha":"%s"}}\n' "${TAP_COMPARE_STATUS:-identical}" "${TAP_COMPARE_BASE:-$TAP_BASE}" "${TAP_COMPARE_MERGE_BASE:-$TAP_BASE}" "${TAP_COMPARE_HEAD:-$TAP_BASE}"
     ;;
   repos/openclaw/homebrew-tap/contents/.github/workflows/update-formula.yml*)
@@ -3074,7 +3106,7 @@ EOF
   export MOCK_FIXTURE_ROOT="$scratch" GOPLACES_RELEASE_LOCAL_TEST_GH_BIN="${mock_bin}/gh"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="22b262a218d734287d16197247b6de529b09cce1" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     # shellcheck source=release-local
@@ -3090,7 +3122,7 @@ EOF
   mkdir -p "${scratch}/work-moved"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088" TAP_HEAD="3333333333333333333333333333333333333333" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="22b262a218d734287d16197247b6de529b09cce1" TAP_HEAD="3333333333333333333333333333333333333333" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3106,7 +3138,7 @@ EOF
   mkdir -p "${scratch}/work-unprotected"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088" TAP_PROTECTED=false WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="22b262a218d734287d16197247b6de529b09cce1" TAP_PROTECTED=false WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3121,7 +3153,7 @@ EOF
   mkdir -p "${scratch}/work-bad-compare"
   if (
     export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-    export GH_BLOCKER_LOG="$log" TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088" TAP_COMPARE_STATUS=ahead WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+    export GH_BLOCKER_LOG="$log" TAP_BASE="22b262a218d734287d16197247b6de529b09cce1" TAP_COMPARE_STATUS=ahead WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
     PATH="${mock_bin}:$PATH"
     export PATH
     source "$release_script"
@@ -3139,7 +3171,7 @@ EOF
     export "$compare_control=3333333333333333333333333333333333333333"
     if (
       export GOPLACES_RELEASE_LOCAL_TESTING=1 GOPLACES_RELEASE_LOCAL_SOURCE_ONLY=1
-      export GH_BLOCKER_LOG="$log" TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
+      export GH_BLOCKER_LOG="$log" TAP_BASE="22b262a218d734287d16197247b6de529b09cce1" WORKFLOW_CONTENT="$workflow_content" UPDATER_CONTENT="$updater_content"
       PATH="${mock_bin}:$PATH"
       export PATH
       source "$release_script"
@@ -3273,6 +3305,7 @@ main() {
   test_signature_program_is_pinned
   test_tag_identity_is_frozen
   test_gh_transport_is_pinned
+  test_workflow_wait_is_bounded
   test_preflight_and_pilot_mocks
   test_codesign_wrapper_scopes_auth_and_startup_env
   test_draft_canonicalizes_tmpdir_paths
