@@ -119,7 +119,8 @@ require_code_pattern() {
   local workflow="$1"
   local pattern="$2"
   local description="$3"
-  if ! grep -Ev '^[[:space:]]*#' "$workflow" | grep -Eq "$pattern"; then
+  # Read the complete input so pipefail cannot mistake an upstream SIGPIPE for a missing proof.
+  if ! grep -Ev '^[[:space:]]*#' "$workflow" | grep -E "$pattern" >/dev/null; then
     die "$workflow omits executable $description"
   fi
 }
@@ -174,6 +175,11 @@ assert_workflow_proof() {
   done
   assert_active_workflow_steps "$workflow" || die "$workflow release proofs are not active workflow steps"
 }
+
+require_code_pattern <(awk 'BEGIN {
+  print "proof: present"
+  for (i = 0; i < 8192; i++) print "fixture: padding"
+}') '^proof: present$' "early proof in a large workflow"
 
 for workflow in "$release_workflow" "$ci_workflow"; do
   assert_workflow_safe "$workflow"
