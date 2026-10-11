@@ -72,6 +72,8 @@ These endpoint overrides are intended for tests, proxies, and mock servers:
 
 Global flags include `--api-key`, `--timeout`, `--json`, and `--no-color`. Command-specific examples and response details live at [goplaces.sh](https://goplaces.sh).
 
+Color output follows the [NO_COLOR convention](https://no-color.org/): a nonempty `NO_COLOR` value disables color; an empty value does not. `--no-color` always disables color, as does an unset or `dumb` terminal type.
+
 ## Go client
 
 The root module exposes the same search, nearby, autocomplete, details, photo, resolve, route, and directions workflows as typed Go methods.
