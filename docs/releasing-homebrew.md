@@ -5,7 +5,7 @@ This is the required `verified-hashes-v1` Formula handoff contract for a publish
 ## Frozen Tap Trust Anchor
 
 - Repository: `openclaw/homebrew-tap`.
-- Pinned base commit: `22b262a218d734287d16197247b6de529b09cce1`.
+- Pinned base commit: `d9046890ddda17d8acc0e3202117dc8ed09925f6`.
 - Workflow: `.github/workflows/update-formula.yml`.
 - Workflow numeric ID: `220664022`.
 - Updater: `.github/scripts/update_formula.py`.
