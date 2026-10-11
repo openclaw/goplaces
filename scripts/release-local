@@ -733,6 +733,24 @@ gh_auth_token() {
   fi
 }
 
+
+gh_api_pages() {
+  local endpoint="$1" page response count
+  [[ "$endpoint" == *'per_page=100'* ]] || die "paged inventory must request 100 records"
+  for ((page = 1; page <= 10; page++)); do
+    if ((page == 1)); then
+      response="$(gh_api "$endpoint")" || die "inventory page request failed"
+    else
+      response="$(gh_api "${endpoint}&page=${page}")" || die "inventory page request failed"
+    fi
+    count="$(jq -er 'if type == "array" then length elif (.workflow_runs | type) == "array" then .workflow_runs | length else error("invalid inventory page") end' <<<"$response")" || die "invalid inventory page"
+    [[ "$count" =~ ^[0-9]+$ && "$count" -le 100 ]] || die "invalid inventory page size"
+    printf '%s\n' "$response"
+    ((count == 100)) || return 0
+  done
+  die "inventory exceeds the ten-page budget; refusing incomplete records"
+}
+
 gh_watch_run() {
   local repository="$1" run_id="$2" run_json attempt
   assert_js_safe_positive_integer "$run_id" "workflow run ID"
@@ -1214,7 +1232,7 @@ expected_assets_json() {
 
 resolve_release_id() {
   local tag="$1" pages count
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   count="$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")"
   [[ "$count" == "1" ]] || die "expected exactly one release for $tag, found $count"
   jq -ser --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)][0].id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' <<<"$pages"
@@ -1222,7 +1240,7 @@ resolve_release_id() {
 
 ensure_release_absent() {
   local tag="$1" pages count
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   count="$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")"
   [[ "$count" == "0" ]] || die "a release already exists for $tag"
 }
@@ -1254,7 +1272,7 @@ prepare_draft_intent() {
     return 0
   fi
   created_after="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   jq -es 'all(.[][]; (.id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .))' <<<"$pages" >/dev/null ||
     die "release inventory contains an unsafe numeric ID"
   [[ "$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")" == 0 ]] ||
@@ -1276,7 +1294,7 @@ prepare_draft_intent() {
 resolve_intended_draft_id() {
   local tag="$1" intent="${release_state_dir}/draft-intent.json" pages matches count release_id
   require_regular_file "$intent"
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   matches="$(jq -sc --slurpfile intent "$intent" --arg tag "$tag" '
     [.[] | .[] | select(.tag_name == $tag) |
       select(.id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .) |
@@ -1460,7 +1478,7 @@ workflow_record() {
 fetch_workflow_runs() {
   local repository="$1" workflow_id="$2" branch="$3" output="$4" pages
   assert_js_safe_positive_integer "$workflow_id" "workflow ID"
-  pages="$(gh_api --paginate "repos/${repository}/actions/workflows/${workflow_id}/runs?event=workflow_dispatch&branch=${branch}&per_page=100")"
+  pages="$(gh_api_pages "repos/${repository}/actions/workflows/${workflow_id}/runs?event=workflow_dispatch&branch=${branch}&per_page=100")" || die "could not fetch the complete inventory"
   jq -es '
     def safe_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
     [.[] | .workflow_runs[]] as $runs |

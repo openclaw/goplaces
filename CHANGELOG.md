@@ -17,6 +17,7 @@
 - Build: update golangci-lint to 2.14.0, deadcode to 0.51.0, and the reviewed GitHub CLI pin to 2.102.0 so CI accepts the current Homebrew installation.
 - CI: prevent early workflow-proof matches from triggering false failures through SIGPIPE on macOS.
 - Release: refresh the reviewed producer and Homebrew handoff pins, and accept GitHub’s validated draft-to-published download URL transition without weakening asset identity checks.
+- Release: bound inventory reads and CI polling, and reject incomplete API records before publication.
 
 ## 0.4.11 - 2026-09-13
 

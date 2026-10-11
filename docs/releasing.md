@@ -56,7 +56,7 @@ These are public mutations and require the serialized public gate.
 
 Run `scripts/release-local verify-draft vX.Y.Z` only after the draft inventory is frozen.
 
-The dispatcher uses GitHub API version `2026-03-10` and dispatches `.github/workflows/release-assets.yml` from the protected current default branch. It requires the live workflow’s numeric ID to remain exactly `311062804` and the run record’s canonical path to equal `.github/workflows/release-assets.yml`; the protected branch and head SHA are pinned separately. It snapshots existing run IDs, consumes the dispatch response’s numeric `workflow_run_id`, rejects a pre-existing or substituted run, polls that exact ID at five-minute intervals, up to eight times, and then requires newest-proof selection to return the same run ID.
+Release and workflow inventories use explicit 100-record REST pages with a ten-page maximum; an incomplete inventory fails closed. The dispatcher uses GitHub API version `2026-03-10` and dispatches `.github/workflows/release-assets.yml` from the protected current default branch. It requires the live workflow’s numeric ID to remain exactly `311062804` and the run record’s canonical path to equal `.github/workflows/release-assets.yml`; the protected branch and head SHA are pinned separately. It snapshots existing run IDs, consumes the dispatch response’s numeric `workflow_run_id`, rejects a pre-existing or substituted run, polls that exact ID at five-minute intervals, up to eight times, and then requires newest-proof selection to return the same run ID.
 
 The native verifier runs independently on Apple silicon and Intel. Each job:
 

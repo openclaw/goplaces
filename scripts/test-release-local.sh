@@ -642,9 +642,10 @@ test_paginated_run_inventory() {
   cat > "${mock_bin}/gh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$1" == api && "$*" == *'--paginate'* ]] || exit 90
-printf '%s\n' '{"workflow_runs":[{"id":1,"workflow_id":311062804,"head_sha":"a"},{"id":2,"workflow_id":311062804,"head_sha":"b"}]}'
-if [[ "${MOCK_CONFLICT:-0}" == 1 ]]; then
+[[ "$1" == api && "$*" != *'--paginate'* ]] || exit 90
+if [[ "${MOCK_LIMIT:-0}" == 1 || "$*" != *'page=2'* ]]; then
+  jq -n '{workflow_runs:[range(0;100) | {id:(if .%2 == 0 then 1 else 2 end),workflow_id:311062804,head_sha:(if .%2 == 0 then "a" else "b" end)}]}'
+elif [[ "${MOCK_CONFLICT:-0}" == 1 ]]; then
   printf '%s\n' '{"workflow_runs":[{"id":2,"workflow_id":311062804,"head_sha":"hostile"},{"id":3,"workflow_id":311062804,"head_sha":"c"}]}'
 elif [[ "${MOCK_OVERFLOW:-0}" == 1 ]]; then
   printf '%s\n' '{"workflow_runs":[{"id":9007199254740992,"workflow_id":311062804,"head_sha":"hostile"}]}'
@@ -675,6 +676,14 @@ EOF
     fetch_workflow_runs openclaw/goplaces 311062804 main "$output"
   ) >/dev/null 2>&1; then
     die "overflow workflow run ID was accepted"
+  fi
+  if (
+    source_release
+    PATH="${mock_bin}:$PATH"
+    export PATH MOCK_LIMIT=1 MOCK_FIXTURE_ROOT="$scratch" GOPLACES_RELEASE_LOCAL_TEST_GH_BIN="${mock_bin}/gh"
+    fetch_workflow_runs openclaw/goplaces 311062804 main "$output"
+  ) >/dev/null 2>&1; then
+    die "exhausted inventory page budget was accepted"
   fi
   rm -rf "$scratch"
 }
