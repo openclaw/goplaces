@@ -9,11 +9,11 @@ umask 077
 readonly REPOSITORY="openclaw/goplaces"
 readonly EXPECTED_ORIGIN_HTTPS="https://github.com/${REPOSITORY}"
 readonly API_VERSION="2026-03-10"
-readonly EXPECTED_GO_VERSION="go1.26.8"
+readonly EXPECTED_GO_VERSION="go1.27.2"
 readonly VERIFIER_WORKFLOW=".github/workflows/release-assets.yml"
 readonly VERIFIER_WORKFLOW_ID="311062804"
 readonly TAP_REPOSITORY="openclaw/homebrew-tap"
-readonly TAP_BASE="c697e7ce1bf42f8c4a8c909e117204f3beadd088"
+readonly TAP_BASE="d9046890ddda17d8acc0e3202117dc8ed09925f6"
 readonly TAP_WORKFLOW=".github/workflows/update-formula.yml"
 readonly TAP_WORKFLOW_ID="220664022"
 readonly TAP_UPDATER=".github/scripts/update_formula.py"
@@ -22,8 +22,8 @@ readonly HOMEBREW_REPOSITORY="Homebrew/brew"
 readonly EXPECTED_HOMEBREW_ORIGIN_HTTPS="https://github.com/${HOMEBREW_REPOSITORY}"
 readonly RELEASE_MAC_APP_DEFAULT="/Users/steipete/Projects/agent-scripts/skills/release-mac-app/scripts/mac-release"
 readonly RELEASE_MAC_APP_EXPECTED_SHA256="e65e06ef89ec90ebfc537d28748a3c4de8ce89bd09b51e4d67ba4bdd95427255"
-readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="0d8e347856c873fd8251e2f594943884f001f26b62da64863c802218c7a4cdd6"
-readonly CLEAN_SYSTEM_PATH="/opt/homebrew/opt/go@1.26/bin:/usr/local/opt/go@1.26/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+readonly RELEASE_MAC_APP_LIB_EXPECTED_SHA256="c86345c75b9965fd2ae8b439d9b24390f01a25d82a673f4ce3b3b91323c1d645"
+readonly CLEAN_SYSTEM_PATH="/opt/homebrew/opt/go@1.27/bin:/usr/local/opt/go@1.27/bin:/opt/homebrew/opt/python@3.14/libexec/bin:/usr/local/opt/python@3.14/libexec/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 readonly SECRET_SCOPE_SYSTEM_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 readonly SSH_KEYGEN_BIN="/usr/bin/ssh-keygen"
 readonly SYSTEM_GIT_BIN="/usr/bin/git"
@@ -36,13 +36,13 @@ readonly GREP_BIN="/usr/bin/grep"
 readonly CMP_BIN="/usr/bin/cmp"
 readonly TAR_BIN="/usr/bin/bsdtar"
 readonly UNAME_BIN="/usr/bin/uname"
-readonly EXPECTED_GORELEASER_VERSION="2.18.2"
-readonly EXPECTED_NODE_VERSION="v26.9.0"
+readonly EXPECTED_GORELEASER_VERSION="2.18.3"
+readonly EXPECTED_NODE_VERSION="v26.11.1"
 readonly EXPECTED_EXPECT_VERSION="expect version 5.45.4"
-readonly EXPECTED_PYTHON_VERSION="Python 3.14.7"
+readonly EXPECTED_PYTHON_VERSION="Python 3.14.8"
 readonly EXPECTED_GH_VERSION="2.102.0"
 readonly EXPECTED_JQ_VERSION="jq-1.8.2"
-readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:clG4qBU6zH5VKjti8n5j8BBuYzoSha392xXMkXS351U="
+readonly EXPECTED_GOVULNCHECK_MODULE_SUM="h1:12VaqnI9kJfqwRoPptxoqsUhQtdfrSbdksT7X/KY/sc="
 
 repo_root="$(cd "$(/usr/bin/dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$repo_root"
@@ -234,11 +234,11 @@ resolve_producer_tools() {
   resolved_expect="$(resolve_executable expect)"
   resolved_python="$(resolve_executable python3)"
   if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" != 1 ]]; then
-    [[ "$resolved_go" =~ ^(/opt/homebrew|/usr/local)/Cellar/go(@1\.26)?/1\.26\.8/libexec/bin/go$ ]] || die "Go must resolve to the canonical Homebrew 1.26.8 executable"
-    [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.18\.2/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.18.2 executable"
-    [[ "$resolved_node" =~ ^(/opt/homebrew|/usr/local)/Cellar/node/26\.9\.0/bin/node$ ]] || die "Node must resolve to the reviewed Homebrew 26.9.0 executable"
+    [[ "$resolved_go" =~ ^(/opt/homebrew|/usr/local)/Cellar/go(@1\.27)?/1\.27\.2/libexec/bin/go$ ]] || die "Go must resolve to the canonical Homebrew 1.27.2 executable"
+    [[ "$resolved_goreleaser" =~ ^(/opt/homebrew|/usr/local)/Cellar/goreleaser/2\.18\.3/bin/goreleaser$ ]] || die "GoReleaser must resolve to the canonical Homebrew 2.18.3 executable"
+    [[ "$resolved_node" =~ ^(/opt/homebrew|/usr/local)/Cellar/node/26\.11\.1/bin/node$ ]] || die "Node must resolve to the reviewed Homebrew 26.11.1 executable"
     [[ "$resolved_expect" =~ ^(/opt/homebrew|/usr/local)/Cellar/expect/5\.45\.4_3/bin/expect$ ]] || die "Expect must resolve to the canonical Homebrew 5.45.4_3 executable"
-    [[ "$resolved_python" =~ ^(/opt/homebrew|/usr/local)/Cellar/python@3\.14/3\.14\.7/Frameworks/Python\.framework/Versions/3\.14/bin/python3\.14$ ]] || die "Python must resolve to the canonical Homebrew 3.14.7 executable"
+    [[ "$resolved_python" =~ ^(/opt/homebrew|/usr/local)/Cellar/python@3\.14/3\.14\.8_2/Frameworks/Python\.framework/Versions/3\.14/bin/python3\.14$ ]] || die "Python must resolve to the canonical Homebrew 3.14.8_2 executable"
     producer_go_root="${resolved_go%/bin/go}"
   else
     producer_go_root="${resolved_go%/*}"
@@ -733,27 +733,39 @@ gh_auth_token() {
   fi
 }
 
+
+gh_api_pages() {
+  local endpoint="$1" page response count
+  [[ "$endpoint" == *'per_page=100'* ]] || die "paged inventory must request 100 records"
+  for ((page = 1; page <= 10; page++)); do
+    if ((page == 1)); then
+      response="$(gh_api "$endpoint")" || die "inventory page request failed"
+    else
+      response="$(gh_api "${endpoint}&page=${page}")" || die "inventory page request failed"
+    fi
+    count="$(jq -er 'if type == "array" then length elif (.workflow_runs | type) == "array" then .workflow_runs | length else error("invalid inventory page") end' <<<"$response")" || die "invalid inventory page"
+    [[ "$count" =~ ^[0-9]+$ && "$count" -le 100 ]] || die "invalid inventory page size"
+    printf '%s\n' "$response"
+    ((count == 100)) || return 0
+  done
+  die "inventory exceeds the ten-page budget; refusing incomplete records"
+}
+
 gh_watch_run() {
-  local repository="$1" run_id="$2" token
+  local repository="$1" run_id="$2" run_json attempt
   assert_js_safe_positive_integer "$run_id" "workflow run ID"
-  freeze_gh_transport
-  if [[ "${GOPLACES_RELEASE_LOCAL_TESTING:-0}" == 1 ]]; then
-    /usr/bin/env -u BASH_ENV -u ENV -u CDPATH -u BASHOPTS -u SHELLOPTS \
-      -u GITHUB_TOKEN -u GH_TOKEN -u GH_HOST -u GH_CONFIG_DIR -u XDG_CONFIG_HOME -u GH_ENTERPRISE_TOKEN -u GITHUB_ENTERPRISE_TOKEN \
-      -u HOMEBREW_GITHUB_API_TOKEN -u HOMEBREW_TAP_GITHUB_TOKEN \
-      "$gh_binary" run watch "$run_id" --repo "github.com/${repository}" --exit-status
-  else
-    [[ "${HOME:-}" == /* ]] || die "HOME must be absolute for GitHub authentication"
-    /bin/mkdir -p "${git_isolation_root}/gh-config"
-    /bin/chmod 700 "${git_isolation_root}/gh-config"
-    token=$(gh_auth_token) || die "could not obtain GitHub authentication"
-    [[ "$token" =~ ^[A-Za-z0-9_.-]+$ ]] || die "GitHub authentication token is empty or unsafe"
-    /usr/bin/env -i PATH="$CLEAN_SYSTEM_PATH" HOME="${git_isolation_root}/home" GH_CONFIG_DIR="${git_isolation_root}/gh-config" \
-      TMPDIR="${git_isolation_root}/tmp" LC_ALL=C TZ=UTC \
-      /bin/bash -p -c 'IFS= read -r GH_TOKEN <&3; exec 3<&-; export GH_TOKEN; exec "$@"' \
-      release-local-gh "$gh_binary" run watch "$run_id" --repo "github.com/${repository}" --exit-status 3<<<"$token"
-    unset token
-  fi
+  for ((attempt = 1; attempt <= 8; attempt++)); do
+    run_json="$(gh_api "repos/${repository}/actions/runs/${run_id}")"
+    jq -e --argjson id "$run_id" '.id == $id' <<<"$run_json" >/dev/null || die "workflow run identity changed"
+    if [[ "$(jq -r '.status' <<<"$run_json")" == completed ]]; then
+      [[ "$(jq -r '.conclusion' <<<"$run_json")" == success ]] || die "workflow run ${run_id} did not succeed"
+      return 0
+    fi
+    ((attempt < 8)) || break
+    echo "release-local: run ${run_id} pending; checking again in 300 seconds" >&2
+    sleep 300
+  done
+  die "workflow run ${run_id} exceeded the bounded wait; resume with its stored identity"
 }
 
 homebrew_git() {
@@ -1012,6 +1024,7 @@ preflight_repository() {
   [[ "$native_go" == "$EXPECTED_GO_VERSION" ]] || die "requires native $EXPECTED_GO_VERSION, found $native_go"
   require_regular_file "${protected_source_root}/go.mod"
   grep -Eq '^go 1\.26\.8$' "${protected_source_root}/go.mod" || die "protected go.mod must require Go 1.26.8"
+  grep -Eq '^toolchain go1\.27\.2$' "${protected_source_root}/go.mod" || die "protected go.mod must select Go 1.27.2"
   require_regular_file "${protected_source_root}/.goreleaser.yml"
   if grep -Eq 'homebrew_|HOMEBREW_|com\.apple\.quarantine|xattr' "${protected_source_root}/.goreleaser.yml"; then
     die "GoReleaser config must not publish Homebrew metadata or strip quarantine"
@@ -1219,7 +1232,7 @@ expected_assets_json() {
 
 resolve_release_id() {
   local tag="$1" pages count
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   count="$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")"
   [[ "$count" == "1" ]] || die "expected exactly one release for $tag, found $count"
   jq -ser --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)][0].id | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)' <<<"$pages"
@@ -1227,7 +1240,7 @@ resolve_release_id() {
 
 ensure_release_absent() {
   local tag="$1" pages count
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   count="$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")"
   [[ "$count" == "0" ]] || die "a release already exists for $tag"
 }
@@ -1259,7 +1272,7 @@ prepare_draft_intent() {
     return 0
   fi
   created_after="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   jq -es 'all(.[][]; (.id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .))' <<<"$pages" >/dev/null ||
     die "release inventory contains an unsafe numeric ID"
   [[ "$(jq -s --arg tag "$tag" '[.[] | .[] | select(.tag_name == $tag)] | length' <<<"$pages")" == 0 ]] ||
@@ -1281,7 +1294,7 @@ prepare_draft_intent() {
 resolve_intended_draft_id() {
   local tag="$1" intent="${release_state_dir}/draft-intent.json" pages matches count release_id
   require_regular_file "$intent"
-  pages="$(gh_api --paginate "repos/${REPOSITORY}/releases?per_page=100")"
+  pages="$(gh_api_pages "repos/${REPOSITORY}/releases?per_page=100")" || die "could not fetch the complete inventory"
   matches="$(jq -sc --slurpfile intent "$intent" --arg tag "$tag" '
     [.[] | .[] | select(.tag_name == $tag) |
       select(.id | type == "number" and . > 0 and . <= 9007199254740991 and floor == .) |
@@ -1359,7 +1372,8 @@ canonical_release_record() {
 }
 
 release_identity() {
-  jq -S 'del(.state, .draft, .published_at, .updated_at)' "$1"
+  # Canonical validation binds each state's URL; GitHub changes it at publication.
+  jq -S 'del(.state, .draft, .published_at, .updated_at) | .assets |= map(del(.browser_download_url))' "$1"
 }
 
 fetch_release_record() {
@@ -1406,7 +1420,7 @@ verify_frozen_release_current_state() {
   release_id="$(load_frozen_release_id)"
   raw="$(mktemp "${TMPDIR:-/tmp}/goplaces-release-current.XXXXXX")"
   gh_api "repos/${REPOSITORY}/releases/${release_id}" > "$raw"
-  draft="$(jq -er '.draft | select(type == "boolean")' "$raw")" || die "release draft state is malformed"
+  draft="$(jq -er '.draft | if type == "boolean" then tostring else error("invalid draft state") end' "$raw")" || die "release draft state is malformed"
   if [[ "$draft" == true ]]; then state=draft; else state=published; fi
   canonical_release_record "$raw" "$output" "$tag" "$state" "$notes"
   rm -f "$raw"
@@ -1464,7 +1478,7 @@ workflow_record() {
 fetch_workflow_runs() {
   local repository="$1" workflow_id="$2" branch="$3" output="$4" pages
   assert_js_safe_positive_integer "$workflow_id" "workflow ID"
-  pages="$(gh_api --paginate "repos/${repository}/actions/workflows/${workflow_id}/runs?event=workflow_dispatch&branch=${branch}&per_page=100")"
+  pages="$(gh_api_pages "repos/${repository}/actions/workflows/${workflow_id}/runs?event=workflow_dispatch&branch=${branch}&per_page=100")" || die "could not fetch the complete inventory"
   jq -es '
     def safe_integer: type == "number" and . > 0 and . <= 9007199254740991 and floor == .;
     [.[] | .workflow_runs[]] as $runs |
@@ -1865,8 +1879,8 @@ validate_govulncheck_build_info() {
   local build_info="$1" executable="$2"
   "$GREP_BIN" -Fqx "${executable}: ${EXPECTED_GO_VERSION}" <<< "$build_info" || die "govulncheck was not built with ${EXPECTED_GO_VERSION}"
   "$GREP_BIN" -Fqx $'\tpath\tgolang.org/x/vuln/cmd/govulncheck' <<< "$build_info" || die "govulncheck command path is not exact"
-  "$GREP_BIN" -Fqx $'\tmod\tgolang.org/x/vuln\tv1.8.0\t'"$EXPECTED_GOVULNCHECK_MODULE_SUM" <<< "$build_info" ||
-    die "govulncheck module identity is not the reviewed v1.8.0 sum"
+  "$GREP_BIN" -Fqx $'\tmod\tgolang.org/x/vuln\tv1.9.0\t'"$EXPECTED_GOVULNCHECK_MODULE_SUM" <<< "$build_info" ||
+    die "govulncheck module identity is not the reviewed v1.9.0 sum"
 }
 
 run_check_suite() {
@@ -1921,7 +1935,7 @@ run_check_suite() {
     cd "$source"
     "${download_env[@]}" "$go_bin" mod download all
   )
-  "${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+  "${download_env[@]}" GOBIN="$audit_bin" "$go_bin" install golang.org/x/vuln/cmd/govulncheck@v1.9.0
   /bin/chmod 500 "$govulncheck_bin"
   require_canonical_executable "$govulncheck_bin" "frozen govulncheck"
   govulncheck_build_info="$(/usr/bin/env -i PATH="$SECRET_SCOPE_SYSTEM_PATH" HOME="${scratch}/home" TMPDIR="${scratch}/tmp" LC_ALL=C TZ=UTC GOROOT="$producer_go_root" "$go_bin" version -m "$govulncheck_bin")" ||

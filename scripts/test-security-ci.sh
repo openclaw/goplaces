@@ -119,7 +119,8 @@ require_code_pattern() {
   local workflow="$1"
   local pattern="$2"
   local description="$3"
-  if ! grep -Ev '^[[:space:]]*#' "$workflow" | grep -Eq "$pattern"; then
+  # Read the complete input so pipefail cannot mistake an upstream SIGPIPE for a missing proof.
+  if ! grep -Ev '^[[:space:]]*#' "$workflow" | grep -E "$pattern" >/dev/null; then
     die "$workflow omits executable $description"
   fi
 }
@@ -138,7 +139,7 @@ run_lines = steps.flat_map do |step|
 end
 required_runs = [
   'shellcheck_bin="$(./scripts/bootstrap-shellcheck.sh "$RUNNER_TEMP/shellcheck")"',
-  "go install golang.org/x/vuln/cmd/govulncheck@v1.8.0",
+  "go install golang.org/x/vuln/cmd/govulncheck@v1.9.0",
   "./scripts/verify-snapshot-security.sh",
   "./scripts/test-reproducible-builds.sh dist",
   "./scripts/test-codesign-macos.sh",
@@ -152,7 +153,7 @@ raise "missing active source scan" unless run_lines.any? { |line| line.match?(%r
 snapshot = steps.find { |step| step["run"].to_s.strip == "./scripts/verify-snapshot-security.sh" }
 raise "snapshot clean gate missing" unless snapshot&.fetch("env", {})&.fetch("SNAPSHOT_REQUIRE_CLEAN", nil).to_s == "1"
 goreleaser = steps.find { |step| step["uses"] == "goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94" && step.fetch("with", {})["args"] == "release --snapshot --clean --skip=publish --config .goreleaser.yml" }
-raise "active GoReleaser snapshot missing" unless goreleaser && goreleaser.fetch("with", {})["version"] == "v2.18.2"
+raise "active GoReleaser snapshot missing" unless goreleaser && goreleaser.fetch("with", {})["version"] == "v2.18.3"
 RUBY
 }
 
@@ -160,9 +161,9 @@ assert_workflow_proof() {
   local workflow="$1"
   local contract_test
 
-  require_code_pattern "$workflow" '^[[:space:]]+version:[[:space:]]+v2\.18\.2[[:space:]]*$' "GoReleaser v2.18.2 pin"
+  require_code_pattern "$workflow" '^[[:space:]]+version:[[:space:]]+v2\.18\.3[[:space:]]*$' "GoReleaser v2.18.3 pin"
   require_code_pattern "$workflow" '^[[:space:]]+args:[[:space:]]+release --snapshot --clean --skip=publish --config \.goreleaser\.yml[[:space:]]*$' "non-publishing snapshot"
-  require_code_pattern "$workflow" '^[[:space:]]+run:[[:space:]]+go install golang\.org/x/vuln/cmd/govulncheck@v1\.8\.0[[:space:]]*$' "govulncheck v1.8.0 install"
+  require_code_pattern "$workflow" '^[[:space:]]+run:[[:space:]]+go install golang\.org/x/vuln/cmd/govulncheck@v1\.9\.0[[:space:]]*$' "govulncheck v1.9.0 install"
   # shellcheck disable=SC2016
   require_code_pattern "$workflow" 'shellcheck_bin="\$\(\./scripts/bootstrap-shellcheck\.sh "\$RUNNER_TEMP/shellcheck"\)"' "pinned ShellCheck bootstrap"
   require_code_pattern "$workflow" '^[[:space:]]+run:[^#]*govulncheck[^#]*-db=https://vuln\.go\.dev[^#]*-test[[:space:]]+\./\.\.\.[^#]*$' "official-database source vulnerability scan including tests"
@@ -174,6 +175,11 @@ assert_workflow_proof() {
   done
   assert_active_workflow_steps "$workflow" || die "$workflow release proofs are not active workflow steps"
 }
+
+require_code_pattern <(awk 'BEGIN {
+  print "proof: present"
+  for (i = 0; i < 8192; i++) print "fixture: padding"
+}') '^proof: present$' "early proof in a large workflow"
 
 for workflow in "$release_workflow" "$ci_workflow"; do
   assert_workflow_safe "$workflow"
@@ -574,7 +580,7 @@ case "$binary" in
   *windows_arm64*) goos=windows; goarch=arm64 ;;
   *) exit 2 ;;
 esac
-toolchain=go1.26.8
+toolchain=go1.27.2
 main=github.com/steipete/goplaces/cmd/goplaces
 if [[ "${MOCK_BUILD_INFO_FAULT:-}" == "toolchain" ]]; then toolchain=go0.0.0; fi
 if [[ "${MOCK_BUILD_INFO_FAULT:-}" == "main" ]]; then main=example.invalid/hostile; fi

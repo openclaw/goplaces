@@ -77,7 +77,7 @@ if [[ $# -gt 0 ]]; then
 fi
 for kind in "${kinds[@]}"; do
   if [[ "$kind" == go ]]; then
-    valid_version=1.26.8
+    valid_version=1.27.2
     installed_suffix=go/bin/go
   else
     valid_version=0.11.0
