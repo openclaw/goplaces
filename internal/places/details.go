@@ -35,6 +35,7 @@ func (c *Client) DetailsWithOptions(ctx context.Context, req DetailsRequest) (Pl
 	endpoint, err := c.buildURL(path, map[string]string{
 		"languageCode": strings.TrimSpace(req.Language),
 		"regionCode":   strings.TrimSpace(req.Region),
+		"sessionToken": strings.TrimSpace(req.SessionToken),
 	})
 	if err != nil {
 		return PlaceDetails{}, err

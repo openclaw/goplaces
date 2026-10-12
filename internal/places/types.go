@@ -125,9 +125,11 @@ type LocationResolveRequest struct {
 
 // DetailsRequest fetches place details with optional locale hints.
 type DetailsRequest struct {
-	PlaceID  string `json:"place_id"`
-	Language string `json:"language,omitempty"`
-	Region   string `json:"region,omitempty"`
+	// SessionToken completes the matching autocomplete session for billing.
+	SessionToken string `json:"session_token,omitempty"`
+	PlaceID      string `json:"place_id"`
+	Language     string `json:"language,omitempty"`
+	Region       string `json:"region,omitempty"`
 	// IncludeReviews requests the reviews field in Place Details.
 	IncludeReviews bool `json:"include_reviews,omitempty"`
 	// IncludePhotos requests the photos field in Place Details.

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Details: accept the matching autocomplete session token in the library and CLI so the documented session billing workflow can complete.
 - Release: resume published releases without rejecting their `draft: false` state.
 
 ## 0.4.12 - 2026-10-11
