@@ -152,7 +152,7 @@ raise "missing active source scan" unless run_lines.any? { |line| line.match?(%r
 
 snapshot = steps.find { |step| step["run"].to_s.strip == "./scripts/verify-snapshot-security.sh" }
 raise "snapshot clean gate missing" unless snapshot&.fetch("env", {})&.fetch("SNAPSHOT_REQUIRE_CLEAN", nil).to_s == "1"
-goreleaser = steps.find { |step| step["uses"] == "goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94" && step.fetch("with", {})["args"] == "release --snapshot --clean --skip=publish --config .goreleaser.yml" }
+goreleaser = steps.find { |step| step["uses"] == "goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de" && step.fetch("with", {})["args"] == "release --snapshot --clean --skip=publish --config .goreleaser.yml" }
 raise "active GoReleaser snapshot missing" unless goreleaser && goreleaser.fetch("with", {})["version"] == "v2.18.3"
 RUBY
 }
