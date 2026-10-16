@@ -49,9 +49,7 @@ jobs:
       - name: Test latest Go on Windows
         run: go test -race ./...
   audit:
-    # The release contract exercises pinned macOS signing/verifier tools with
-    # test doubles; run the whole audit on the platform whose system paths and
-    # BSD tool semantics those boundaries deliberately freeze.
+    # Snapshot provenance and tool bootstrap fixtures use macOS system tools.
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -112,16 +110,7 @@ jobs:
         run: ./scripts/verify-snapshot-security.sh
       - name: Reproducible cross-platform binaries
         run: ./scripts/test-reproducible-builds.sh dist
-      - name: Install reviewed GitHub CLI
-        # The contract suite resolves the real Homebrew gh, so the runner image's
-        # preinstalled version must match EXPECTED_GH_VERSION in release-local.
-        run: |
-          brew update
-          brew upgrade gh || brew install gh
-          /opt/homebrew/opt/gh/bin/gh --version
       - name: Release contract tests
         run: |
-          ./scripts/test-codesign-macos.sh
-          ./scripts/test-release-assets.sh
-          ./scripts/test-release-local.sh
+          ./scripts/test-macos-minimum.sh
           ./scripts/test-security-ci.sh

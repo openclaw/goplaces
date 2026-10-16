@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Release: publish through the shared GitHub Actions pipeline with signed, notarized macOS archives, a macOS 13 minimum gate, independent verification, and verified Homebrew handoff.
+
 - Build: update setup-node to 7.1.0 and goreleaser-action to 7.3.0 for dependency fixes, Node installation validation, and verified GoReleaser binary cache reuse.
 - Release: resume published releases without rejecting their `draft: false` state.
 
