@@ -11,7 +11,7 @@ cd "$repo_root"
 # shellcheck source=scripts/test-git-fixture.sh
 source "$repo_root/scripts/test-git-fixture.sh"
 
-release_workflow=.github/workflows/release.yml
+release_workflow=.github/workflows/release-check.yml
 ci_workflow=.github/workflows/ci.yml
 hydrate_workflow=.github/workflows/crabbox-hydrate.yml
 pages_workflow=.github/workflows/pages.yml
@@ -142,9 +142,7 @@ required_runs = [
   "go install golang.org/x/vuln/cmd/govulncheck@v1.9.0",
   "./scripts/verify-snapshot-security.sh",
   "./scripts/test-reproducible-builds.sh dist",
-  "./scripts/test-codesign-macos.sh",
-  "./scripts/test-release-assets.sh",
-  "./scripts/test-release-local.sh",
+  "./scripts/test-macos-minimum.sh",
   "./scripts/test-security-ci.sh",
 ]
 required_runs.each { |command| raise "missing active #{command}" unless run_lines.include?(command) }
@@ -170,7 +168,7 @@ assert_workflow_proof() {
   require_code_pattern "$workflow" '^[[:space:]]+SNAPSHOT_REQUIRE_CLEAN:[[:space:]]+"1"[[:space:]]*$' "clean snapshot provenance requirement"
   require_code_pattern "$workflow" '^[[:space:]]+run:[[:space:]]+\./scripts/verify-snapshot-security\.sh[[:space:]]*$' "snapshot binary verification"
   require_code_pattern "$workflow" '^[[:space:]]+run:[[:space:]]+\./scripts/test-reproducible-builds\.sh dist[[:space:]]*$' "snapshot recipe reproduction"
-  for contract_test in test-codesign-macos.sh test-release-assets.sh test-release-local.sh test-security-ci.sh; do
+  for contract_test in test-macos-minimum.sh test-security-ci.sh; do
     require_code_pattern "$workflow" "^[[:space:]]+\\./scripts/${contract_test}[[:space:]]*$" "$contract_test"
   done
   assert_active_workflow_steps "$workflow" || die "$workflow release proofs are not active workflow steps"

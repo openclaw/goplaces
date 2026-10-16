@@ -1,66 +1,49 @@
-name: release-check
+name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer to release or rehearse
+        required: true
+        type: string
+      dry_run:
+        description: Build, sign, notarize and verify without publishing
+        type: boolean
+        default: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  validate:
-    # Tag CI is credential-free, but its release-contract mocks intentionally
-    # exercise macOS-only producer and verifier boundaries.
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.27.2"
-          cache: true
-      - name: Install dependencies
-        run: go mod download
-      - name: Install pinned ShellCheck
-        run: |
-          shellcheck_bin="$(./scripts/bootstrap-shellcheck.sh "$RUNNER_TEMP/shellcheck")"
-          printf '%s\n' "${shellcheck_bin%/*}" >> "$GITHUB_PATH"
-      - name: Unit and race tests
-        run: |
-          go test ./...
-          go test -race ./...
-      - name: Vet
-        run: go vet ./...
-      - name: Install reviewed GitHub CLI
-        # The contract suite resolves the real Homebrew gh, so the runner image's
-        # preinstalled version must match EXPECTED_GH_VERSION in release-local.
-        run: |
-          brew update
-          brew upgrade gh || brew install gh
-          /opt/homebrew/opt/gh/bin/gh --version
-      - name: Release contract tests
-        run: |
-          ./scripts/test-codesign-macos.sh
-          ./scripts/test-release-assets.sh
-          ./scripts/test-release-local.sh
-          ./scripts/test-security-ci.sh
-      - name: Install vulnerability scanner
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
-      - name: Source vulnerability scan
-        run: '"$(go env GOPATH)/bin/govulncheck" -db=https://vuln.go.dev -test ./...'
-      - name: Build credential-free snapshot
-        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
-        with:
-          distribution: goreleaser
-          version: v2.18.3
-          args: release --snapshot --clean --skip=publish --config .goreleaser.yml
-      - name: Snapshot binary vulnerability scan
-        env:
-          SNAPSHOT_REQUIRE_CLEAN: "1"
-        run: ./scripts/verify-snapshot-security.sh
-      - name: Reproduce snapshot binaries
-        run: ./scripts/test-reproducible-builds.sh dist
+  release:
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      pull-requests: write
+      statuses: read
+    uses: openclaw/release-workflows/.github/workflows/release-go-cli.yml@v1
+    with:
+      version: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      repository-type: openclaw
+      homebrew-tap: openclaw/homebrew-tap
+      homebrew-formula: goplaces
+      checksum-filename: goplaces_checksums.txt
+      nfpm: disabled
+      build-runner: macos
+      stable-identifier: org.openclaw.goplaces
+      require-signed-tag: true
+      darwin-universal: disabled
+      ci-check-events: '["push"]'
+      strict-checks: true
+      reproducible-rebuild: non-darwin
+    secrets:
+      MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+      MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY_P8: ${{ secrets.ASC_PRIVATE_KEY_P8 }}
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
