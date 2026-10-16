@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-- Release: publish through the shared GitHub Actions pipeline with signed, notarized macOS archives, a macOS 13 minimum gate, independent verification, and verified Homebrew handoff.
+## 0.4.13 - 2026-10-16
 
-- Build: update setup-node to 7.1.0 and goreleaser-action to 7.3.0 for dependency fixes, Node installation validation, and verified GoReleaser binary cache reuse.
+**Highlights:** Signed and notarized releases now ship through GitHub Actions with verified Homebrew updates.
+
+- Release: publish through the shared GitHub Actions pipeline with signed, notarized macOS archives, a macOS 13 minimum gate, independent verification, and verified Homebrew handoff.
 - Release: resume published releases without rejecting their `draft: false` state.
+- Build: update setup-node to 7.1.0 and goreleaser-action to 7.3.0 for dependency fixes, Node installation validation, and verified GoReleaser binary cache reuse.
 
 ## 0.4.12 - 2026-10-11
 
