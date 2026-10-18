@@ -16,6 +16,8 @@ CI builds gosec 2.29.0 with `golang.org/x/tools` 0.52.0 in a temporary module so
 
 Use `make lint-check` to check formatting without modifying files. CI uses Go 1.27.2 on Linux, macOS, and Windows, runs race tests on macOS and Windows, and verifies the Node documentation metadata tests and generated index. Staticcheck runs through golangci-lint.
 
+The macOS audit and credential-free release checks use the Apple Silicon `xcode-27` runner (macOS 27). The existing Mach-O checks still require macOS 13.0 for both shipped Darwin architectures.
+
 ## Authenticated end-to-end tests
 
 End-to-end tests are optional because they call Google services and incur normal quota or billing usage.
