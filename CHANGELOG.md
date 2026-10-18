@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- CI: move macOS audits and credential-free release checks to macOS 27 runners while retaining the macOS 13.0 binary minimum.
 ## 0.4.13 - 2026-10-16
 
 **Highlights:** Signed and notarized releases now ship through GitHub Actions with verified Homebrew updates.
