@@ -578,7 +578,7 @@ case "$binary" in
   *windows_arm64*) goos=windows; goarch=arm64 ;;
   *) exit 2 ;;
 esac
-toolchain=go1.27.2
+toolchain=go1.27.3
 main=github.com/steipete/goplaces/cmd/goplaces
 if [[ "${MOCK_BUILD_INFO_FAULT:-}" == "toolchain" ]]; then toolchain=go0.0.0; fi
 if [[ "${MOCK_BUILD_INFO_FAULT:-}" == "main" ]]; then main=example.invalid/hostile; fi
