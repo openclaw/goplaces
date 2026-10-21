@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.4.14 - 2026-10-20
+
+**Highlights:** Fix reachable Go certificate-validation vulnerabilities in source builds and signed releases.
+
+- Security: build source, CI, and releases with Go 1.27.3 to fix reachable certificate-validation advisory GO-2026-6809 while retaining the Go 1.26.8 minimum.
+
 - CI: move macOS audits and credential-free release checks to macOS 27 runners while retaining the macOS 13.0 binary minimum.
 ## 0.4.13 - 2026-10-16
 
