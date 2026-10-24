@@ -30,11 +30,11 @@ func (g *GlobalOptions) loadAPIKeyFile(ctx *kong.Context) error {
 	}
 	contents, err := os.ReadFile(g.APIKeyFile)
 	if err != nil {
-		return errors.New("cannot read --api-key-file")
+		return errors.New("cannot read --api-key-file; select a readable plain-text API key file")
 	}
 	key := strings.TrimSpace(string(contents))
 	if key == "" {
-		return errors.New("--api-key-file is empty")
+		return errors.New("--api-key-file is empty; populate it with an API key")
 	}
 	g.APIKey = key
 	return nil

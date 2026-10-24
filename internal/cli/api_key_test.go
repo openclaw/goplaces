@@ -84,12 +84,12 @@ func TestRunAPIKeyFileFailures(t *testing.T) {
 		flags    []string
 		want     string
 	}{
-		{name: "empty", flags: []string{"--api-key-file", "FILE"}, want: "--api-key-file is empty"},
-		{name: "whitespace", contents: " \r\n\t", flags: []string{"--api-key-file=FILE"}, want: "--api-key-file is empty"},
-		{name: "missing", flags: []string{"--api-key-file", "MISSING"}, want: "cannot read --api-key-file"},
-		{name: "directory", flags: []string{"--api-key-file", "DIR"}, want: "cannot read --api-key-file"},
-		{name: "empty path", flags: []string{"--api-key-file="}, want: "cannot read --api-key-file"},
-		{name: "unreadable", contents: "synthetic-file-key", flags: []string{"--api-key-file", "FILE"}, want: "cannot read --api-key-file"},
+		{name: "empty", flags: []string{"--api-key-file", "FILE"}, want: "--api-key-file is empty; populate it with an API key"},
+		{name: "whitespace", contents: " \r\n\t", flags: []string{"--api-key-file=FILE"}, want: "--api-key-file is empty; populate it with an API key"},
+		{name: "missing", flags: []string{"--api-key-file", "MISSING"}, want: "cannot read --api-key-file; select a readable plain-text API key file"},
+		{name: "directory", flags: []string{"--api-key-file", "DIR"}, want: "cannot read --api-key-file; select a readable plain-text API key file"},
+		{name: "empty path", flags: []string{"--api-key-file="}, want: "cannot read --api-key-file; select a readable plain-text API key file"},
+		{name: "unreadable", contents: "synthetic-file-key", flags: []string{"--api-key-file", "FILE"}, want: "cannot read --api-key-file; select a readable plain-text API key file"},
 		{name: "explicit conflict", contents: "synthetic-file-key", flags: []string{"--api-key", "synthetic-flag-key", "--api-key-file", "FILE"}, want: "--api-key and --api-key-file cannot be used together"},
 		{name: "equals reverse conflict", contents: "synthetic-file-key", flags: []string{"--api-key-file=FILE", "--api-key=synthetic-flag-key"}, want: "--api-key and --api-key-file cannot be used together"},
 		{name: "explicit empty key conflict", contents: "synthetic-file-key", flags: []string{"--api-key=", "--api-key-file=FILE"}, want: "--api-key and --api-key-file cannot be used together"},
