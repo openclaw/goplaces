@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CLI: add `--api-key-file PATH` to read a key directly from a private text file, overriding inherited env and rejecting an explicit `--api-key` conflict.
+
 ## 0.4.14 - 2026-10-20
 
 **Highlights:** Fix reachable Go certificate-validation vulnerabilities in source builds and signed releases.
