@@ -20,6 +20,7 @@ type Root struct {
 // GlobalOptions are flags shared by all commands.
 type GlobalOptions struct {
 	APIKey            string        `help:"Google Places API key." env:"GOOGLE_PLACES_API_KEY"`
+	APIKeyFile        string        `help:"Read the API key from a plain text file (overrides env; conflicts with --api-key)." placeholder:"PATH"`
 	BaseURL           string        `help:"Places API base URL." env:"GOOGLE_PLACES_BASE_URL" default:"https://places.googleapis.com/v1"`
 	RoutesBaseURL     string        `help:"Routes API base URL." env:"GOOGLE_ROUTES_BASE_URL" default:"https://routes.googleapis.com"`
 	DirectionsBaseURL string        `help:"Directions Routes API base URL." env:"GOOGLE_DIRECTIONS_BASE_URL" default:"https://routes.googleapis.com"`
