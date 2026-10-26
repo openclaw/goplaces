@@ -25,7 +25,7 @@ jobs:
       - name: Test (coverage >= 90%)
         run: ./scripts/check-coverage.sh
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
       - name: Lint
         run: make lint-check GOLANGCI_LINT=golangci-lint
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -79,16 +79,8 @@ jobs:
           fi
       - name: Security scan
         run: |
-          tool_dir=$(mktemp -d)
-          trap 'rm -rf "$tool_dir"' EXIT
-          # gosec's pinned x/tools cannot read Go 1.27 export data.
-          (
-            cd "$tool_dir"
-            go mod init goplaces-gosec
-            go get github.com/securego/gosec/v2/cmd/gosec@v2.29.0 golang.org/x/tools@v0.52.0
-            go build -o "$tool_dir/gosec" github.com/securego/gosec/v2/cmd/gosec
-          )
-          "$tool_dir/gosec" ./...
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
+          "$(go env GOPATH)/bin/gosec" ./...
       - name: Install vulnerability scanner
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
       - name: Source vulnerability scan
@@ -96,13 +88,13 @@ jobs:
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
-          version: v2.18.3
+          version: v2.19.0
           args: check --config .goreleaser.yml
       - name: Build credential-free snapshot
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
-          version: v2.18.3
+          version: v2.19.0
           args: release --snapshot --clean --skip=publish --config .goreleaser.yml
       - name: Snapshot binary vulnerability scan
         env:

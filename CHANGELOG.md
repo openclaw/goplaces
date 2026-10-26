@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Build: update golangci-lint to 2.15.0, gosec to 2.30.0, and GoReleaser to 2.19.0; remove the temporary Go 1.27 importer workaround now supported upstream.
+
 ## 0.4.14 - 2026-10-20
 
 **Highlights:** Fix reachable Go certificate-validation vulnerabilities in source builds and signed releases.
