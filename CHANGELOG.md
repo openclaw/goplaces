@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CI: run CodeQL weekly and on pull requests or manual dispatch, retaining Actions, Go, and JavaScript analysis without duplicate scans on every main push.
+
 - Build: update golangci-lint to 2.15.0, gosec to 2.30.0, and GoReleaser to 2.19.0; remove the temporary Go 1.27 importer workaround now supported upstream.
 
 ## 0.4.14 - 2026-10-20
