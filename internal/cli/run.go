@@ -68,6 +68,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		writeError(stderr, err.Error())
 		return 2
 	}
+	if err := root.Global.loadAPIKeyFile(ctx); err != nil {
+		writeError(stderr, err.Error())
+		return 2
+	}
 	if root.Global.JSON {
 		// JSON output should never include ANSI escapes.
 		root.Global.NoColor = true

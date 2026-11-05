@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- CLI: add `--api-key-file PATH` with enforced private POSIX file permissions, env precedence, explicit-key conflict checks, and secret-free errors. Thanks @toruvieI.
 - Build: update Kong to 1.17.0 and the documentation-test runtime to Node 26.13.0, retaining the Go 1.26.8 minimum and Go 1.27.3 build toolchain.
 
 - CI: run CodeQL weekly and on pull requests or manual dispatch, retaining Actions, Go, and JavaScript analysis without duplicate scans on every main push.

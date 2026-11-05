@@ -22,3 +22,14 @@ Add the export to your shell configuration only if that file is private and appr
 Google Maps Platform usage is billed and quota-limited. Review the [Places API usage and billing documentation](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing), set quota limits, and configure budget alerts before unattended or high-volume use.
 
 `goplaces` does not proxy requests or manage credentials. Calls go to the configured Google endpoints unless you explicitly set an endpoint override.
+
+## Read a private key file
+
+On POSIX systems, `goplaces --api-key-file /path/to/key search "coffee"` reads
+the key inside the process. Use a regular file with mode `0600` (or `0400`);
+group or other permissions are rejected. LF and CRLF endings are accepted.
+The file overrides `GOOGLE_PLACES_API_KEY`, conflicts with an explicit
+`--api-key`, and fails without env fallback if unreadable, empty, or unsafe.
+The key is not exported to the environment or included in errors. File input
+fails closed on Windows, where mode bits cannot establish private ACLs;
+use the existing environment or flag option there.

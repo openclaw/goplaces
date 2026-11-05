@@ -70,7 +70,16 @@ These endpoint overrides are intended for tests, proxies, and mock servers:
 | `GOOGLE_ROUTES_BASE_URL` | `https://routes.googleapis.com` |
 | `GOOGLE_DIRECTIONS_BASE_URL` | `https://routes.googleapis.com` |
 
-Global flags include `--api-key`, `--timeout`, `--json`, and `--no-color`. Command-specific examples and response details live at [goplaces.sh](https://goplaces.sh).
+Alternatively, read a plain text key file directly inside goplaces, without putting the key in arguments or exporting it to the environment:
+
+```sh
+chmod 0600 /path/to/places-api-key
+goplaces --api-key-file /path/to/places-api-key search "coffee near Central Park"
+```
+
+Trailing newlines (LF or CRLF) are accepted. An explicit `--api-key-file` overrides `GOOGLE_PLACES_API_KEY`; combining it with an explicit `--api-key` fails. An unreadable or empty file fails without falling back to the environment. The opened file must be regular and have no group or other permissions (use `0600` or `0400`). File input is unavailable on Windows because POSIX mode bits cannot verify its ACL; the existing env and flag options remain available. This does not protect against code running as the same OS user that can read the file, or automatically remove a key already exported by a host application.
+
+Global flags include `--api-key`, `--api-key-file`, `--timeout`, `--json`, and `--no-color`. Command-specific examples and response details live at [goplaces.sh](https://goplaces.sh).
 
 Color output follows the [NO_COLOR convention](https://no-color.org/): a nonempty `NO_COLOR` value disables color; an empty value does not. `--no-color` always disables color, as does an unset or `dumb` terminal type.
 
