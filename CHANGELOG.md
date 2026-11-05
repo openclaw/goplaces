@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Build: update Kong to 1.17.0 and the documentation-test runtime to Node 26.13.0, retaining the Go 1.26.8 minimum and Go 1.27.3 build toolchain.
+
 - CI: run CodeQL weekly and on pull requests or manual dispatch, retaining Actions, Go, and JavaScript analysis without duplicate scans on every main push.
 
 - Build: update golangci-lint to 2.15.0, gosec to 2.30.0, and GoReleaser to 2.19.0; remove the temporary Go 1.27 importer workaround now supported upstream.
