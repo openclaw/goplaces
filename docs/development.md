@@ -12,7 +12,7 @@ make lint test coverage
 
 The coverage target enforces the repository's coverage threshold. The CI workflow also runs workflow linting, static analysis, security scanners, release configuration checks, and credential-free release builds.
 
-CI builds gosec 2.29.0 with `golang.org/x/tools` 0.52.0 in a temporary module so its importer supports Go 1.27 export data without adding scanner dependencies to the application module.
+CI uses golangci-lint 2.15.0 and gosec 2.30.0. Both include `golang.org/x/tools` 0.52.0 for Go 1.27 export-data support; gosec no longer needs a temporary module to override its importer dependency.
 
 Use `make lint-check` to check formatting without modifying files. CI uses Go 1.27.3 on Linux, macOS, and Windows, runs race tests on macOS and Windows, and verifies the Node documentation metadata tests and generated index. Staticcheck runs through golangci-lint.
 

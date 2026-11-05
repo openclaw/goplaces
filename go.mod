@@ -4,4 +4,4 @@ go 1.26.8
 
 toolchain go1.27.3
 
-require github.com/alecthomas/kong v1.16.1
+require github.com/alecthomas/kong v1.17.0

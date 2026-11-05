@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-- CLI: add `--api-key-file PATH` to read a key directly from a private text file, overriding inherited env and rejecting an explicit `--api-key` conflict.
+- CLI: add `--api-key-file PATH` with enforced private POSIX file permissions, env precedence, explicit-key conflict checks, and secret-free errors. Thanks @toruvieI.
+- Build: update Kong to 1.17.0 and the documentation-test runtime to Node 26.13.0, retaining the Go 1.26.8 minimum and Go 1.27.3 build toolchain.
+
+- CI: run CodeQL weekly and on pull requests or manual dispatch, retaining Actions, Go, and JavaScript analysis without duplicate scans on every main push.
+
+- Build: update golangci-lint to 2.15.0, gosec to 2.30.0, and GoReleaser to 2.19.0; remove the temporary Go 1.27 importer workaround now supported upstream.
 
 ## 0.4.14 - 2026-10-20
 

@@ -12,6 +12,9 @@ import (
 )
 
 func TestRunAPIKeyFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("private key-file modes require POSIX permissions")
+	}
 	for _, tc := range []struct {
 		name     string
 		contents string
@@ -51,7 +54,9 @@ func TestRunAPIKeyFile(t *testing.T) {
 				flags = append(flags, strings.ReplaceAll(flag, "FILE", path))
 			}
 			// Exercise global flags before the command and equals/space syntax.
-			args := append(flags, "search", "coffee", "--base-url", server.URL, "--json")
+			args := make([]string, 0, len(flags)+5)
+			args = append(args, flags...)
+			args = append(args, "search", "coffee", "--base-url", server.URL, "--json")
 			var stdout, stderr bytes.Buffer
 			if code := Run(args, &stdout, &stderr); code != 0 {
 				t.Fatalf("exit %d: %s", code, stderr.String())
@@ -78,6 +83,9 @@ func TestRunAPIKeyFile(t *testing.T) {
 }
 
 func TestRunAPIKeyFileFailures(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX key-file tests")
+	}
 	for _, tc := range []struct {
 		name     string
 		contents string
@@ -119,7 +127,8 @@ func TestRunAPIKeyFileFailures(t *testing.T) {
 				_, _ = w.Write([]byte(`{"places":[]}`))
 			}))
 			defer server.Close()
-			args := []string{"search", "coffee", "--base-url", server.URL, "--json"}
+			args := make([]string, 0, 5+len(tc.flags))
+			args = append(args, "search", "coffee", "--base-url", server.URL, "--json")
 			replacer := strings.NewReplacer("MISSING", path+"-missing", "DIR", filepath.Dir(path), "FILE", path)
 			for _, flag := range tc.flags {
 				args = append(args, replacer.Replace(flag))
@@ -154,5 +163,39 @@ func assertAPIKeyEnv(t *testing.T, want string, present bool) {
 	t.Helper()
 	if got, exists := os.LookupEnv("GOOGLE_PLACES_API_KEY"); got != want || exists != present {
 		t.Error("API key environment was mutated")
+	}
+}
+
+func TestRunAPIKeyFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX modes")
+	}
+	for _, mode := range []os.FileMode{0o644, 0o640, 0o604, 0o660, 0o606, 0o610, 0o601} {
+		t.Run(mode.String(), func(t *testing.T) {
+			t.Setenv("GOOGLE_PLACES_API_KEY", "synthetic-env-key")
+			path := writeAPIKeyFile(t, "synthetic-file-key")
+			if err := os.Chmod(path, mode); err != nil {
+				t.Fatal(err)
+			}
+			var stdout, stderr bytes.Buffer
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"places":[]}`)) }))
+			defer server.Close()
+			code := Run([]string{"--api-key-file", path, "search", "coffee", "--base-url", server.URL}, &stdout, &stderr)
+			if code != 2 || stdout.Len() != 0 || stderr.String() != "--api-key-file must be a private regular file; use chmod 0600\n" {
+				t.Fatalf("unexpected result: code=%d stdout=%s stderr=%s", code, &stdout, &stderr)
+			}
+		})
+	}
+}
+
+func TestRunAPIKeyFileWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific fail-closed policy")
+	}
+	t.Setenv("GOOGLE_PLACES_API_KEY", "synthetic-env-key")
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"--api-key-file", writeAPIKeyFile(t, "synthetic-file-key"), "search", "coffee"}, &stdout, &stderr)
+	if code != 2 || stdout.Len() != 0 || stderr.String() != "--api-key-file requires POSIX file permissions; use --api-key or GOOGLE_PLACES_API_KEY on Windows\n" {
+		t.Fatalf("unexpected result: code=%d stdout=%s stderr=%s", code, &stdout, &stderr)
 	}
 }
