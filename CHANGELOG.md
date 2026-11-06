@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-11-05
+
+**Highlights:** Read API keys from private files with `--api-key-file`, keeping keys out of command arguments and environment variables.
+
 - CLI: add `--api-key-file PATH` with enforced private POSIX file permissions, env precedence, explicit-key conflict checks, and secret-free errors. Thanks @toruvieI.
 - Build: update Kong to 1.17.0 and the documentation-test runtime to Node 26.13.0, retaining the Go 1.26.8 minimum and Go 1.27.3 build toolchain.
 
