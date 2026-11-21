@@ -1,6 +1,6 @@
 # Development
 
-The repository keeps Go 1.26.8 as its minimum version and selects Go 1.27.3 through the `toolchain` directive in `go.mod`. Use Go 1.27.3 for development and builds so standard-library security fixes are included.
+The repository keeps Go 1.26.8 as its minimum version and selects Go 1.27.4 through the `toolchain` directive in `go.mod`. Use Go 1.27.4 for development and builds so standard-library security fixes are included.
 
 ## Local checks
 
@@ -14,7 +14,9 @@ The coverage target enforces the repository's coverage threshold. The CI workflo
 
 CI uses golangci-lint 2.15.0 and gosec 2.30.0. Both include `golang.org/x/tools` 0.52.0 for Go 1.27 export-data support; gosec no longer needs a temporary module to override its importer dependency.
 
-Use `make lint-check` to check formatting without modifying files. CI uses Go 1.27.3 on Linux, macOS, and Windows, runs race tests on macOS and Windows, and verifies the Node documentation metadata tests and generated index. Staticcheck runs through golangci-lint.
+Use `make lint-check` to check formatting without modifying files. CI uses Go 1.27.4 on Linux, macOS, and Windows, runs race tests on macOS and Windows, and verifies the Node documentation metadata tests and generated index. Staticcheck runs through golangci-lint. Standalone checks use deadcode 0.53.0 and govulncheck 1.10.0.
+
+Documentation tests use Node 26.13.1. Credential-free snapshot builds use GoReleaser 2.20.3, including its generated-package security fix.
 
 The macOS audit and credential-free release checks use the Apple Silicon `xcode-27` runner (macOS 27). The existing Mach-O checks still require macOS 13.0 for both shipped Darwin architectures.
 
