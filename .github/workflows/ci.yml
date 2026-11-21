@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.3"
+          go-version: "1.27.4"
           cache: true
       - name: Install dependencies
         run: go mod download
@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.3"
+          go-version: "1.27.4"
           cache: true
       - name: Test latest Go on Windows
         run: go test -race ./...
@@ -57,7 +57,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.3"
+          go-version: "1.27.4"
           cache: true
       - name: Install dependencies
         run: go mod download
@@ -72,7 +72,7 @@ jobs:
       - name: Deadcode
         run: |
           output_file=$(mktemp)
-          go run golang.org/x/tools/cmd/deadcode@v0.52.0 -test ./... > "$output_file"
+          go run golang.org/x/tools/cmd/deadcode@v0.53.0 -test ./... > "$output_file"
           if [ -s "$output_file" ]; then
             cat "$output_file"
             exit 1
@@ -82,7 +82,7 @@ jobs:
           go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
           "$(go env GOPATH)/bin/gosec" ./...
       - name: Install vulnerability scanner
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
       - name: Source vulnerability scan
         run: '"$(go env GOPATH)/bin/govulncheck" -db=https://vuln.go.dev -test ./...'
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
