@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Security: build, test, and verify releases with Go 1.27.4 to fix GO-2026-6859 while retaining the Go 1.26.8 minimum; update deadcode to 0.53.0 and govulncheck to 1.10.0.
+- Build: update GoReleaser to 2.20.3 for its generated-package security fix, setup-go to 7.1.0, and the documentation-test runtime to Node 26.13.1.
 
 ## 0.5.0 - 2026-11-05
 
